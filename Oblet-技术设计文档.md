@@ -6,6 +6,7 @@
 > - 定位：GitHub 开源，MIT 许可
 > - 版本：v1 设计基线
 > - 修订：v1.1（2026-07-30 设计评审）——类名对齐改阅读视图体系、设置改窗口内浮层、图片收紧为绝对路径、换行符跟随原文件、时间盒聚焦 M1+M2 核心
+> - 修订：v1.2（2026-07-30 实装后）——编辑器改 Crepe 底座（数学/代码块/表格/工具栏成品化），主题兼容增加 --crepe-* 变量桥接
 
 ---
 
@@ -36,10 +37,10 @@
 |---|---|---|
 | 外壳 | Tauri 2.x | 体积小（<10MB）、启动快、绿色版友好 |
 | 前端构建 | Vite + TypeScript | 标配 |
-| 编辑器 | Milkdown 7（锁定 ≥7.21.3） | headless、全插件架构，所见即所得开箱即用；7.21.3 修复两个 XSS CVE（存储型 + DOM 型），作为安全基线 |
+| 编辑器 | Milkdown 7（锁定 ≥7.21.3）+ Crepe 成品编辑器底座 | v1.1 评审后改为手装插件，v1.2 起改用官方 Crepe 底座：斜杠菜单/工具栏/表格 UI/链接提示/图片块开箱即用；latex 功能以真节点实现数学公式（同时解决序列化转义问题）；7.21.3 修复两个 XSS CVE，作为安全基线 |
 | UI 框架 | 无（原生 DOM）或 Preact | 设置界面很小，避免引入重型框架 |
-| 数学 | KaTeX（@milkdown/plugin-math） | 决策已定 |
-| 代码高亮 | Shiki fine-grained 子集（Milkdown 插件） | 只打包 ~20 种常用语言 + github-light/dark 双主题随暗亮切换；全量 Shiki 6MB+，与轻量定位冲突 |
+| 数学 | KaTeX（Crepe latex 功能） | 决策已定 |
+| 代码高亮 | Crepe code-mirror 功能（CodeMirror 6 内核） | v1.1 曾定 Shiki 细粒度子集；改用 Crepe 后代码块为 CM6 编辑器（缩进/括号匹配/语言选择），高亮走 CM 体系，放弃 Shiki 方案 |
 | CSS 策略 | 一份「Ob 兼容基座」+ 主题注入 | 见第 4 节 |
 
 ## 3. 目录结构（仓库）
@@ -56,9 +57,8 @@ oblet/
 ├─ src/                  # 前端
 │  ├─ main.ts
 │  ├─ editor/
-│  │  ├─ setup.ts        # Milkdown 实例装配
-│  │  ├─ plugins.ts      # GFM / math / shiki / history
-│  │  └─ keymap.ts       # 快捷键映射层
+│  │  ├─ setup.ts        # Crepe 实例装配 + 文件生命周期
+│  │  └─ keymap.ts       # 快捷键映射层（M3）
 │  ├─ theme/
 │  │  ├─ bridge.ts       # CSS 变量桥接
 │  │  ├─ loader.ts       # theme.css 导入/注入/卸载

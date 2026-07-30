@@ -1,0 +1,300 @@
+/* Oblet 基座样式：Ob 兼容结构 + CSS 变量桥接
+ * 所有视觉值一律走 --ob-* 变量；变量桥接层（theme/bridge.ts 注入）负责
+ * 把 Obsidian 主题变量映射进来，未映射时用这里的 fallback 值。 */
+
+/* 桥接定义在 body 上：Ob 主题的变量定义在 body / body.theme-dark / body.theme-light
+ * 上，var() 在使用点解析，桥接层必须低于主题变量的定义层级才能命中 */
+body {
+  --ob-bg: var(--background-primary, #ffffff);
+  --ob-bg-alt: var(--background-secondary, #f5f6f8);
+  --ob-text: var(--text-normal, #222222);
+  --ob-text-mut: var(--text-muted, #888888);
+  --ob-text-faint: var(--text-faint, #aaaaaa);
+  --ob-accent: var(--interactive-accent, #7b6cd9);
+  --ob-link: var(--link-color, var(--text-accent, var(--interactive-accent, #7b6cd9)));
+  --ob-font: var(--font-text, var(--font-interface, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif));
+  --ob-font-mono: var(--font-monospace, Consolas, "Cascadia Mono", monospace);
+  --ob-font-size: var(--font-text-size, 16px);
+  --ob-h1: var(--h1-color, var(--text-normal, #222222));
+  --ob-h2: var(--h2-color, var(--text-normal, #222222));
+  --ob-h3: var(--h3-color, var(--text-normal, #222222));
+  --ob-h4: var(--h4-color, var(--text-normal, #222222));
+  --ob-h5: var(--h5-color, var(--text-normal, #222222));
+  --ob-h6: var(--h6-color, var(--text-normal, #222222));
+  --ob-h1-size: var(--h1-size, 1.8em);
+  --ob-h2-size: var(--h2-size, 1.6em);
+  --ob-h3-size: var(--h3-size, 1.4em);
+  --ob-h4-size: var(--h4-size, 1.25em);
+  --ob-h5-size: var(--h5-size, 1.1em);
+  --ob-h6-size: var(--h6-size, 1em);
+  --ob-quote-bg: var(--quote-background-color, transparent);
+  --ob-quote-border: var(--blockquote-border-color, var(--interactive-accent, #7b6cd9));
+  --ob-code-bg: var(--code-background, var(--background-secondary, #f5f6f8));
+  --ob-code-text: var(--code-normal, var(--text-normal, #222222));
+  --ob-border: var(--background-modifier-border, #e0e0e0);
+  --ob-selection: var(--text-selection, rgba(123, 108, 217, 0.25));
+
+  /* Crepe 组件变量 → Ob 桥接：工具栏/代码块/表格/斜杠菜单等组件随主题换肤 */
+  --crepe-color-background: var(--ob-bg);
+  --crepe-color-on-background: var(--ob-text);
+  --crepe-color-surface: var(--ob-bg-alt);
+  --crepe-color-surface-low: var(--background-primary-alt, var(--ob-bg-alt));
+  --crepe-color-on-surface: var(--ob-text);
+  --crepe-color-on-surface-variant: var(--ob-text-mut);
+  --crepe-color-on-secondary: var(--ob-text-mut);
+  --crepe-color-outline: var(--ob-border);
+  --crepe-color-primary: var(--ob-accent);
+  --crepe-color-secondary: var(--ob-selection);
+  --crepe-color-hover: var(--background-modifier-hover, var(--ob-bg-alt));
+  --crepe-color-selected: var(--ob-selection);
+  --crepe-color-inverse: var(--ob-text);
+  --crepe-color-on-inverse: var(--ob-bg);
+  --crepe-color-inline-code: var(--ob-code-text);
+  --crepe-color-inline-area: var(--ob-code-bg);
+  --crepe-color-diff-added: #2ea043;
+  --crepe-color-diff-added-bg: rgba(46, 160, 67, 0.15);
+  --crepe-color-diff-added-text: #2ea043;
+  --crepe-color-diff-removed: #f85149;
+  --crepe-color-diff-removed-bg: rgba(248, 81, 73, 0.15);
+  --crepe-color-diff-removed-text: #f85149;
+  --crepe-font-default: var(--ob-font);
+  --crepe-font-title: var(--ob-font);
+  --crepe-font-code: var(--ob-font-mono);
+  --crepe-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --crepe-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* 暗色模式 fallback（主题未定义变量时的兜底） */
+body.theme-dark {
+  --background-primary: #1e1e1e;
+  --background-secondary: #252525;
+  --text-normal: #dcddde;
+  --text-muted: #999;
+  --text-faint: #666;
+  --background-modifier-border: #333;
+  --text-selection: rgba(123, 108, 217, 0.35);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  font-family: var(--ob-font);
+  font-size: var(--ob-font-size);
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--ob-text-mut);
+}
+.empty-state p:first-child {
+  font-size: 2em;
+  color: var(--ob-text);
+}
+
+.readonly-banner,
+.external-change-tip {
+  padding: 6px 12px;
+  font-size: 0.85em;
+  background: var(--ob-bg-alt);
+  border-bottom: 1px solid var(--ob-border);
+  color: var(--ob-text-mut);
+}
+
+/* 编辑容器：对齐 Ob 阅读视图 */
+.markdown-rendered {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 40vh;
+  line-height: 1.6;
+}
+
+.markdown-rendered .ProseMirror {
+  outline: none;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.markdown-rendered .ProseMirror-focused::selection,
+.markdown-rendered ::selection {
+  background: var(--ob-selection);
+}
+
+.markdown-rendered h1 { color: var(--ob-h1); font-size: var(--ob-h1-size); }
+.markdown-rendered h2 { color: var(--ob-h2); font-size: var(--ob-h2-size); }
+.markdown-rendered h3 { color: var(--ob-h3); font-size: var(--ob-h3-size); }
+.markdown-rendered h4 { color: var(--ob-h4); font-size: var(--ob-h4-size); }
+.markdown-rendered h5 { color: var(--ob-h5); font-size: var(--ob-h5-size); }
+.markdown-rendered h6 { color: var(--ob-h6); font-size: var(--ob-h6-size); }
+
+.markdown-rendered a {
+  color: var(--ob-link);
+  text-decoration: none;
+}
+.markdown-rendered a:hover {
+  text-decoration: underline;
+}
+
+.markdown-rendered blockquote {
+  margin: 1em 0;
+  padding: 0.2em 1em;
+  background: var(--ob-quote-bg);
+  border-left: 4px solid var(--ob-quote-border);
+  color: var(--ob-text-mut);
+}
+
+.markdown-rendered code {
+  font-family: var(--ob-font-mono);
+  font-size: 0.9em;
+  background: var(--ob-code-bg);
+  color: var(--ob-code-text);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.markdown-rendered pre {
+  background: var(--ob-code-bg);
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+.markdown-rendered pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+
+.markdown-rendered hr {
+  border: none;
+  border-top: 1px solid var(--ob-border);
+  margin: 1.5em 0;
+}
+
+.markdown-rendered table {
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+.markdown-rendered th,
+.markdown-rendered td {
+  border: 1px solid var(--ob-border);
+  padding: 6px 12px;
+}
+.markdown-rendered th {
+  background: var(--ob-bg-alt);
+}
+
+/* 任务列表 */
+.markdown-rendered li.task-list-item {
+  list-style: none;
+  margin-left: -1.4em;
+}
+.markdown-rendered li.task-list-item input[type="checkbox"] {
+  margin-right: 0.4em;
+}
+
+/* Milkdown 占位/工具样式微调 */
+.ProseMirror p {
+  margin: 0.4em 0;
+}
+
+/* ---- 设置浮层 ---- */
+.settings-btn {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 30;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg);
+  color: var(--ob-text-mut);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.settings-btn:hover {
+  color: var(--ob-text);
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.settings-overlay.hidden {
+  display: none;
+}
+.settings-panel {
+  width: 420px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--ob-bg);
+  border: 1px solid var(--ob-border);
+  border-radius: 10px;
+  padding: 16px 20px 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.settings-close {
+  border: none;
+  background: none;
+  color: var(--ob-text-mut);
+  cursor: pointer;
+  font-size: 14px;
+}
+.settings-section h3 {
+  font-size: 0.9em;
+  color: var(--ob-text-mut);
+  margin: 14px 0 8px;
+}
+.mode-toggle button {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+.mode-toggle button.active {
+  background: var(--ob-accent);
+  border-color: var(--ob-accent);
+  color: #fff;
+}
+.theme-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.theme-list li {
+  padding: 5px 2px;
+}
+.theme-list label {
+  cursor: pointer;
+}
+.muted {
+  color: var(--ob-text-mut);
+}
+.small {
+  font-size: 0.82em;
+}

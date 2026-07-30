@@ -1,0 +1,30 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules
+dist
+dist-ssr
+
+# Rust / Tauri
+src-tauri/target
+src-tauri/gen/schemas
+
+# Runtime data (绿色版数据目录，运行时生成)
+data/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 本地参考素材（milkdown 官方示例库快照，体积大且无需入库）
+ref/milkdown-examples/
