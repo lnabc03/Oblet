@@ -45,6 +45,7 @@ node test-list-roundtrip.mjs    # 列表/任务列表污染回归
 - **ProseMirror 全局 `.ProseMirror table { table-layout: fixed }`** 会压垮自管理表格（属性栏曾因 `width:1%` 被按字面执行而列重叠），需局部覆盖 `table-layout: auto`。
 - **NodeView 无 contentDOM 时**，点击会产生 NodeSelection，节点选中态下按键会被 PM 用输入替换整个节点。属性栏的防线：`stopEvent` 全拦截 + `dom.contentEditable='false'` + 事务用 `doc.nodeAt(getPos())` 取新鲜节点（不用闭包缓存的 nodeSize）。
 - **`$view()` 传 `schema.node` 而非整个 `$NodeSchema`**。
+- **换图标后 exe 图标不更新**：tauri-build 不会因 `icons/` 变化重嵌资源，需 `touch src-tauri/build.rs`（或 `cargo clean -p oblet`）再 build。验证：`ExtractAssociatedIcon` 提取 exe 图标与 `icons/32x32.png` 比对。Explorer 另有一层按路径的图标缓存，验证时先看复制/重命名的副本。
 
 ## 已知合理规范化（不是 bug）
 
