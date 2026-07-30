@@ -5,6 +5,7 @@
 > - 平台：Windows（第一版）
 > - 定位：GitHub 开源，MIT 许可
 > - 版本：v1 设计基线
+> - 修订：v1.1（2026-07-30 设计评审）——类名对齐改阅读视图体系、设置改窗口内浮层、图片收紧为绝对路径、换行符跟随原文件、时间盒聚焦 M1+M2 核心
 
 ---
 
@@ -35,10 +36,10 @@
 |---|---|---|
 | 外壳 | Tauri 2.x | 体积小（<10MB）、启动快、绿色版友好 |
 | 前端构建 | Vite + TypeScript | 标配 |
-| 编辑器 | Milkdown 7 | headless、全插件架构，所见即所得开箱即用 |
+| 编辑器 | Milkdown 7（锁定 ≥7.21.3） | headless、全插件架构，所见即所得开箱即用；7.21.3 修复两个 XSS CVE（存储型 + DOM 型），作为安全基线 |
 | UI 框架 | 无（原生 DOM）或 Preact | 设置界面很小，避免引入重型框架 |
 | 数学 | KaTeX（@milkdown/plugin-math） | 决策已定 |
-| 代码高亮 | Shiki 或 Prism（Milkdown 插件） | Shiki 还原度更好，体积略大；建议 Shiki |
+| 代码高亮 | Shiki fine-grained 子集（Milkdown 插件） | 只打包 ~20 种常用语言 + github-light/dark 双主题随暗亮切换；全量 Shiki 6MB+，与轻量定位冲突 |
 | CSS 策略 | 一份「Ob 兼容基座」+ 主题注入 | 见第 4 节 |
 
 ## 3. 目录结构（仓库）
@@ -65,7 +66,7 @@ oblet/
 │  │  └─ fallback.css    # 内置默认主题（仿 Ob 默认）
 │  ├─ settings/
 │  │  ├─ schema.ts       # settings.json 类型定义
-│  │  └─ ui.ts           # 设置窗口
+│  │  └─ ui.ts           # 设置浮层（标题栏按钮 + Ctrl+, 唤起，非独立窗口）
 │  └─ styles/
 │     └─ obsidian-base.css  # Ob 类名结构基座
 ├─ scripts/
@@ -103,18 +104,19 @@ oblet/
 
 **轨道 B：DOM 类名对齐（主力，提升还原度）**
 
-Milkdown 是 headless 的，DOM 结构可自定义。为每个节点渲染器套上 Obsidian 的类名约定：
+> 修订说明：原方案对齐 Ob「实时预览」（CodeMirror 6）的 `.cm-line` / `.cm-header-*` 类名，但 Milkdown 基于 ProseMirror，DOM 按块组织、没有「行」的概念，该套类名无法套用。改为对齐 Ob「阅读视图」的 `.markdown-rendered` 体系——大多数社区主题对阅读视图的选择器覆盖最全，且与 Milkdown 的 DOM 结构天然吻合。
 
-| 元素 | Ob 类名 |
+Milkdown 是 headless 的，DOM 结构可自定义。容器与节点渲染器对齐 Obsidian 阅读视图的类名与标签约定：
+
+| 元素 | 对齐目标 |
 |---|---|
-| 编辑容器 | `.markdown-source-view.mod-cm6` |
-| 行 | `.cm-line` |
-| 标题 | `.cm-header-1` … `.cm-header-6` |
-| 加粗/斜体 | `.cm-strong` / `.cm-em` |
-| 链接 | `.cm-link` / `.cm-url` |
-| 代码块 | `.HyperMD-codeblock` 或 `.cm-line.code`（调研后定） |
-| 引用块 | `.HyperMD-quote` |
-| 预览渲染容器（如有纯预览态） | `.markdown-rendered` |
+| 编辑容器 | `.markdown-rendered`（及 Ob 常用修饰类，按需补） |
+| 标题 | 语义化 `<h1>` … `<h6>` |
+| 加粗/斜体 | `<strong>` / `<em>` |
+| 链接 | `<a>`，区分 `.internal-link` / `.external-link` |
+| 代码块 | `<pre><code>` 结构，与 Ob 阅读视图一致 |
+| 引用块 | `<blockquote>` |
+| 列表/任务 | `<ul>` / `<ol>` / `<li>`，任务项 `.task-list-item` + checkbox |
 
 模式切换时在 `document.body` 上挂 `.theme-dark` / `.theme-light`，主题 CSS 中对应的变量块自然生效。
 
@@ -123,7 +125,7 @@ Milkdown 是 headless 的，DOM 结构可自定义。为每个节点渲染器套
 1. **手动导入**：选择/拖入 `theme.css`（可选同目录 `manifest.json` 读取主题名、作者）→ 复制到 `./data/themes/<name>/` → 写入 settings 的主题列表 → 注入 `<style data-theme="name">`。
 2. **vault 读取**：设置中配置 vault 路径 → 扫描 `<vault>/.obsidian/themes/*/theme.css` → 与手动导入的主题合并列表，标记来源。
 3. **切换**：替换 `<style>` 内容 + 切换 body 类。Tauri 侧发 `theme-changed` 事件，其余窗口监听后同步换肤。
-4. **清理**：对 theme.css 做一次轻量 sanitize——剔除 `@import url(http…)` 远程引用和 `url(javascript:…)`，其余原样保留。
+4. **清理**：对 theme.css 做一次轻量 sanitize——剔除远程 CSS `@import url(http…)` 和 `url(javascript:…)`；**放行 https 字体/图片资源**（不少主题如 AnuPpuccin 引用 Google Fonts，剔除会导致字体静默回退、观感变差），并在 Tauri CSP 中放行对应来源。
 
 ### 4.3 验收标准（M2 出口）
 
@@ -146,10 +148,10 @@ Milkdown 是 headless 的，DOM 结构可自定义。为每个节点渲染器套
 
 ## 6. 文件与保存
 
-- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 第一版弹提示并只读）→ 每文件一个窗口。
-- **自动保存**：输入停止 1s 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。设置项可关闭自动保存。
+- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 第一版弹提示并只读）→ 每文件一个窗口。实例内维护 路径→窗口 映射：**重复打开同一文件时聚焦已有窗口**，防止两个窗口自动保存互相覆盖丢内容。
+- **自动保存**：输入停止 1s 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。设置项可关闭自动保存。**换行符跟随原文件**：打开时探测 CRLF/LF，保存时 Rust 侧把 Milkdown 输出的 LF 转换回原样，避免 git 管理的笔记出现全文件换行 diff。
 - **外部变更**：文件被外部修改时，若当前无未落盘内容则自动重载；有则弹提示（v1 不做三方合并）。
-- **本地图片**：按 md 文件所在目录解析相对路径，Tauri asset 协议映射加载。暂不支持粘贴图片落盘（v2 候选）。
+- **本地图片**：v1 仅支持绝对路径图片（`![](绝对路径)`），asset 协议 scope 放开；按 md 所在目录解析相对路径留 v2。暂不支持粘贴图片落盘（v2 候选）。
 
 ## 7. 配置方案 `./data`
 
@@ -181,6 +183,8 @@ data/
 
 ## 9. 里程碑
 
+> 近期时间盒（数天）目标：**M1 + M2 核心**（骨架可用 + 手动导入主题 + 暗亮切换 + fallback 主题）。M3、M4 进打磨期，不阻塞「能用」的内测版；打包/Actions/README 最后再补，避免时间不足时项目烂尾在「能跑但发不出」。
+
 | 里程碑 | 内容 | 出口标准 |
 |---|---|---|
 | **M1 骨架** | Tauri 工程、Milkdown 装配、打开/编辑/自动保存、单文件窗口 | 双击 md 可编辑并保存，GFM+数学+代码高亮可用 |
@@ -204,3 +208,5 @@ data/
 - 不做移动端、macOS、Linux
 - 不做安装器（绿色版 + 可选 reg 脚本）
 - 不做 Markdown 导出（PDF/HTML）
+- 不做源码模式：v1 仅所见即所得（Milkdown 无双模式），源码视图 v2 候选
+- 不做相对路径图片解析：v1 仅绝对路径图片
