@@ -1,10 +1,11 @@
 mod commands;
+mod settings;
 mod state;
-mod theme;
 
-use state::{window_label_for, AppState};
-use std::path::PathBuf;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use notify::EventKind;
+use state::{fnv1a, window_label_for, AppState};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// 打开文件对应窗口；已打开则聚焦
 fn open_or_focus(app: &AppHandle, path: &str) {
@@ -13,6 +14,15 @@ fn open_or_focus(app: &AppHandle, path: &str) {
         let _ = win.unminimize();
         let _ = win.set_focus();
         return;
+    }
+
+    // 拖入换过文件的窗口 label 与路径哈希不再对应，按登记路径再查一次
+    if let Some(existing) = app.state::<AppState>().label_for_path(path) {
+        if let Some(win) = app.get_webview_window(&existing) {
+            let _ = win.unminimize();
+            let _ = win.set_focus();
+            return;
+        }
     }
 
     let title = std::path::Path::new(path)
@@ -63,15 +73,69 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_window_file,
+            commands::set_window_file,
             commands::read_file,
             commands::write_file,
-            theme::get_settings,
-            theme::save_settings,
-            theme::list_themes,
-            theme::import_theme,
-            theme::read_theme,
+            commands::watch_file,
+            settings::get_settings,
+            settings::save_settings,
         ])
         .setup(|app| {
+            // 文件监听器：外部变更（如 Obsidian 保存）→ 通知对应窗口重载
+            let handle = app.handle().clone();
+            match notify::recommended_watcher(
+                move |res: Result<notify::Event, notify::Error>| {
+                    let Ok(event) = res else { return };
+                    if !matches!(
+                        event.kind,
+                        EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+                    ) {
+                        return;
+                    }
+                    // 编辑器保存常伴随一串事件，稍作去抖再读盘
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+
+                    let norm = |p: &Path| {
+                        p.to_string_lossy()
+                            .trim_start_matches(r"\\?\")
+                            .replace('/', "\\")
+                            .to_lowercase()
+                    };
+                    let state = handle.state::<AppState>();
+                    let watched: Vec<(String, PathBuf)> = state
+                        .watched
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+
+                    for (label, file) in watched {
+                        if !event.paths.iter().any(|p| norm(p) == norm(&file)) {
+                            continue;
+                        }
+                        if let Ok(bytes) = std::fs::read(&file) {
+                            // 文件仍在：哈希一致 = 自身写入或重复事件，跳过。
+                            // 注意：Windows 下"临时文件 + rename 覆盖保存"会对目标
+                            // 路径发 Remove 事件，不能见 Remove 就通知，否则每次
+                            // 自动保存都会误触发一次重载（空行被折叠、光标跳顶）。
+                            if state.is_stale_hash(&file.to_string_lossy(), fnv1a(&bytes)) {
+                                continue;
+                            }
+                        }
+                        // 读不到 = 真被外部删除/移动，放行通知（前端读失败会给提示）
+                        if let Some(win) = handle.get_webview_window(&label) {
+                            let _ = win.emit(&format!("file-changed:{label}"), ());
+                        }
+                    }
+                },
+            ) {
+                Ok(w) => {
+                    *app.state::<AppState>().watcher.lock().unwrap() = Some(w);
+                }
+                Err(e) => eprintln!("创建文件监听器失败: {e}"),
+            }
+
             let argv: Vec<String> = std::env::args().collect();
             let cwd = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())

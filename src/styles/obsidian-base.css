@@ -1,10 +1,12 @@
-/* Oblet 基座样式：Ob 兼容结构 + CSS 变量桥接
- * 所有视觉值一律走 --ob-* 变量；变量桥接层（theme/bridge.ts 注入）负责
- * 把 Obsidian 主题变量映射进来，未映射时用这里的 fallback 值。 */
+/* Oblet 基座样式：Ob 结构 + CSS 变量桥接
+ * 所有视觉值一律走 --ob-* 变量；变量取值自 AnuPpuccin 定制主题
+ * （anuppuccin-custom.css 静态打包，深色单主题），未定义时用这里的 fallback 值。 */
 
-/* 桥接定义在 body 上：Ob 主题的变量定义在 body / body.theme-dark / body.theme-light
- * 上，var() 在使用点解析，桥接层必须低于主题变量的定义层级才能命中 */
-body {
+/* 桥接定义在 body 和 .app-container 上：Ob 主题的变量定义在 body / body.theme-dark
+ * 等层级，AnuPpuccin 的部分变量（如 --h1-color）定义在后代 .app-container 上；
+ * var() 在使用点解析，桥接层需要覆盖这两个层级才能都命中 */
+body,
+.app-container {
   --ob-bg: var(--background-primary, #ffffff);
   --ob-bg-alt: var(--background-secondary, #f5f6f8);
   --ob-text: var(--text-normal, #222222);
@@ -33,6 +35,10 @@ body {
   --ob-code-text: var(--code-normal, var(--text-normal, #222222));
   --ob-border: var(--background-modifier-border, #e0e0e0);
   --ob-selection: var(--text-selection, rgba(123, 108, 217, 0.25));
+  --ob-list-marker: var(--list-marker-color, var(--text-muted, #888888));
+  --ob-bold: var(--bold-color, var(--text-normal, #222222));
+  --ob-italic: var(--italic-color, var(--text-normal, #222222));
+  --ob-strikethrough: var(--strikethrough-color, var(--text-muted, #888888));
 
   /* Crepe 组件变量 → Ob 桥接：工具栏/代码块/表格/斜杠菜单等组件随主题换肤 */
   --crepe-color-background: var(--ob-bg);
@@ -57,15 +63,25 @@ body {
   --crepe-color-diff-removed: #f85149;
   --crepe-color-diff-removed-bg: rgba(248, 81, 73, 0.15);
   --crepe-color-diff-removed-text: #f85149;
+  /* 编辑区文字=正文字体；标题=主题 --h1-font（AnuPpuccin 定义为界面字体），回退正文字体 */
   --crepe-font-default: var(--ob-font);
-  --crepe-font-title: var(--ob-font);
+  --crepe-font-title: var(--h1-font, var(--ob-font));
   --crepe-font-code: var(--ob-font-mono);
   --crepe-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.12);
   --crepe-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-/* 暗色模式 fallback（主题未定义变量时的兜底） */
-body.theme-dark {
+/* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
+body {
+  --anp-cursor: pointer;
+  --anp-depth-tab-opacity: 0.6;
+  --anp-file-label-align: 0;
+}
+
+/* 暗色模式 fallback（主题未定义变量时的兜底）
+ * 必须用 :where() 保持零优先级：AnuPpuccin 等主题用 .theme-dark 单类选择器
+ * 定义变量，body.theme-dark 的 (0,1,1) 优先级会压过它，导致深色 flavor 失效 */
+:where(body.theme-dark) {
   --background-primary: #1e1e1e;
   --background-secondary: #252525;
   --text-normal: #dcddde;
@@ -115,40 +131,106 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 24px 32px 40vh;
-  line-height: 1.6;
+  line-height: 1.75;
+}
+
+/* 滚动条：轨道透明、滑块低透明度、隐藏两端箭头按钮（主窗口与所有后代滚动容器通用） */
+.markdown-rendered::-webkit-scrollbar,
+.markdown-rendered *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.markdown-rendered::-webkit-scrollbar-track,
+.markdown-rendered *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.markdown-rendered::-webkit-scrollbar-thumb,
+.markdown-rendered *::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.25);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.markdown-rendered::-webkit-scrollbar-thumb:hover,
+.markdown-rendered *::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.45);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.markdown-rendered::-webkit-scrollbar-button,
+.markdown-rendered *::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.markdown-rendered::-webkit-scrollbar-corner,
+.markdown-rendered *::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .markdown-rendered .ProseMirror {
   outline: none;
-  max-width: 780px;
+  max-width: 1560px;
   margin: 0 auto;
+  padding: 0 40px; /* 窗口边缘强制留白；压掉 Crepe 的 60px 120px */
+}
+
+/* 光标：Crepe 用 prosemirror-virtual-cursor（2px 闪烁竖条），原生 caret 已隐藏。
+ * 不要设 caret-color（会把原生光标放出来变成双光标）；
+ * 只把虚拟光标颜色从边框灰调亮为正文色 */
+.markdown-rendered .ProseMirror-focused {
+  --prosemirror-virtual-cursor-color: var(--ob-text);
 }
 .markdown-rendered .ProseMirror-focused::selection,
 .markdown-rendered ::selection {
   background: var(--ob-selection);
 }
 
-.markdown-rendered h1 { color: var(--ob-h1); font-size: var(--ob-h1-size); }
-.markdown-rendered h2 { color: var(--ob-h2); font-size: var(--ob-h2-size); }
-.markdown-rendered h3 { color: var(--ob-h3); font-size: var(--ob-h3-size); }
-.markdown-rendered h4 { color: var(--ob-h4); font-size: var(--ob-h4-size); }
-.markdown-rendered h5 { color: var(--ob-h5); font-size: var(--ob-h5-size); }
-.markdown-rendered h6 { color: var(--ob-h6); font-size: var(--ob-h6-size); }
+/* 排版规则一律用 .markdown-rendered .ProseMirror 前缀（0,2,1）：
+ * Crepe reset.css 用 .milkdown .ProseMirror hN/p（0,2,1）把字号/行高钉成 px，
+ * 本文件加载在其后，同优先级靠顺序胜出，把控制权抢回 --ob-* 变量桥 */
+.markdown-rendered .ProseMirror h1 { color: var(--ob-h1); font-size: var(--ob-h1-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h2 { color: var(--ob-h2); font-size: var(--ob-h2-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h3 { color: var(--ob-h3); font-size: var(--ob-h3-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h4 { color: var(--ob-h4); font-size: var(--ob-h4-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h5 { color: var(--ob-h5); font-size: var(--ob-h5-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h6 { color: var(--ob-h6); font-size: var(--ob-h6-size); line-height: 1.3; }
 
-.markdown-rendered a {
+/* 正文：解除 Crepe 的 16px/24px 钉值，字号随 body（含用户 baseFontSize 内联） */
+.markdown-rendered .ProseMirror p {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.markdown-rendered strong {
+  color: var(--ob-bold);
+}
+.markdown-rendered em {
+  color: var(--ob-italic);
+}
+.markdown-rendered del {
+  color: var(--ob-strikethrough);
+}
+
+.markdown-rendered .ProseMirror a {
   color: var(--ob-link);
   text-decoration: none;
 }
-.markdown-rendered a:hover {
+.markdown-rendered .ProseMirror a:hover {
   text-decoration: underline;
 }
 
-.markdown-rendered blockquote {
+.markdown-rendered .ProseMirror blockquote:not(.callout) {
   margin: 1em 0;
   padding: 0.2em 1em;
   background: var(--ob-quote-bg);
   border-left: 4px solid var(--ob-quote-border);
+  border-radius: 6px;
   color: var(--ob-text-mut);
+}
+/* Crepe 用 ::before 画引用竖条，与 Ob/callout 的 border-left 风格冲突，统一屏蔽 */
+.markdown-rendered .ProseMirror blockquote::before {
+  display: none;
 }
 
 .markdown-rendered code {
@@ -174,22 +256,76 @@ body {
   line-height: 1.5;
 }
 
+/* CodeMirror 代码块：CM base theme 在 .cm-scroller 上硬编码 font-family: monospace，
+ * 任何变量桥都到不了；直接压掉（(0,3,1) > style-module 的 (0,1,0)），字号随正文 */
+.markdown-rendered .ProseMirror .cm-scroller {
+  font-family: var(--ob-font-mono);
+  font-size: 0.9em;
+}
+/* 取消 CodeMirror 光标所在行/行号的高亮底色 */
+.markdown-rendered .ProseMirror .cm-activeLine,
+.markdown-rendered .ProseMirror .cm-activeLineGutter {
+  background-color: transparent;
+}
+
+/* 代码块/公式块圆角 */
+.markdown-rendered .ProseMirror .milkdown-code-block {
+  border-radius: 6px;
+  overflow: hidden;
+}
+.markdown-rendered .ProseMirror .milkdown-code-block .cm-editor {
+  border-radius: 6px;
+}
+
+/* 块级公式：Crepe latex 特性渲染 KaTeX 预览（无自定义类名），
+ * 唯一带 .preview-toggle-button 的代码块就是公式块，据此识别：
+ * 容器去底色、隐藏 Preview 标签/分隔线、预览留白，与正文融为一体 */
+.markdown-rendered .ProseMirror .milkdown-code-block:has(.preview-toggle-button) {
+  background: transparent;
+}
+.markdown-rendered .ProseMirror .milkdown-code-block:has(.preview-toggle-button) .preview-label,
+.markdown-rendered .ProseMirror .milkdown-code-block:has(.preview-toggle-button) .preview-divider {
+  display: none;
+}
+.markdown-rendered .ProseMirror .milkdown-code-block .preview-panel .preview {
+  padding: 12px 16px;
+}
+
 .markdown-rendered hr {
   border: none;
   border-top: 1px solid var(--ob-border);
   margin: 1.5em 0;
 }
-
-.markdown-rendered table {
-  border-collapse: collapse;
-  margin: 1em 0;
+/* Crepe hr 用 background-clip: content-box 画线，覆盖其颜色（原 80% 透明太淡），
+ * 对齐无序标记色；20% 透明 + 2px 线高（height 14 - padding 12）更醒目 */
+.markdown-rendered .ProseMirror hr {
+  background-color: color-mix(in srgb, var(--ob-list-marker), transparent 20%);
+  height: 14px;
 }
-.markdown-rendered th,
-.markdown-rendered td {
+
+/* 表格：separate 模型才能出圆角；用单边边框拼网格避免 2px 双线 */
+.markdown-rendered .ProseMirror table {
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1em 0;
   border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.markdown-rendered .ProseMirror th,
+.markdown-rendered .ProseMirror td {
+  border: none;
+  border-left: 1px solid var(--ob-border);
+  border-top: 1px solid var(--ob-border);
   padding: 6px 12px;
 }
-.markdown-rendered th {
+.markdown-rendered .ProseMirror tr > :first-child {
+  border-left: none;
+}
+.markdown-rendered .ProseMirror tr:first-child > * {
+  border-top: none;
+}
+.markdown-rendered .ProseMirror th {
   background: var(--ob-bg-alt);
 }
 
@@ -202,12 +338,121 @@ body {
   margin-right: 0.4em;
 }
 
+/* 列表标记（•/1.）：Crepe 自绘 label-wrapper，颜色/行高映射到 Ob 变量
+ * Crepe 规则为 (0,3,1)，此处 (0,4,1) 压制 */
+.markdown-rendered .ProseMirror .milkdown-list-item-block li .label-wrapper {
+  color: var(--ob-list-marker);
+  height: 1.75em; /* Crepe 钉死 32px，字号放大后标记与文字错位；改为随行高缩放 */
+}
+.markdown-rendered .ProseMirror .milkdown-list-item-block li .label-wrapper .label {
+  height: auto;
+  padding: 0;
+}
+/* 无序圆点与任务框是 SVG（fill 不随 color），单独映射：
+ * 圆点/未勾选框 → --list-marker-color；已勾选 → 强调色（对齐 Ob 语义） */
+.markdown-rendered .ProseMirror .milkdown-list-item-block li .label-wrapper svg {
+  fill: var(--ob-list-marker);
+}
+.markdown-rendered .ProseMirror .milkdown-list-item-block li .label-wrapper .checked svg {
+  fill: var(--ob-accent);
+}
+/* 行内垂直居中：列表项内的 p 清零间距（全局 p margin/padding 会把文字
+ * 顶到标记右下方），清零后文字行高与 label-wrapper 同为 1.75em 自然对齐 */
+.markdown-rendered .ProseMirror .milkdown-list-item-block p {
+  margin: 0;
+  padding: 0;
+}
+
 /* Milkdown 占位/工具样式微调 */
 .ProseMirror p {
   margin: 0.4em 0;
 }
 
+/* 软换行可见：对齐 Obsidian 默认行为（段落内单换行渲染为换行而非空格）
+ * Milkdown 的 remarkLineBreak 把软换行解析为 isInline hardbreak 节点，
+ * 其 toDOM 是内含一个空格的 <span data-type="hardbreak">（而非 <br>），
+ * 所以必须用 CSS 把这个空格渲染成真正的换行 */
+.markdown-rendered p {
+  white-space: pre-line;
+}
+.markdown-rendered span[data-type="hardbreak"][data-is-inline="true"] {
+  font-size: 0; /* 隐藏 span 自带的占位空格 */
+}
+.markdown-rendered span[data-type="hardbreak"][data-is-inline="true"]::after {
+  content: "\A";
+  white-space: pre-wrap; /* 强制断行，视觉等同 <br> */
+}
+
+/* ==高亮==：变量取自主题（AnuPpuccin 经 --text-highlight-bg 注入） */
+.markdown-rendered .ob-highlight {
+  background-color: var(--text-highlight-bg, rgba(255, 213, 0, 0.35));
+  color: var(--text-normal);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* 语法标记隐藏（== 与 [!type]），光标行为近似 Ob 实时预览 */
+.ob-deco-hide {
+  display: none;
+}
+
+/* Callout 兜底样式（主题有 .callout 定义时主题优先——基座样式优先级低） */
+:where(.markdown-rendered) blockquote.callout {
+  --callout-color: 68, 138, 255;
+  background-color: rgba(var(--callout-color), 0.1);
+  border-left: 4px solid rgb(var(--callout-color));
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="warning"],
+:where(.markdown-rendered) blockquote.callout[data-callout="caution"] {
+  --callout-color: 234, 179, 8;
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="danger"],
+:where(.markdown-rendered) blockquote.callout[data-callout="failure"],
+:where(.markdown-rendered) blockquote.callout[data-callout="fail"] {
+  --callout-color: 239, 68, 68;
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="tip"],
+:where(.markdown-rendered) blockquote.callout[data-callout="hint"],
+:where(.markdown-rendered) blockquote.callout[data-callout="success"] {
+  --callout-color: 34, 197, 94;
+}
+/* 标题行：widget（span.callout-title，行内 flex 放图标）+ 行内标题文字
+ * Ob 行为：[!type] 后首行文字为自定义标题；无标题时 widget 追加类型名回退 */
+:where(.markdown-rendered) .callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: rgb(var(--callout-color));
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+:where(.markdown-rendered) .callout-title-text {
+  font-weight: 600;
+  color: rgb(var(--callout-color));
+}
+:where(.markdown-rendered) .callout-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+:where(.markdown-rendered) .callout-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ---- 设置浮层 ---- */
+/* UI 元素走界面字体（--font-interface），未设置时回退正文字体 */
+.settings-btn,
+.settings-panel,
+.readonly-banner,
+.external-change-tip,
+.empty-state {
+  font-family: var(--font-interface, var(--ob-font));
+}
+
 .settings-btn {
   position: fixed;
   top: 10px;
@@ -267,34 +512,100 @@ body {
   color: var(--ob-text-mut);
   margin: 14px 0 8px;
 }
-.mode-toggle button {
-  border: 1px solid var(--ob-border);
-  background: var(--ob-bg-alt);
-  color: var(--ob-text);
-  padding: 5px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-right: 8px;
-}
-.mode-toggle button.active {
-  background: var(--ob-accent);
-  border-color: var(--ob-accent);
-  color: #fff;
-}
-.theme-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.theme-list li {
-  padding: 5px 2px;
-}
-.theme-list label {
-  cursor: pointer;
-}
 .muted {
   color: var(--ob-text-mut);
 }
 .small {
   font-size: 0.82em;
+}
+
+/* 排版设置 */
+.typo-grid {
+  display: grid;
+  grid-template-columns: 5.5em 1fr;
+  gap: 8px 10px;
+  align-items: center;
+}
+.typo-grid label {
+  color: var(--ob-text-mut);
+  font-size: 0.9em;
+}
+.typo-grid input {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.9em;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.typo-grid input:focus {
+  outline: 1px solid var(--ob-accent);
+  border-color: var(--ob-accent);
+}
+
+/* Frontmatter（笔记属性）：键值对渲染为紧凑表格，值可直接编辑；
+   所有文字统一走界面字体与正文字号 */
+.markdown-rendered .ProseMirror .ob-frontmatter {
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  padding: 6px 12px 8px;
+  margin: 0 0 1em;
+  font-family: var(--font-interface, var(--ob-font));
+}
+.markdown-rendered .ProseMirror .ob-frontmatter-label {
+  letter-spacing: 0.12em;
+  color: var(--ob-text-mut);
+  opacity: 0.8;
+  margin-bottom: 2px;
+  user-select: none;
+}
+.markdown-rendered .ProseMirror .ob-frontmatter table {
+  width: 100%;
+  border-collapse: collapse;
+  /* 覆盖 ProseMirror 全局 table-layout: fixed——固定布局下键名列会被压成 1% 宽，文字溢出重叠 */
+  table-layout: auto;
+}
+.markdown-rendered .ProseMirror .ob-frontmatter td {
+  padding: 1px 4px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--ob-border);
+  vertical-align: middle;
+}
+.markdown-rendered .ProseMirror .ob-frontmatter tr:last-child td {
+  border-bottom: none;
+}
+.markdown-rendered .ProseMirror .ob-frontmatter td.fm-key {
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 14px;
+  color: var(--ob-text-mut);
+}
+.markdown-rendered .ProseMirror .ob-frontmatter td.fm-raw {
+  color: var(--ob-text-mut);
+}
+.markdown-rendered .ProseMirror .ob-frontmatter input {
+  width: 100%;
+  padding: 1px 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.markdown-rendered .ProseMirror .ob-frontmatter input:focus {
+  outline: 1px solid var(--ob-accent);
+}
+.markdown-rendered .ProseMirror .ob-frontmatter input:disabled {
+  cursor: default;
+}
+/* 键名输入框：宽度按内容（size 属性估算 + field-sizing 自适应增长），不撑满单元格 */
+.markdown-rendered .ProseMirror .ob-frontmatter input.fm-key-input {
+  width: auto;
+  max-width: 100%;
+  field-sizing: content;
 }

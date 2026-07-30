@@ -1,0 +1,42 @@
+{
+  "comment": "由 Obsidian Style Settings 配置生成的 Oblet 主题扩展：应用主题时把 bodyClasses 加到 body 上，cssVariables 注入为 body 内联变量",
+  "bodyClasses": [
+    "ctp-rosepine-light",
+    "ctp-mocha-old",
+    "ctp-accent-light-flamingo",
+    "ctp-accent-mauve",
+    "anp-current-line",
+    "anp-callout-sleek",
+    "anp-codeblock-edit-nowrap",
+    "anp-color-transition-toggle",
+    "anp-button-metadata-toggle",
+    "anp-print",
+    "anp-header-color-toggle",
+    "anp-decoration-toggle",
+    "anp-canvas-dark-bg",
+    "anp-custom-vault-toggle",
+    "anp-file-icons",
+    "anp-simple-rainbow-title-toggle",
+    "anp-simple-rainbow-collapse-icon-toggle",
+    "anp-simple-rainbow-indentation-toggle",
+    "anp-simple-rainbow-icon-toggle",
+    "anp-rainbow-subfolder-color-toggle",
+    "anp-disable-newtab-align",
+    "anp-highlight-blue",
+    "anp-simple-rainbow-color-toggle",
+    "anp-mini-tab-toggle",
+    "anp-h1-red",
+    "anp-h2-peach",
+    "anp-h3-green",
+    "anp-h4-teal",
+    "anp-h5-lavender",
+    "anp-h6-mauve",
+    "anp-bold-red",
+    "anp-italic-green"
+  ],
+  "cssVariables": {
+    "--anp-cursor": "pointer",
+    "--anp-depth-tab-opacity": "0.6",
+    "--anp-file-label-align": "0"
+  }
+}

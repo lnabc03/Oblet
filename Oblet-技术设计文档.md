@@ -1,12 +1,13 @@
 # Oblet 技术设计文档
 
-> 一个轻量、快速的独立 Markdown 编辑器：双击任意位置的 .md 即可打开编辑，外观兼容 Obsidian 主题，快捷键可继承 Obsidian 用户配置。
+> 一个轻量、快速、基于 Obsidian 和 AnuPpuccin 深度定制的独立 Markdown 编辑器：双击任意位置的 .md 即可打开编辑，开箱即是打磨到位的 AnuPpuccin 深色外观。
 >
 > - 平台：Windows（第一版）
 > - 定位：GitHub 开源，MIT 许可
-> - 版本：v1 设计基线
+> - 版本：v2 设计基线
 > - 修订：v1.1（2026-07-30 设计评审）——类名对齐改阅读视图体系、设置改窗口内浮层、图片收紧为绝对路径、换行符跟随原文件、时间盒聚焦 M1+M2 核心
 > - 修订：v1.2（2026-07-30 实装后）——编辑器改 Crepe 底座（数学/代码块/表格/工具栏成品化），主题兼容增加 --crepe-* 变量桥接
+> - 修订：**v2.0（2026-07-30 定位调整）——放弃 Obsidian 主题兼容层。** Milkdown（ProseMirror）与基于 CodeMirror 6 的 Obsidian 主题体系架构性不合，逐一手动适配不现实。主题兼容层代码彻底删除，当前定制版 AnuPpuccin 深色主题固化为唯一默认主题（仅维护深色；浅色未来将单独定制一套，再加深浅切换）。后续迭代只做三件事：修复已知问题、打磨操作体验、保障性能，保持轻量快速定位。
 
 ---
 
@@ -17,19 +18,21 @@
 │  Tauri Shell (Rust)                         │
 │  - 窗口管理（每文件一窗口）                  │
 │  - 文件读写 / 自动保存落盘                   │
-│  - 配置存储 ./data                           │
-│  - vault 扫描（主题、hotkeys.json）          │
-│  - 跨窗口事件广播（主题/设置变更）           │
+│  - 外部文件变更监听（notify）                │
+│  - 配置存储 ./data/settings.json             │
+│  - 跨窗口事件广播（排版设置变更）            │
 ├─────────────────────────────────────────────┤
 │  Frontend (TypeScript + Vite)               │
-│  - Milkdown 编辑器（ProseMirror 内核）       │
-│  - 主题兼容层（类名对齐 + CSS 变量桥接）     │
-│  - 快捷键映射层（hotkeys.json → keymap）     │
-│  - 设置界面                                  │
+│  - Milkdown/Crepe 编辑器（ProseMirror 内核） │
+│  - 内置主题：AnuPpuccin 深色定制（静态打包） │
+│  - 序列化保真层（保存不侵入原文）            │
+│  - 设置浮层（排版覆盖）                      │
 └─────────────────────────────────────────────┘
 ```
 
 **关键原则：前端不直接碰文件系统。** 所有 IO 通过 Tauri command 走 Rust 侧，便于统一处理编码、换行符、原子写入。
+
+**第一原则：序列化保真。** 编辑器保存时不得对 Markdown 原文做任何侵入性修改——不改写未编辑区域的任何字符（不加 `\` 行尾、不把 `---` 写成 `***`、不插入 `<br />`、不注入转义实体、不擅增删空行）。任何与 Obsidian 双向编辑同一文件时会导致渲染异常或 git diff 噪音的输出都视为 bug。见第 5 节。
 
 ## 2. 技术栈选型
 
@@ -37,11 +40,11 @@
 |---|---|---|
 | 外壳 | Tauri 2.x | 体积小（<10MB）、启动快、绿色版友好 |
 | 前端构建 | Vite + TypeScript | 标配 |
-| 编辑器 | Milkdown 7（锁定 ≥7.21.3）+ Crepe 成品编辑器底座 | v1.1 评审后改为手装插件，v1.2 起改用官方 Crepe 底座：斜杠菜单/工具栏/表格 UI/链接提示/图片块开箱即用；latex 功能以真节点实现数学公式（同时解决序列化转义问题）；7.21.3 修复两个 XSS CVE，作为安全基线 |
-| UI 框架 | 无（原生 DOM）或 Preact | 设置界面很小，避免引入重型框架 |
+| 编辑器 | Milkdown 7（锁定 ≥7.21.3）+ Crepe 成品编辑器底座 | 斜杠菜单/工具栏/表格 UI/链接提示/图片块开箱即用；latex 功能以真节点实现数学公式（同时解决序列化转义问题）；7.21.3 修复两个 XSS CVE，作为安全基线 |
+| UI 框架 | 无（原生 DOM） | 设置界面很小，避免引入重型框架 |
 | 数学 | KaTeX（Crepe latex 功能） | 决策已定 |
-| 代码高亮 | Crepe code-mirror 功能（CodeMirror 6 内核） | v1.1 曾定 Shiki 细粒度子集；改用 Crepe 后代码块为 CM6 编辑器（缩进/括号匹配/语言选择），高亮走 CM 体系，放弃 Shiki 方案 |
-| CSS 策略 | 一份「Ob 兼容基座」+ 主题注入 | 见第 4 节 |
+| 代码高亮 | Crepe code-mirror 功能（CodeMirror 6 内核） | 代码块为 CM6 编辑器（缩进/括号匹配/语言选择），高亮走 CM 体系 |
+| 主题 | 内置 AnuPpuccin 深色定制（静态打包）+ Ob 变量桥接基座 | 见第 4 节 |
 
 ## 3. 目录结构（仓库）
 
@@ -50,163 +53,125 @@ oblet/
 ├─ src-tauri/            # Rust 侧
 │  ├─ src/
 │  │  ├─ main.rs
-│  │  ├─ commands.rs     # 文件 IO、配置、vault 扫描
-│  │  ├─ watcher.rs      # ./data 配置文件变更监听（多窗口同步）
-│  │  └─ state.rs
+│  │  ├─ lib.rs          # 窗口管理、单实例、文件监听
+│  │  ├─ commands.rs     # 文件 IO（读写、换行符、内容哈希）
+│  │  ├─ settings.rs     # settings.json 读写
+│  │  └─ state.rs        # 窗口↔路径映射、哈希缓存
 │  └─ tauri.conf.json
 ├─ src/                  # 前端
-│  ├─ main.ts
+│  ├─ main.ts            # 入口（CSS 顺序敏感）
 │  ├─ editor/
 │  │  ├─ setup.ts        # Crepe 实例装配 + 文件生命周期
-│  │  └─ keymap.ts       # 快捷键映射层（M3）
-│  ├─ theme/
-│  │  ├─ bridge.ts       # CSS 变量桥接
-│  │  ├─ loader.ts       # theme.css 导入/注入/卸载
-│  │  ├─ vault.ts        # vault 主题读取
-│  │  └─ fallback.css    # 内置默认主题（仿 Ob 默认）
+│  │  ├─ plugins.ts      # 编辑器内插件集
+│  │  └─ frontmatter.ts  # frontmatter 节点/属性栏 + 序列化保真层
 │  ├─ settings/
-│  │  ├─ schema.ts       # settings.json 类型定义
-│  │  └─ ui.ts           # 设置浮层（标题栏按钮 + Ctrl+, 唤起，非独立窗口）
+│  │  ├─ typography.ts   # 排版覆盖 + 持久化 + 跨窗口广播
+│  │  └─ ui.ts           # 设置浮层（Ctrl+, 唤起）
 │  └─ styles/
-│     └─ obsidian-base.css  # Ob 类名结构基座
+│     ├─ obsidian-base.css      # Ob 结构基座 + --ob-* 变量桥接
+│     └─ anuppuccin-custom.css  # 内置主题：AnuPpuccin 深色定制
 ├─ scripts/
 │  └─ register-md.reg    # 可选：.md 默认打开方式注册脚本
 ├─ data/                 # 运行时生成（绿色版数据目录）
 └─ package.json
 ```
 
-## 4. 主题兼容层（核心模块）
+## 4. 主题：内置 AnuPpuccin 深色定制
 
-目标：拿一份 Obsidian 社区主题的 `theme.css`，不做修改就能获得 85–95% 的观感还原。
+**v2.0 决策：不做主题系统。** 主题 CSS 不经运行时加载，直接静态打包进应用：
 
-### 4.1 双轨策略
+1. **主题文件**：`src/styles/anuppuccin-custom.css`，源自 AnuPpuccin（GPL-3.0，保留版权头与 attribution）+ Style Settings 定制。
+2. **Style Settings 定制固化**：原 `oblet-theme.json` 的 34 个定制类（mocha-old flavor、彩虹标题色、强调色 mauve 等）写死在 `index.html` 的 `<body class="theme-dark …">`；扩展 CSS 变量并入基座。
+3. **变量桥接基座保留**：`obsidian-base.css` 的 `--ob-*` 变量层继续承担两个职责——(a) 把 Ob 主题变量（`--background-primary` 等）桥接到编辑器自有样式与 Crepe 组件变量（`--crepe-*`），(b) 提供深色 fallback。这是静态桥，不再支持换主题。
+4. **排版覆盖保留**：用户可在设置中覆盖正文/等宽/界面字体与基础字号（对齐 Obsidian appearance.json 语义，内联样式优先级高于主题）。
+5. **浅色主题**：当前仅维护深色。未来单独定制一套浅色后，再加固化的深/浅切换（不涉及主题系统复活）。
 
-**轨道 A：CSS 变量桥接（兜底，保证任何主题"不崩"）**
+GPL-3.0 合规：AnuPpuccin 要求再分发时保留版权与许可声明、注明出处；theme.css 文件头已保留，README 需保留 Buy Me a Coffee 链接。
 
-维护一张映射表，把 Obsidian 的核心变量映射到编辑器自己的样式变量：
+## 5. 序列化保真层（核心模块）
 
-```css
-:root {
-  --ob-bg:        var(--background-primary, #fff);
-  --ob-bg-alt:    var(--background-secondary, #f5f5f5);
-  --ob-text:      var(--text-normal, #222);
-  --ob-text-mut:  var(--text-muted, #888);
-  --ob-accent:    var(--interactive-accent, #7b6cd9);
-  --ob-font:      var(--font-text, var(--font-interface, sans-serif));
-  --ob-font-mono: var(--font-monospace, monospace);
-  /* 标题色 */
-  --ob-h1: var(--h1-color, var(--text-normal));
-  /* … 约 30~50 个核心变量 */
-}
-```
+目标：**Oblet 与 Obsidian 可以无损地双向编辑同一文件。** 保存输出与原文字节级接近，差异仅限用户实际编辑的区域。
 
-编辑器基座样式全部使用 `--ob-*` 变量。即使主题只定义了变量（很多主题如此），换肤也能生效。
+已实现机制（`src/editor/frontmatter.ts`）：
 
-**轨道 B：DOM 类名对齐（主力，提升还原度）**
-
-> 修订说明：原方案对齐 Ob「实时预览」（CodeMirror 6）的 `.cm-line` / `.cm-header-*` 类名，但 Milkdown 基于 ProseMirror，DOM 按块组织、没有「行」的概念，该套类名无法套用。改为对齐 Ob「阅读视图」的 `.markdown-rendered` 体系——大多数社区主题对阅读视图的选择器覆盖最全，且与 Milkdown 的 DOM 结构天然吻合。
-
-Milkdown 是 headless 的，DOM 结构可自定义。容器与节点渲染器对齐 Obsidian 阅读视图的类名与标签约定：
-
-| 元素 | 对齐目标 |
+| 机制 | 解决的问题 |
 |---|---|
-| 编辑容器 | `.markdown-rendered`（及 Ob 常用修饰类，按需补） |
-| 标题 | 语义化 `<h1>` … `<h6>` |
-| 加粗/斜体 | `<strong>` / `<em>` |
-| 链接 | `<a>`，区分 `.internal-link` / `.external-link` |
-| 代码块 | `<pre><code>` 结构，与 Ob 阅读视图一致 |
-| 引用块 | `<blockquote>` |
-| 列表/任务 | `<ul>` / `<ol>` / `<li>`，任务项 `.task-list-item` + checkbox |
+| `remark-frontmatter` + 自定义 `frontmatter` 节点 | YAML 头不被误解析为 hr/标题；属性栏 NodeView（键值表格编辑，回写 `key: value` 行） |
+| `rule: '-'`、`bullet: '-'` | hr 写 `---` 不写 `***`（否则毁掉 frontmatter 围栏）；列表符号对齐 Ob 习惯 |
+| 自定义 `text` 处理器 | 撤销 `\[!`→`[!`（callout）、`\==`→`==`（高亮）两类破坏 Ob 语义的转义 |
+| 自定义 `break` 处理器 | Shift+Enter 硬换行写普通换行，不写行尾 `\`（往返字节级稳定） |
+| 自定义 `join` 处理器 | 容忍 Milkdown 把列表 spread 存成字符串的缺陷，紧凑列表不再被序列化成宽松（项间不乱插空行） |
+| 解析侧任务项空格修剪（remark 插件） | 消除 `[x]  文字` 残留前导空格被转义成 `&#x20;` 的污染 |
+| 移除 `remark-preserve-empty-line` 选项切片 | 空段落写回普通空行，不注入 `<br />` |
+| 内容哈希过滤（Rust 侧） | 自身写入不触发"外部变更"重载（Windows rename 覆盖保存会发 Remove 事件） |
 
-模式切换时在 `document.body` 上挂 `.theme-dark` / `.theme-light`，主题 CSS 中对应的变量块自然生效。
+已知合理规范化（渲染等价，首次保存即稳定，之后往返字节级不变）：勾选框后双空格→单空格；段落与列表间保持一个空行；宽松列表保持项间空行。
 
-### 4.2 主题加载流程
+回归测试：`test-break-roundtrip.mjs`（换行）、`test-list-roundtrip.mjs`（列表/任务）在仓库根，改序列化逻辑后必跑。
 
-1. **手动导入**：选择/拖入 `theme.css`（可选同目录 `manifest.json` 读取主题名、作者）→ 复制到 `./data/themes/<name>/` → 写入 settings 的主题列表 → 注入 `<style data-theme="name">`。
-2. **vault 读取**：设置中配置 vault 路径 → 扫描 `<vault>/.obsidian/themes/*/theme.css` → 与手动导入的主题合并列表，标记来源。
-3. **切换**：替换 `<style>` 内容 + 切换 body 类。Tauri 侧发 `theme-changed` 事件，其余窗口监听后同步换肤。
-4. **清理**：对 theme.css 做一次轻量 sanitize——剔除远程 CSS `@import url(http…)` 和 `url(javascript:…)`；**放行 https 字体/图片资源**（不少主题如 AnuPpuccin 引用 Google Fonts，剔除会导致字体静默回退、观感变差），并在 Tauri CSP 中放行对应来源。
+## 6. 快捷键
 
-### 4.3 验收标准（M2 出口）
+使用 Milkdown/Crepe 默认键位（与 Obsidian 大部分一致）。v1.x 不做用户自定义键位；个别高频诉求（如回车=软换行、Shift+Enter=新段落）作为内置可选项在打磨期按需加入，不依赖 vault/hotkeys.json。
 
-用 3 个热门主题实测：**Minimal**、**Things**、**AnuPpuccin**。要求：背景/正文/标题/引用/代码块/链接六类元素观感正确；暗亮切换正常；无明显对比度事故。边角细节（如某主题特有的 callout 样式）允许缺失。
+## 7. 文件与保存
 
-## 5. 快捷键映射层
-
-1. 读取 `<vault>/.obsidian/hotkeys.json`（JSON：命令 ID → 修饰键+键位数组）。
-2. 维护**白名单映射表**，仅覆盖编辑器内可实现的命令：
-
-| Ob 命令 ID | Milkdown 动作 |
-|---|---|
-| `editor:bold` / `editor:italic` / `editor:code` | 对应 mark 切换 |
-| `editor:insert-link` | 链接输入 |
-| `editor:toggle-checklist-status` | task item 切换 |
-| `app:toggle-dark-mode`（如存在） | 暗/亮切换 |
-
-3. 未在白名单内的 Ob 命令静默忽略；未被用户自定义的键位回退到 Milkdown 默认（其默认与 Ob 大部分一致）。
-4. 映射冲突时：hotkeys.json 优先。
-
-## 6. 文件与保存
-
-- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 第一版弹提示并只读）→ 每文件一个窗口。实例内维护 路径→窗口 映射：**重复打开同一文件时聚焦已有窗口**，防止两个窗口自动保存互相覆盖丢内容。
-- **自动保存**：输入停止 1s 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。设置项可关闭自动保存。**换行符跟随原文件**：打开时探测 CRLF/LF，保存时 Rust 侧把 Milkdown 输出的 LF 转换回原样，避免 git 管理的笔记出现全文件换行 diff。
-- **外部变更**：文件被外部修改时，若当前无未落盘内容则自动重载；有则弹提示（v1 不做三方合并）。
+- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 第一版弹提示并只读）→ 每文件一个窗口。实例内维护 路径→窗口 映射：**重复打开同一文件时聚焦已有窗口**，防止两个窗口自动保存互相覆盖丢内容。也支持把 .md 直接拖入窗口就地渲染。
+- **自动保存**：输入停止 1s 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。**换行符跟随原文件**：打开时探测 CRLF/LF，保存时 Rust 侧把 Milkdown 输出的 LF 转换回原样，避免 git 管理的笔记出现全文件换行 diff。内容与磁盘一致时不写回（未编辑零改动）。
+- **外部变更**：notify 监听文件；外部修改时若当前无未落盘内容则自动重载，有则弹提示（不做三方合并）。自身保存通过内容哈希过滤，不触发重载。
 - **本地图片**：v1 仅支持绝对路径图片（`![](绝对路径)`），asset 协议 scope 放开；按 md 所在目录解析相对路径留 v2。暂不支持粘贴图片落盘（v2 候选）。
 
-## 7. 配置方案 `./data`
+## 8. 配置方案 `./data`
 
-```
-data/
-├─ settings.json
-└─ themes/<name>/theme.css (+manifest.json)
-```
-
-`settings.json` 草案：
+运行时只保留排版设置：
 
 ```json
 {
   "version": 1,
-  "theme": { "active": "Minimal", "mode": "dark", "followSystem": false },
-  "vault": { "path": "D:/notes/main", "importThemes": true, "importHotkeys": true },
-  "editor": { "autoSave": true, "autoSaveDelayMs": 1000, "fontSize": 16 },
-  "window": { "width": 960, "height": 720 }
+  "editor": {
+    "auto_save": true,
+    "auto_save_delay_ms": 1000,
+    "text_font": null,
+    "mono_font": null,
+    "interface_font": null,
+    "base_font_size": null
+  }
 }
 ```
 
-配置变更由 Rust 侧 watcher 监听并向所有窗口广播，保证多窗口一致。
+排版变更通过 Tauri 事件向所有窗口广播，多窗口即时一致。`null` = 跟随主题。
 
-## 8. 分发
+## 9. 分发
 
 - Tauri 构建产出 `oblet.exe` + 依赖，打 zip 绿色包。
 - 附 `scripts/register-md.reg`：可选双击导入，将 .md 默认打开方式指向 exe（含卸载脚本 unregister.reg）。
 - GitHub Actions：tag 触发 Windows 构建并发布 Release（v1 不签名，README 说明 SmartScreen 提示）。
 
-## 9. 里程碑
+## 10. 里程碑
 
-> 近期时间盒（数天）目标：**M1 + M2 核心**（骨架可用 + 手动导入主题 + 暗亮切换 + fallback 主题）。M3、M4 进打磨期，不阻塞「能用」的内测版；打包/Actions/README 最后再补，避免时间不足时项目烂尾在「能跑但发不出」。
+> 定位调整后不再设功能型里程碑。主线只有一条：**把现有体验打磨到可以发布**。以下按优先级排列，不设时间盒。
 
-| 里程碑 | 内容 | 出口标准 |
+| 阶段 | 内容 | 出口标准 |
 |---|---|---|
-| **M1 骨架** | Tauri 工程、Milkdown 装配、打开/编辑/自动保存、单文件窗口 | 双击 md 可编辑并保存，GFM+数学+代码高亮可用 |
-| **M2 主题兼容层** | 变量桥接 + 类名对齐 + 手动导入 + 暗亮切换 + fallback 主题 | 通过 4.3 验收 |
-| **M3 vault 集成** | vault 主题扫描、hotkeys.json 白名单映射 | 导入真实 vault 后主题/快捷键继承生效 |
-| **M4 打磨发布** | 设置界面、多窗口广播、打包、Actions、README | Release v0.1.0 发布 |
+| **P1 修复与打磨**（当前） | 修复已知问题；操作体验打磨（键位细节、属性栏交互、列表/表格编辑手感）；大文档性能检查 | 日常自用无阻塞性问题，序列化回归测试全过 |
+| **P2 发布** | 绿色打包、register-md.reg、README（含 AnuPpuccin attribution）、GitHub Actions | Release v0.1.0 发布 |
+| **P3 候选**（按需启） | 单独定制浅色主题 + 深浅切换；相对路径图片；粘贴图片落盘；源码模式 | 逐项单独立项 |
 
-## 10. 风险清单
+## 11. 风险清单
 
 | 风险 | 等级 | 应对 |
 |---|---|---|
-| Ob 主题类名覆盖面大，个别主题细节错位 | 中 | M2 用真实主题早验证；变量桥接兜底 |
-| Milkdown 对 Ob 特有语法（[[wikilink]]、callout）无支持 | 低 | v1 明确不支持，按普通文本/引用渲染即可；v2 可写插件 |
-| 非 UTF-8 编码文件 | 低 | v1 只读提示，v2 做转码 |
-| 大文件性能 | 低 | v1 目标 <1MB md；超出时降级为纯文本模式（v2） |
-| Tauri 单实例/多窗口参数传递细节 | 中 | M1 早期用 tauri-plugin-single-instance 验证 |
+| Milkdown 序列化引入新的侵入性改写（升级依赖后回归） | 中 | 保真层集中在 frontmatter.ts 一处；回归测试必跑；依赖升级前审 changelog |
+| Milkdown 对 Ob 特有语法（[[wikilink]]、callout）无支持 | 低 | 按普通文本/引用渲染即可，v2 可写插件 |
+| 非 UTF-8 编码文件 | 低 | 只读提示，v2 做转码 |
+| 大文件性能 | 低 | 目标 <1MB md；P1 阶段实测，必要时降级纯文本模式（v2） |
 
-## 11. 明确不做的（v1）
+## 12. 明确不做的
 
+- 不做主题系统、不兼容 Obsidian 社区主题、不做运行时主题导入（v2.0 决策；浅色仅未来单独定制一套）
+- 不做 vault 概念：不扫描 vault、不读取 .obsidian 配置、不继承 hotkeys.json
 - 不做库/文件树/双链/图谱/插件系统/同步
 - 不做移动端、macOS、Linux
 - 不做安装器（绿色版 + 可选 reg 脚本）
 - 不做 Markdown 导出（PDF/HTML）
-- 不做源码模式：v1 仅所见即所得（Milkdown 无双模式），源码视图 v2 候选
+- 不做源码模式：仅所见即所得（Milkdown 无双模式），源码视图 v2 候选
 - 不做相对路径图片解析：v1 仅绝对路径图片

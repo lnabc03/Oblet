@@ -1,12 +1,8 @@
-// 设置浮层：主题列表 + 明暗切换 + 拖拽导入 theme.css
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+// 设置浮层：排版覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
 import {
-  getThemeState,
-  listThemes,
-  switchTheme,
-  type ThemeInfo,
-} from "../theme/loader";
+  getSettings,
+  switchTypography,
+} from "./typography";
 
 export async function initSettingsUI(container: HTMLElement) {
   // 设置按钮（右上角浮动）
@@ -26,16 +22,18 @@ export async function initSettingsUI(container: HTMLElement) {
         <button class="settings-close">✕</button>
       </div>
       <div class="settings-section">
-        <h3>外观模式</h3>
-        <div class="mode-toggle">
-          <button data-mode="light">浅色</button>
-          <button data-mode="dark">深色</button>
+        <h3>排版</h3>
+        <div class="typo-grid">
+          <label>正文字体</label>
+          <input type="text" data-typo="text_font" placeholder="跟随主题">
+          <label>等宽字体</label>
+          <input type="text" data-typo="mono_font" placeholder="跟随主题">
+          <label>界面字体</label>
+          <input type="text" data-typo="interface_font" placeholder="跟随主题">
+          <label>基础字号</label>
+          <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="跟随主题">
         </div>
-      </div>
-      <div class="settings-section">
-        <h3>主题</h3>
-        <ul class="theme-list"></ul>
-        <p class="muted small">把 Obsidian 主题的 theme.css 拖入窗口即可导入</p>
+        <p class="muted small">留空则跟随主题；修改后失焦或回车生效</p>
       </div>
     </div>`;
   container.appendChild(overlay);
@@ -63,51 +61,36 @@ export async function initSettingsUI(container: HTMLElement) {
   });
 
   async function renderPanel() {
-    const { name, mode } = getThemeState();
-    const themes = await listThemes();
-
-    overlay.querySelectorAll<HTMLButtonElement>(".mode-toggle button").forEach(
-      (b) => b.classList.toggle("active", b.dataset.mode === mode)
-    );
-
-    const ul = overlay.querySelector(".theme-list")!;
-    ul.innerHTML = "";
-    const items: (ThemeInfo | null)[] = [null, ...themes];
-    for (const t of items) {
-      const li = document.createElement("li");
-      const label = t ? t.name : "默认";
-      const author = t?.author ? ` <span class="muted">by ${t.author}</span>` : "";
-      li.innerHTML = `<label><input type="radio" name="theme" ${
-        (t?.name ?? null) === name ? "checked" : ""
-      }> ${label}${author}</label>`;
-      li.querySelector("input")!.addEventListener("change", async () => {
-        await switchTheme(t?.name ?? null, getThemeState().mode);
-        void renderPanel();
+    // 排版：回填当前值
+    const s = await getSettings();
+    overlay
+      .querySelectorAll<HTMLInputElement>("input[data-typo]")
+      .forEach((input) => {
+        const key = input.dataset.typo as
+          | "text_font"
+          | "mono_font"
+          | "interface_font"
+          | "base_font_size";
+        const v = s.editor[key];
+        input.value = v == null ? "" : String(v);
       });
-      ul.appendChild(li);
-    }
   }
 
-  overlay.querySelectorAll<HTMLButtonElement>(".mode-toggle button").forEach(
-    (b) =>
-      b.addEventListener("click", async () => {
-        await switchTheme(getThemeState().name, b.dataset.mode!);
-        void renderPanel();
-      })
-  );
-
-  // 拖拽导入 theme.css
-  await getCurrentWindow().onDragDropEvent(async (e) => {
-    if (e.payload.type !== "drop") return;
-    for (const path of e.payload.paths) {
-      if (!path.toLowerCase().endsWith("theme.css")) continue;
-      try {
-        const name = await invoke<string>("import_theme", { cssPath: path });
-        await switchTheme(name, getThemeState().mode);
-        if (!overlay.classList.contains("hidden")) void renderPanel();
-      } catch (err) {
-        console.error("导入主题失败:", err);
-      }
-    }
-  });
+  // 排版输入：change（失焦/回车）即保存并应用；留空 = 清除覆盖
+  overlay
+    .querySelectorAll<HTMLInputElement>("input[data-typo]")
+    .forEach((input) => {
+      input.addEventListener("change", async () => {
+        const key = input.dataset.typo!;
+        const raw = input.value.trim();
+        const patch: Record<string, string | number | null> = {};
+        patch[key] =
+          key === "base_font_size"
+            ? raw
+              ? Math.min(32, Math.max(12, Number(raw) || 16))
+              : null
+            : raw || null;
+        await switchTypography(patch);
+      });
+    });
 }

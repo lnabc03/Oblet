@@ -1,0 +1,223 @@
+// Oblet 自定义 ProseMirror 插件（Crepe 底座之上）
+// 1. ==高亮==：装饰器方案 —— 文档保持 == 原文（序列化无损），渲染时隐藏标记、文字加高亮色
+// 2. Callout：装饰器方案 —— > [!type] 引用块加 .callout 类与 data-callout 属性，
+//    隐藏 [!type] 标记，注入图标 widget；AnuPpuccin 等主题的 callout 样式直接命中
+import { $prose } from "@milkdown/utils";
+import { Plugin, PluginKey } from "@milkdown/prose/state";
+import { Decoration, DecorationSet } from "@milkdown/prose/view";
+import type { EditorState } from "@milkdown/prose/state";
+import type { Node as PMNode } from "@milkdown/prose/model";
+
+// ---------------------------------------------------------------- ==高亮==
+
+const highlightKey = new PluginKey("oblet-highlight");
+
+function highlightDecorations(state: EditorState): DecorationSet {
+  const decos: Decoration[] = [];
+  const re = /==([^=]+?)==/g;
+
+  state.doc.descendants((node: PMNode, pos: number) => {
+    if (!node.isTextblock) return true;
+
+    // 段落内拼接连续文本节点成 run（行内代码/硬换行/公式等打断 run），
+    // 跨节点的 ==…== 也能匹配：==**粗**体==、**==粗高亮==** 等组合各自保留效果后叠加
+    let runStart = -1;
+    let runText = "";
+    const flush = () => {
+      if (runStart < 0 || !runText) return;
+      re.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(runText)) !== null) {
+        const start = runStart + m.index;
+        const openEnd = start + 2;
+        const closeStart = openEnd + m[1].length;
+        const end = closeStart + 2;
+        decos.push(
+          Decoration.inline(openEnd, closeStart, { class: "ob-highlight" }),
+          Decoration.inline(start, openEnd, { class: "ob-deco-hide" }),
+          Decoration.inline(closeStart, end, { class: "ob-deco-hide" })
+        );
+      }
+      runStart = -1;
+      runText = "";
+    };
+
+    node.forEach((child, offset) => {
+      const isPlainText =
+        child.isText &&
+        !child.marks.some((mk) => mk.type.name === "inlineCode");
+      if (isPlainText && child.text) {
+        if (runStart < 0) runStart = pos + 1 + offset;
+        runText += child.text;
+      } else {
+        flush(); // 行内代码中的 == 按原样渲染（对齐 Ob），原子节点不可跨越
+      }
+    });
+    flush();
+
+    return false; // 子节点已手动处理
+  });
+
+  return DecorationSet.create(state.doc, decos);
+}
+
+export const highlightPlugin = $prose(
+  () =>
+    new Plugin({
+      key: highlightKey,
+      props: {
+        decorations(state) {
+          return highlightKey.getState(state) as DecorationSet;
+        },
+      },
+      state: {
+        init(_, state) {
+          return highlightDecorations(state);
+        },
+        apply(tr, old, _o, newState) {
+          if (!tr.docChanged) return old;
+          return highlightDecorations(newState);
+        },
+      },
+    })
+);
+
+// ---------------------------------------------------------------- Callout
+
+const calloutKey = new PluginKey("oblet-callout");
+
+// 常见 callout 类型的图标（简易内联 SVG，对齐 lucide 风格）
+const ICONS: Record<string, string> = {
+  note: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
+  info: "M12 8h.01M12 12v4M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
+  tip: "M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3Z",
+  hint: "M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3Z",
+  important:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  warning:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  caution:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  danger:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  question:
+    "M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
+  help: "M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
+  quote: "M7 7h4v6H7zM7 13c0 2 1 3 3 3M15 7h4v6h-4zM15 13c0 2 1 3 3 3",
+  todo: "M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9",
+  success: "M20 6 9 17l-5-5",
+  check: "M20 6 9 17l-5-5",
+  done: "M20 6 9 17l-5-5",
+  failure: "M18 6 6 18M6 6l12 12",
+  fail: "M18 6 6 18M6 6l12 12",
+  bug: "M9 9l-3-3M15 9l3-3M9 15l-3 3M15 15l3 3M12 8a4 4 0 0 1 4 4v3a4 4 0 0 1-8 0v-3a4 4 0 0 1 4-4Z",
+  example: "M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13",
+  abstract: "M4 6h16M4 12h16M4 18h10",
+  summary: "M4 6h16M4 12h16M4 18h10",
+};
+
+function calloutIconSvg(type: string): string {
+  const path = ICONS[type] ?? ICONS.note;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+}
+
+const CALLOUT_RE = /^\[!([a-zA-Z-]+)\][+-]?[ \t]?/;
+
+function calloutDecorations(state: EditorState): DecorationSet {
+  const decos: Decoration[] = [];
+
+  state.doc.descendants((node: PMNode, pos: number) => {
+    if (node.type.name !== "blockquote") return true;
+    const firstPara = node.firstChild;
+    if (!firstPara || firstPara.type.name !== "paragraph") return false;
+
+    const text = firstPara.textContent;
+    const m = text.match(CALLOUT_RE);
+    if (!m) return false;
+
+    const type = m[1].toLowerCase();
+    const paraPos = pos + 1; // paragraph 起点
+    const markerStart = paraPos + 1; // paragraph 内容起点
+
+    // 1. 引用块整体 → callout 类 + data-callout（主题样式命中）
+    decos.push(
+      Decoration.node(pos, pos + node.nodeSize, {
+        class: "callout",
+        "data-callout": type,
+      })
+    );
+
+    // 2. 隐藏 [!type] 标记（其后标题文字保留可编辑）
+    decos.push(
+      Decoration.inline(markerStart, markerStart + m[0].length, {
+        class: "ob-deco-hide",
+      })
+    );
+
+    // 3. 标题范围 = 标记之后到本段第一个软换行（Ob 行为：首行即标题）
+    const contentStart = paraPos + 1;
+    const titleStart = markerStart + m[0].length;
+    let titleEnd = contentStart + firstPara.content.size;
+    let foundBreak = false;
+    firstPara.forEach((child, childOffset) => {
+      if (!foundBreak && child.type.name === "hardbreak") {
+        titleEnd = contentStart + childOffset;
+        foundBreak = true;
+      }
+    });
+    const titleText = state.doc.textBetween(titleStart, titleEnd).trim();
+
+    // 4. 标题栏 widget：图标（无自定义标题时追加类型名，对齐 Ob 回退行为）
+    decos.push(
+      Decoration.widget(
+        markerStart,
+        () => {
+          const span = document.createElement("span");
+          span.className = "callout-title";
+          span.contentEditable = "false";
+          span.innerHTML =
+            `<span class="callout-icon">${calloutIconSvg(type)}</span>` +
+            (titleText
+              ? ""
+              : `<span class="callout-title-inner">${type[0].toUpperCase()}${type.slice(1)}</span>`);
+          return span;
+        },
+        { side: -1, ignoreSelection: true }
+      )
+    );
+
+    // 5. 自定义标题文字上标题样式（保留可编辑，颜色随 callout 类型）
+    if (titleText) {
+      decos.push(
+        Decoration.inline(titleStart, titleEnd, { class: "callout-title-text" })
+      );
+    }
+
+    return false;
+  });
+
+  return DecorationSet.create(state.doc, decos);
+}
+
+export const calloutPlugin = $prose(
+  () =>
+    new Plugin({
+      key: calloutKey,
+      props: {
+        decorations(state) {
+          return calloutKey.getState(state) as DecorationSet;
+        },
+      },
+      state: {
+        init(_, state) {
+          return calloutDecorations(state);
+        },
+        apply(tr, old, _o, newState) {
+          if (!tr.docChanged) return old;
+          return calloutDecorations(newState);
+        },
+      },
+    })
+);
+
+export const obletPlugins = [highlightPlugin, calloutPlugin];
