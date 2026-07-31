@@ -106,8 +106,9 @@
 ## 批次 4：设置体系（压轴，批示"最后一起做"）
 
 - [ ] **4.1 窗口透明度定制（毛玻璃）**（中）
-  窗口整体透明度 + 毛玻璃效果（Mica/Acrylic）。`window-vibrancy` crate 已在依赖中（构建日志可见），需确认接线情况；涉及 tauri.conf 窗口透明、CSS 背景透明链路、Rust 效果 API。
-  设置项：效果关/Mica/Acrylic + 透明度滑杆，随设置页落地。
+  窗口整体透明度 + 毛玻璃效果（Mica/Acrylic）。
+  接线现状（2026-07-31 核实）：`window-vibrancy` **不是直接依赖**（构建日志里的 Compiling 记录来自 tauri 依赖树）；tauri.conf 无 transparent，lib.rs 无效果调用，CSS 无透明链路——全部待做。
+  待做清单：Cargo.toml 加 window-vibrancy → tauri.conf 窗口 `transparent: true` → lib.rs 建窗后应用效果 → html/body/#app 背景透明链路 → 设置项（关/Mica/Acrylic + 透明度滑杆）随 4.2 设置页落地。
 
 - [ ] **4.2 完善设置页面**（大）
   汇总所有已落地设置项统一设计：排版覆盖、代码块换行、透明度（4.1）、快捷键（4.4）……信息架构分组，视觉与通知系统/右键菜单同语言。
