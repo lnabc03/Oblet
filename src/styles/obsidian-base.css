@@ -68,8 +68,9 @@ body,
   --crepe-font-default: var(--ob-font);
   --crepe-font-title: var(--h1-font, var(--ob-font));
   --crepe-font-code: var(--ob-font-mono);
-  --crepe-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.12);
-  --crepe-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.18);
+  /* 深色下浮层需要更重的投影才"浮"得起来——与 toast/检索条/右键菜单同一语言 */
+  --crepe-shadow-1: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --crepe-shadow-2: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 /* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
@@ -527,7 +528,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   right: 48px; /* 给右上角设置按钮留位 */
   z-index: 40;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   padding: 6px 8px;
   background: var(--ob-bg-alt);
@@ -539,6 +540,11 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .search-bar.hidden {
   display: none;
+}
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .search-bar input {
   width: 180px;
@@ -568,9 +574,13 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   cursor: pointer;
   font: inherit;
 }
-.search-bar button:hover {
+.search-bar button:hover:not(:disabled) {
   background: var(--ob-selection);
   color: var(--ob-text);
+}
+.search-bar button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* 命中高亮：普通命中淡底，活动命中亮底（颜色走主题 selection/accent 变量） */
@@ -581,6 +591,24 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 .markdown-rendered .ob-search-active {
   background: var(--ob-accent-soft);
   outline: 1px solid var(--ob-accent);
+}
+
+/* ---- Crepe 浮层主题化（3.9）----
+ * 颜色/字体/阴影已全部经 --crepe-* 变量桥收口；这里只补两件套：
+ * 1px 边框（深色下阴影不足以勾边）与圆角统一（自有浮层一律 8px） */
+.milkdown .milkdown-slash-menu,
+.milkdown .milkdown-toolbar,
+.milkdown .milkdown-link-preview > .link-preview,
+.milkdown .milkdown-link-edit > .link-edit {
+  border: 1px solid var(--ob-border);
+}
+.milkdown .milkdown-slash-menu {
+  border-radius: 8px;
+}
+/* 代码块语言选择浮层同属浮层家族 */
+.milkdown .milkdown-code-block .list-wrapper {
+  border: 1px solid var(--ob-border);
+  border-radius: 8px;
 }
 
 /* ---- 右键菜单 ---- */

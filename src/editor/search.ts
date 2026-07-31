@@ -155,18 +155,28 @@ export const searchPlugin = $prose(() => {
       const bar = document.createElement("div");
       bar.className = "search-bar hidden";
       bar.innerHTML = `
-        <input type="text" placeholder="搜索…" spellcheck="false">
-        <span class="search-count"></span>
-        <button class="search-prev" title="上一个 (Shift+Enter)">↑</button>
-        <button class="search-next" title="下一个 (Enter)">↓</button>
-        <button class="search-close" title="关闭 (Esc)">✕</button>`;
+        <div class="search-row">
+          <input type="text" class="search-query" placeholder="搜索…" spellcheck="false">
+          <span class="search-count"></span>
+          <button class="search-prev" title="上一个 (Shift+Enter)">↑</button>
+          <button class="search-next" title="下一个 (Enter)">↓</button>
+          <button class="search-close" title="关闭 (Esc)">✕</button>
+        </div>
+        <div class="search-row">
+          <input type="text" class="search-replace" placeholder="替换为…" spellcheck="false">
+          <button class="replace-one" title="替换当前命中并跳到下一个">替换</button>
+          <button class="replace-all" title="全部替换（一次撤销可整体回退）">全部</button>
+        </div>`;
       document.body.appendChild(bar);
 
-      const input = bar.querySelector("input")!;
+      const input = bar.querySelector<HTMLInputElement>(".search-query")!;
+      const replaceInput = bar.querySelector<HTMLInputElement>(".search-replace")!;
       const count = bar.querySelector(".search-count")!;
-      const [prevBtn, nextBtn, closeBtn] = Array.from(
-        bar.querySelectorAll("button")
-      ) as HTMLButtonElement[];
+      const prevBtn = bar.querySelector<HTMLButtonElement>(".search-prev")!;
+      const nextBtn = bar.querySelector<HTMLButtonElement>(".search-next")!;
+      const closeBtn = bar.querySelector<HTMLButtonElement>(".search-close")!;
+      const replaceOneBtn = bar.querySelector<HTMLButtonElement>(".replace-one")!;
+      const replaceAllBtn = bar.querySelector<HTMLButtonElement>(".replace-all")!;
 
       let wasOpen = false;
 
@@ -192,6 +202,41 @@ export const searchPlugin = $prose(() => {
       closeBtn.addEventListener("click", () => {
         dispatchMeta({ type: "close" });
         v.focus();
+      });
+
+      // 替换走正常 PM 事务（userEditTracker 会正常标脏、自动保存接管）。
+      // 命中区间永不跨块（扫描以 textblock 为单位），纯文本替换安全；
+      // 命中重算由 docChanged 驱动：替换当前后原下标自然指向"下一个"命中
+      const doReplace = (all: boolean) => {
+        if (!v.editable) return;
+        const s = searchKey.getState(v.state)!;
+        if (s.matches.length === 0) return;
+        const text = replaceInput.value;
+        const tr = v.state.tr;
+        if (all) {
+          // 从后往前替换，前面的命中位置不受后面改动影响；单事务 = 单次撤销
+          for (let i = s.matches.length - 1; i >= 0; i--) {
+            tr.insertText(text, s.matches[i].from, s.matches[i].to);
+          }
+        } else if (s.active >= 0) {
+          const m = s.matches[s.active];
+          tr.insertText(text, m.from, m.to);
+        } else {
+          return;
+        }
+        v.dispatch(tr);
+      };
+      replaceOneBtn.addEventListener("click", () => doReplace(false));
+      replaceAllBtn.addEventListener("click", () => doReplace(true));
+      replaceInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doReplace(false);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          dispatchMeta({ type: "close" });
+          v.focus();
+        }
       });
 
       // Ctrl+F 全局捕获：浮条聚焦时再按 Ctrl+F 会触发 webview 默认检索，
@@ -231,6 +276,10 @@ export const searchPlugin = $prose(() => {
             : s.matches.length === 0
               ? "无结果"
               : `${s.active + 1}/${s.matches.length}`;
+          // 只读文档或无命中时禁用替换按钮
+          const canReplace = v2.editable && s.matches.length > 0;
+          replaceOneBtn.disabled = !canReplace;
+          replaceAllBtn.disabled = !canReplace;
         },
         destroy() {
           bar.remove();
