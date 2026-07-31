@@ -39,10 +39,13 @@ export async function boot() {
   const initialPath = await invoke<string | null>("get_window_file");
 
   if (!initialPath) {
-    app.innerHTML = `<div class="empty-state">
-      <p>Oblet</p>
-      <p class="muted">双击任意 .md 文件即可编辑，或直接拖入窗口</p>
-    </div>`;
+    // 不能用 app.innerHTML 赋值：会把 initSettingsUI 追加进 #app 的设置浮层一起抹掉
+    // （按钮挂在 body 上幸存，点击时切换的已是脱离文档的节点 → 起始页设置打不开）
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = `<p>Oblet</p>
+      <p class="muted">双击任意 .md 文件即可编辑，或直接拖入窗口</p>`;
+    app.appendChild(empty);
     // 空窗口：登记路径后重载，走正常启动流程
     await getCurrentWindow().onDragDropEvent(async (e) => {
       if (e.payload.type !== "drop") return;
@@ -148,6 +151,12 @@ export async function boot() {
         // Crepe latex 特性自带 KaTeX 预览渲染，这里只需默认隐藏源码编辑栏，
         // 点工具栏 Edit 才展开
         previewOnlyByDefault: true,
+      },
+      // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
+      // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table
+      [Crepe.Feature.BlockEdit]: {
+        textGroup: { h4: null, h5: null, h6: null, quote: null, divider: null },
+        advancedGroup: { image: null, math: null },
       },
     },
   });

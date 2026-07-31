@@ -15,45 +15,45 @@ const highlightKey = new PluginKey("oblet-highlight");
 function highlightDecorations(state: EditorState): DecorationSet {
   const decos: Decoration[] = [];
   const re = /==([^=]+?)==/g;
+  const CODE = "\u0001"; // 行内代码/原子内联节点在虚拟串里的占位符
 
   state.doc.descendants((node: PMNode, pos: number) => {
     if (!node.isTextblock) return true;
 
-    // 段落内拼接连续文本节点成 run（行内代码/硬换行/公式等打断 run），
-    // 跨节点的 ==…== 也能匹配：==**粗**体==、**==粗高亮==** 等组合各自保留效果后叠加
-    let runStart = -1;
-    let runText = "";
-    const flush = () => {
-      if (runStart < 0 || !runText) return;
-      re.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(runText)) !== null) {
-        const start = runStart + m.index;
-        const openEnd = start + 2;
-        const closeStart = openEnd + m[1].length;
-        const end = closeStart + 2;
-        decos.push(
-          Decoration.inline(openEnd, closeStart, { class: "ob-highlight" }),
-          Decoration.inline(start, openEnd, { class: "ob-deco-hide" }),
-          Decoration.inline(closeStart, end, { class: "ob-deco-hide" })
-        );
-      }
-      runStart = -1;
-      runText = "";
-    };
-
+    // 拼接虚拟串：普通文本逐字进串；带 inlineCode 标记的文本与原子内联节点
+    // 整体占一格 —— 代码内的 == 不参与配对（Ob 同款：代码里按原样渲染），
+    // 但 ==`代码`== 允许跨代码配对，代码节点被包进高亮范围
+    let vtext = "";
+    const vpos: number[] = []; // 虚串下标 → 文档位置
     node.forEach((child, offset) => {
-      const isPlainText =
-        child.isText &&
-        !child.marks.some((mk) => mk.type.name === "inlineCode");
-      if (isPlainText && child.text) {
-        if (runStart < 0) runStart = pos + 1 + offset;
-        runText += child.text;
+      const start = pos + 1 + offset;
+      const isCodeText =
+        child.isText && child.marks.some((mk) => mk.type.name === "inlineCode");
+      if (child.isText && !isCodeText && child.text) {
+        for (let i = 0; i < child.text.length; i++) {
+          vtext += child.text[i];
+          vpos.push(start + i);
+        }
       } else {
-        flush(); // 行内代码中的 == 按原样渲染（对齐 Ob），原子节点不可跨越
+        vtext += CODE;
+        vpos.push(start);
       }
     });
-    flush();
+
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(vtext)) !== null) {
+      const openStart = vpos[m.index];
+      const openEnd = vpos[m.index + 1] + 1;
+      const closeIdx = m.index + 2 + m[1].length;
+      const closeStart = vpos[closeIdx];
+      const closeEnd = vpos[closeIdx + 1] + 1;
+      decos.push(
+        Decoration.inline(openEnd, closeStart, { class: "ob-highlight" }),
+        Decoration.inline(openStart, openEnd, { class: "ob-deco-hide" }),
+        Decoration.inline(closeStart, closeEnd, { class: "ob-deco-hide" })
+      );
+    }
 
     return false; // 子节点已手动处理
   });

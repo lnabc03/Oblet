@@ -383,10 +383,11 @@ body {
   white-space: pre-wrap; /* 强制断行，视觉等同 <br> */
 }
 
-/* ==高亮==：变量取自主题（AnuPpuccin 经 --text-highlight-bg 注入） */
+/* ==高亮==：变量取自主题（AnuPpuccin 经 --text-highlight-bg 注入）。
+ * 不设 color：PM 把装饰 span 包在 strong/em 内侧，若钉死 color 会压掉
+ * anp-bold-red/anp-italic-green 等 mark 颜色；不设定则 span 继承，mark 色自然透出 */
 .markdown-rendered .ob-highlight {
   background-color: var(--text-highlight-bg, rgba(255, 213, 0, 0.35));
-  color: var(--text-normal);
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -596,6 +597,9 @@ body {
   font: inherit;
   border-radius: 3px;
   box-sizing: border-box;
+  /* virtual-cursor 给 .ProseMirror 设了 caret-color: transparent，该属性可继承，
+   * 属性栏原生 input 的光标被一并隐藏；作用域内恢复（不影响文档区，那边仍走虚拟光标） */
+  caret-color: var(--ob-text);
 }
 .markdown-rendered .ProseMirror .ob-frontmatter input:focus {
   outline: 1px solid var(--ob-accent);

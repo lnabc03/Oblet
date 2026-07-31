@@ -37,7 +37,7 @@ pub fn set_window_file(
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
     window
-        .set_title(&format!("{title} - Oblet"))
+        .set_title(&format!("Oblet - {title}"))
         .map_err(|e| format!("设置标题失败: {e}"))?;
     Ok(())
 }

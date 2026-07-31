@@ -24,12 +24,14 @@ node test-list-roundtrip.mjs    # 列表/任务列表污染回归
 ## 架构
 
 **Rust 侧（src-tauri/src/）**——所有文件 IO 只走这里，前端不碰文件系统：
+
 - `lib.rs`：窗口管理（每文件一窗口，label = 路径 FNV-1a 哈希）、单实例（重复打开聚焦已有窗口）、notify 文件监听
 - `commands.rs`：`read_file`（BOM 剥离、CRLF/LF 探测、非 UTF-8 只读）、`write_file`（临时文件 + rename 原子写入，换行符跟随原文件）、`watch_file`（监听父目录按文件名过滤，兼容 rename 式保存）
 - `state.rs`：AppState（窗口↔路径映射、内容哈希缓存）。**自写过滤靠 FNV-1a 哈希**：读写都记哈希，监听事件哈希一致即忽略——Windows 下 rename 覆盖保存会对目标发 Remove 事件，绝不能见 Remove 就通知重载
 - `settings.rs`：`./data/settings.json`（exe 同级，绿色版），仅存排版覆盖
 
 **前端（src/）**：
+
 - `main.ts`：CSS 顺序敏感——Crepe → obsidian-base.css → anuppuccin-custom.css（后者覆盖前者 fallback）
 - `editor/setup.ts`：Crepe 装配 + 文件生命周期（防抖自动保存、Ctrl+S、外部变更重载、拖入换文件）
 - `editor/frontmatter.ts`：**序列化保真层收口于此**——frontmatter 节点 + 属性栏 NodeView（键值表格编辑）、`tuneSerialization`（mdast-util-to-markdown 的 rule/bullet/join/handlers 定制）、任务项空格修剪 remark 插件、`disableEmptyLineBr`
@@ -56,3 +58,4 @@ node test-list-roundtrip.mjs    # 列表/任务列表污染回归
 - `src-tauri/target/` 约 3.6G 属 Rust 调试编译产物常态，已 gitignore，清理用 `cargo clean`（需先关闭运行中的 oblet.exe，否则文件锁导致拒绝访问）。
 - `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
 - 回复与文档一律使用简体中文。
+

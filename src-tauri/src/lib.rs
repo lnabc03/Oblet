@@ -32,7 +32,7 @@ fn open_or_focus(app: &AppHandle, path: &str) {
         .to_string();
 
     match WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-        .title(format!("{title} - Oblet"))
+        .title(format!("Oblet - {title}"))
         .inner_size(960.0, 720.0)
         .build()
     {
