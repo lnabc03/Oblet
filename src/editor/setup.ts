@@ -10,6 +10,7 @@ import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
+import { contextMenuPlugin } from "./contextmenu";
 import { toolbarConfig } from "./toolbar";
 import { notify } from "../notify";
 import logoUrl from "../assets/logo.png";
@@ -206,6 +207,7 @@ export async function boot() {
       .use(taskListSpaceTrim.plugin)
       .use(userEditTracker)
       .use(searchPlugin)
+      .use(contextMenuPlugin)
       .use(disableEmptyLineBr)
   );
 

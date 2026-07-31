@@ -10,7 +10,7 @@ const highlightIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 2
 const calloutIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7zM7 13c0 2 1 3 3 3M15 7h4v6h-4zM15 13c0 2 1 3 3 3"/></svg>`;
 
 /** 选区是否已被 == 包裹 */
-function isWrapped(view: EditorView): boolean {
+export function isWrapped(view: EditorView): boolean {
   const { from, to } = view.state.selection;
   if (from === to) return false;
   const doc = view.state.doc;
@@ -21,7 +21,7 @@ function isWrapped(view: EditorView): boolean {
 }
 
 /** ==高亮== 开关：已包裹则解包，未包裹则包上。直接文本插入/删除，序列化天然无损 */
-function toggleHighlight(view: EditorView) {
+export function toggleHighlight(view: EditorView) {
   const { from, to } = view.state.selection;
   if (from === to) return;
   const tr = view.state.tr;
@@ -37,7 +37,7 @@ function toggleHighlight(view: EditorView) {
 }
 
 /** 光标所在是否已在引用块内（嵌套 callout 无意义，此时按钮只作状态指示） */
-function inBlockquote(view: EditorView): boolean {
+export function inBlockquote(view: EditorView): boolean {
   const $from = view.state.selection.$from;
   for (let d = $from.depth; d > 0; d--) {
     if ($from.node(d).type.name === "blockquote") return true;
@@ -47,11 +47,10 @@ function inBlockquote(view: EditorView): boolean {
 
 /** 把选区覆盖的顶层块包成 callout：包 blockquote + 首段前插 [!note]（类型文字后续可直接改）。
  *  光标态（无选区）包当前块；首子节点不是段落时（如列表）只包引用块、不插标记 */
-function wrapCallout(view: EditorView) {
+export function wrapCallout(view: EditorView) {
   if (inBlockquote(view)) return;
   const bq = view.state.schema.nodes.blockquote;
-  if (!bq) return;
-  const doc = view.state.doc;
+  if (!bq) return;  const doc = view.state.doc;
   const { from, to } = view.state.selection;
   const $from = doc.resolve(from);
   const $to = doc.resolve(to);
