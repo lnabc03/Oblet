@@ -42,6 +42,13 @@ export async function initSettingsUI(container: HTMLElement) {
           <span>代码块自动换行</span>
         </label>
       </div>
+      <div class="settings-section">
+        <h3>界面</h3>
+        <label class="check-row">
+          <input type="checkbox" data-check="show_author" data-default="true">
+          <span>起始页显示署名</span>
+        </label>
+      </div>
     </div>`;
   container.appendChild(overlay);
 
@@ -58,14 +65,21 @@ export async function initSettingsUI(container: HTMLElement) {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) toggle(false);
   });
-  window.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.key === ",") {
-      e.preventDefault();
-      toggle(overlay.classList.contains("hidden"));
-      if (!overlay.classList.contains("hidden")) void renderPanel();
-    }
-    if (e.key === "Escape") toggle(false);
-  });
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      // 物理键码判定（e.code）：中文输入法下 e.key 可能是全角"，"；
+      // capture 阶段拦截：焦点在 CM/PM 内部编辑器时事件可能被 stopPropagation，
+      // 冒泡阶段的监听器收不到
+      if ((e.ctrlKey || e.metaKey) && e.code === "Comma") {
+        e.preventDefault();
+        toggle(overlay.classList.contains("hidden"));
+        if (!overlay.classList.contains("hidden")) void renderPanel();
+      }
+      if (e.key === "Escape") toggle(false);
+    },
+    true
+  );
 
   async function renderPanel() {
     // 排版：回填当前值
@@ -84,18 +98,22 @@ export async function initSettingsUI(container: HTMLElement) {
     overlay
       .querySelectorAll<HTMLInputElement>("input[data-check]")
       .forEach((input) => {
-        const key = input.dataset.check as "code_block_wrap";
-        input.checked = s.editor[key] === true;
+        const key = input.dataset.check as "code_block_wrap" | "show_author";
+        // 复选框默认值由 data-default 声明（默认 false）；值为 null 时按默认值显示
+        const def = input.dataset.default === "true";
+        const v = s.editor[key];
+        input.checked = v == null ? def : v === true;
       });
   }
 
-  // 复选框：change 即保存应用
+  // 复选框：change 即保存应用；取值为默认值时写回 null（跟随默认，文件自说明）
   overlay
     .querySelectorAll<HTMLInputElement>("input[data-check]")
     .forEach((input) => {
       input.addEventListener("change", async () => {
+        const def = input.dataset.default === "true";
         const patch: Record<string, boolean | null> = {};
-        patch[input.dataset.check!] = input.checked || null;
+        patch[input.dataset.check!] = input.checked === def ? null : input.checked;
         await switchTypography(patch);
       });
     });

@@ -18,6 +18,8 @@ export interface EditorSettings {
   base_font_size?: number | null;
   /** 代码块软换行（null/false = 不换行，CM 默认横向滚动） */
   code_block_wrap?: boolean | null;
+  /** 起始页署名显示（null/true = 显示） */
+  show_author?: boolean | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -50,6 +52,8 @@ export function applyTypography(e: EditorSettings) {
   }
   // 代码块软换行开关（body 类 + CSS；CM 行高缓存下一次渲染周期自愈）
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
+  // 起始页署名显示开关（默认显示，显式 false 才隐藏）
+  document.body.classList.toggle("ob-hide-author", e.show_author === false);
 }
 
 /** 保存排版设置并广播到所有窗口 */

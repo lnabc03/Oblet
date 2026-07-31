@@ -4,6 +4,7 @@
 import { editorViewCtx } from "@milkdown/core";
 import { TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
+import type { Node as PMNode } from "@milkdown/prose/model";
 import type { Ctx } from "@milkdown/ctx";
 
 const highlightIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg>`;
@@ -36,21 +37,87 @@ export function toggleHighlight(view: EditorView) {
   view.dispatch(tr.scrollIntoView());
 }
 
-/** 光标所在是否已在引用块内（嵌套 callout 无意义，此时按钮只作状态指示） */
-export function inBlockquote(view: EditorView): boolean {
-  const $from = view.state.selection.$from;
-  for (let d = $from.depth; d > 0; d--) {
-    if ($from.node(d).type.name === "blockquote") return true;
-  }
-  return false;
+/** 光标/选区所在的引用块语境（嵌套取最内层） */
+export interface CalloutCtx {
+  pos: number; // blockquote 起点
+  node: PMNode;
+  /** 小写类型；无 [!type] 标记的普通引用块为 null */
+  type: string | null;
+  markerLen: number; // 标记全文长度（含尾随空格）
 }
 
-/** 把选区覆盖的顶层块包成 callout：包 blockquote + 首段前插 [!note]（类型文字后续可直接改）。
- *  光标态（无选区）包当前块；首子节点不是段落时（如列表）只包引用块、不插标记 */
-export function wrapCallout(view: EditorView) {
-  if (inBlockquote(view)) return;
+const CALLOUT_MARKER_RE = /^\[!([a-zA-Z-]+)\][+-]?[ \t]?/;
+
+export function calloutContext(view: EditorView): CalloutCtx | null {
+  const $from = view.state.selection.$from;
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d);
+    if (node.type.name !== "blockquote") continue;
+    let type: string | null = null;
+    let markerLen = 0;
+    const first = node.firstChild;
+    if (first && first.type.name === "paragraph") {
+      const m = first.textContent.match(CALLOUT_MARKER_RE);
+      if (m) {
+        type = m[1].toLowerCase();
+        markerLen = m[0].length;
+      }
+    }
+    return { pos: $from.before(d), node, type, markerLen };
+  }
+  return null;
+}
+
+/** 光标所在是否已在引用块内（工具栏 active 态指示） */
+export function inBlockquote(view: EditorView): boolean {
+  return calloutContext(view) !== null;
+}
+
+/** Callout 开关：
+ *  - 不在引用块内 → 选区覆盖的顶层块包成 [!type] callout（光标态包当前块）
+ *  - 已在同类型 callout 内 → 回退：删标记 + 解除引用包裹，恢复原样
+ *  - 已在其他类型 callout 内 → 改写标记文本换类型
+ *  - 普通引用块（无标记）→ 补标记升级为 callout */
+export function toggleCallout(view: EditorView, type = "note") {
+  const ctx = calloutContext(view);
+  const tr = view.state.tr;
+
+  if (ctx) {
+    const markerStart = ctx.pos + 2; // blockquote 首段内容起点
+    if (ctx.type !== null) {
+      if (ctx.type === type) {
+        // 回退：解除引用包裹，同时剥掉首段的 [!type] 标记
+        const first = ctx.node.firstChild!;
+        const newFirst = first.type.create(
+          first.attrs,
+          first.content.cut(ctx.markerLen),
+          first.marks
+        );
+        const content = ctx.node.content.replaceChild(0, newFirst);
+        view.dispatch(
+          tr.replaceWith(ctx.pos, ctx.pos + ctx.node.nodeSize, content).scrollIntoView()
+        );
+      } else {
+        // 换类型：标记文本整体替换为规范形 [!type]␣
+        view.dispatch(
+          tr
+            .insertText(`[!${type}] `, markerStart, markerStart + ctx.markerLen)
+            .scrollIntoView()
+        );
+      }
+      return;
+    }
+    // 普通引用块：首子块是段落才能放标记（列表等无处可插，保持原样）
+    if (ctx.node.firstChild?.type.name === "paragraph") {
+      view.dispatch(tr.insertText(`[!${type}] `, markerStart).scrollIntoView());
+    }
+    return;
+  }
+
+  // 不在引用块内：包成新 callout
   const bq = view.state.schema.nodes.blockquote;
-  if (!bq) return;  const doc = view.state.doc;
+  if (!bq) return;
+  const doc = view.state.doc;
   const { from, to } = view.state.selection;
   const $from = doc.resolve(from);
   const $to = doc.resolve(to);
@@ -59,13 +126,12 @@ export function wrapCallout(view: EditorView) {
 
   const slice = doc.slice(blockFrom, blockTo);
   const node = bq.create(null, slice.content);
-  const tr = view.state.tr.replaceRangeWith(blockFrom, blockTo, node);
+  const tr2 = view.state.tr.replaceRangeWith(blockFrom, blockTo, node);
   // blockquote 起于 blockFrom；首子块在 +1，其内容起点在 +2
-  const firstChild = node.firstChild;
-  if (firstChild && firstChild.type.name === "paragraph") {
-    tr.insertText("[!note] ", blockFrom + 2);
+  if (node.firstChild && node.firstChild.type.name === "paragraph") {
+    tr2.insertText(`[!${type}] `, blockFrom + 2);
   }
-  view.dispatch(tr.scrollIntoView());
+  view.dispatch(tr2.scrollIntoView());
 }
 
 interface ToolbarGroupBuilder {
@@ -99,7 +165,7 @@ export const toolbarConfig = {
             return false;
           }
         },
-        onRun: (ctx: Ctx) => wrapCallout(ctx.get(editorViewCtx)),
+        onRun: (ctx: Ctx) => toggleCallout(ctx.get(editorViewCtx)),
       });
   },
 };

@@ -139,11 +139,8 @@ export const searchPlugin = $prose(() => {
       },
       handleKeyDown(v, event) {
         const s = searchKey.getState(v.state)!;
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
-          event.preventDefault();
-          dispatchMeta({ type: "open" });
-          return true;
-        }
+        // Ctrl+F 不在此处拦截：浮条聚焦时 PM 收不到事件，会漏出 webview 默认检索。
+        // 统一在 plugin view 的 window 捕获监听器里处理
         if (event.key === "Escape" && s.open) {
           dispatchMeta({ type: "close" });
           return true;
@@ -197,6 +194,22 @@ export const searchPlugin = $prose(() => {
         v.focus();
       });
 
+      // Ctrl+F 全局捕获：浮条聚焦时再按 Ctrl+F 会触发 webview 默认检索，
+      // 必须 capture 阶段 preventDefault；已打开则聚焦回输入框（编辑器惯例）
+      const onGlobalKey = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          const s = searchKey.getState(v.state)!;
+          if (s.open) {
+            input.focus();
+            input.select();
+          } else {
+            dispatchMeta({ type: "open" });
+          }
+        }
+      };
+      window.addEventListener("keydown", onGlobalKey, true);
+
       return {
         update(v2) {
           const s = searchKey.getState(v2.state)!;
@@ -221,6 +234,7 @@ export const searchPlugin = $prose(() => {
         },
         destroy() {
           bar.remove();
+          window.removeEventListener("keydown", onGlobalKey, true);
           view = null;
         },
       };

@@ -23,6 +23,9 @@ pub struct EditorSetting {
     // 代码块软换行：None/false = 不换行（CM 默认横向滚动）
     #[serde(default)]
     pub code_block_wrap: Option<bool>,
+    // 起始页署名：None/true = 显示
+    #[serde(default)]
+    pub show_author: Option<bool>,
 }
 
 fn default_true() -> bool {

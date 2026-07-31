@@ -15,6 +15,7 @@
     "vite": "^6"
   },
   "dependencies": {
+    "@codemirror/language-data": "^6.5.2",
     "@milkdown/core": "^7.21.3",
     "@milkdown/crepe": "^7.21.3",
     "@milkdown/preset-commonmark": "^7.21.3",

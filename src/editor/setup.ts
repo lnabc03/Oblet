@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll, $prose } from "@milkdown/utils";
 import { Plugin, PluginKey } from "@milkdown/prose/state";
+import { languages } from "@codemirror/language-data";
 import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
@@ -52,7 +53,6 @@ export async function boot() {
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
       <p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>
-      <p class="muted small">Ctrl+, 打开设置</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
     // 空窗口：登记路径后重载，走正常启动流程
@@ -161,6 +161,9 @@ export async function boot() {
         // Crepe latex 特性自带 KaTeX 预览渲染，这里只需默认隐藏源码编辑栏，
         // 点工具栏 Edit 才展开
         previewOnlyByDefault: true,
+        // 语言列表：Crepe 不传 languages 时会以空数组覆盖组件默认配置，
+        // 导致语言选择弹出空白——显式传入 language-data 全量预设（高亮按需懒加载）
+        languages,
       },
       // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
       // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table

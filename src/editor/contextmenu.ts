@@ -4,14 +4,24 @@ import { $prose } from "@milkdown/utils";
 import { Plugin, PluginKey } from "@milkdown/prose/state";
 import { AllSelection, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
-import { toggleHighlight, wrapCallout, isWrapped } from "./toolbar";
+import { toggleHighlight, toggleCallout } from "./toolbar";
 import { notify } from "../notify";
 
 interface Item {
   label: string;
-  run: (view: EditorView) => void;
-  enabled: (view: EditorView) => boolean;
+  run?: (view: EditorView) => void;
+  enabled?: (view: EditorView) => boolean;
+  children?: Item[];
 }
+
+/** 右键可主动创建的 callout 类型（与 Ob 常用类型对齐；其余类型可在标记文本上直接改） */
+const CALLOUT_TYPES = [
+  { type: "note", label: "Note 备注" },
+  { type: "tip", label: "Tip 提示" },
+  { type: "important", label: "Important 重要" },
+  { type: "warning", label: "Warning 警告" },
+  { type: "caution", label: "Caution 当心" },
+];
 
 const ITEMS: Item[] = [
   {
@@ -43,14 +53,19 @@ const ITEMS: Item[] = [
     enabled: () => true,
   },
   {
-    label: "== 高亮",
+    label: "高亮",
     run: (v) => toggleHighlight(v),
     enabled: (v) => !v.state.selection.empty && v.editable,
   },
   {
-    label: "Callout 包裹",
-    run: (v) => wrapCallout(v),
+    // 已处于 callout 内时选同类型 = 回退原样，选异类型 = 换类型（见 toggleCallout）
+    label: "Callout",
     enabled: (v) => v.editable,
+    children: CALLOUT_TYPES.map(({ type, label }) => ({
+      label,
+      run: (v) => toggleCallout(v, type),
+      enabled: (v) => v.editable,
+    })),
   },
 ];
 
@@ -71,21 +86,47 @@ export const contextMenuPlugin = $prose(
           menu = document.createElement("div");
           menu.className = "context-menu";
           for (const item of ITEMS) {
+            if (item.children) {
+              // 子菜单：hover 展开浮出层（CSS :hover 驱动，JS 只负责收边翻转）
+              const sub = document.createElement("div");
+              sub.className = "context-sub";
+              const btn = document.createElement("button");
+              btn.textContent = `${item.label} ▸`;
+              btn.disabled = !(item.enabled?.(view) ?? true);
+              const flyout = document.createElement("div");
+              flyout.className = "context-menu context-flyout";
+              for (const child of item.children) {
+                const cbtn = document.createElement("button");
+                cbtn.textContent = child.label;
+                cbtn.disabled = !(child.enabled?.(view) ?? true);
+                cbtn.addEventListener("click", () => {
+                  close();
+                  child.run?.(view);
+                  view.focus();
+                });
+                flyout.appendChild(cbtn);
+              }
+              sub.appendChild(btn);
+              sub.appendChild(flyout);
+              menu.appendChild(sub);
+              continue;
+            }
             const btn = document.createElement("button");
             btn.textContent = item.label;
-            btn.disabled = !item.enabled(view);
+            btn.disabled = !(item.enabled?.(view) ?? true);
             btn.addEventListener("click", () => {
               close();
-              item.run(view);
+              item.run?.(view);
               view.focus();
             });
             menu.appendChild(btn);
           }
           document.body.appendChild(menu);
-          // 防溢出：先渲染再按实际尺寸收边
+          // 防溢出：先渲染再按实际尺寸收边；贴右缘时子菜单向左展开
           const rect = menu.getBoundingClientRect();
           menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
           menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+          if (x + rect.width + 180 > window.innerWidth) menu.classList.add("flip");
         };
 
         const onContextMenu = (e: MouseEvent) => {

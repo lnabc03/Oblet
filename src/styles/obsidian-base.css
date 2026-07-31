@@ -505,8 +505,16 @@ body {
 }
 
 /* 代码块软换行开关（body.ob-code-wrap，设置项 code_block_wrap 驱动）。
- * CM6 的 lineWrapping 扩展本质也是注入同类样式；切换瞬间的行高缓存
- * 在下一个渲染周期自愈 */
+ * 只给 .cm-line 设 pre-wrap 不够：.cm-scroller 是 flex 容器且 .cm-content
+ * flex-shrink: 0，长行会把内容盒按 max-content 撑宽，永远到不了换行宽度——
+ * CM6 官方 lineWrapping 同样在内容盒上设 flexShrink: 1，这里对齐。
+ * 切换瞬间的行高缓存（oracle 读 .cm-line 计算样式触发刷新）下一渲染周期自愈 */
+body.ob-code-wrap .markdown-rendered .cm-content {
+  flex-shrink: 1;
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
 body.ob-code-wrap .markdown-rendered .cm-line {
   white-space: pre-wrap;
   word-break: break-word;
@@ -606,6 +614,23 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 .context-menu button:disabled {
   color: var(--ob-text-faint);
   cursor: default;
+}
+/* 子菜单：hover 展开浮出层；父菜单贴右缘时（.flip）向左展开 */
+.context-sub {
+  position: relative;
+}
+.context-sub > .context-flyout {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -5px;
+}
+.context-sub:hover > .context-flyout {
+  display: flex;
+}
+.context-menu.flip .context-sub > .context-flyout {
+  left: auto;
+  right: 100%;
 }
 
 /* ---- 设置浮层 ---- */
@@ -780,9 +805,12 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 .markdown-rendered .ProseMirror .ob-frontmatter input:disabled {
   cursor: default;
 }
-/* 键名输入框：宽度按内容（size 属性估算 + field-sizing 自适应增长），不撑满单元格 */
+/* 键名输入框与值输入框统一：填满单元格，点击高亮框两列同宽 */
 .markdown-rendered .ProseMirror .ob-frontmatter input.fm-key-input {
-  width: auto;
   max-width: 100%;
-  field-sizing: content;
+}
+
+/* 起始页署名隐藏开关（设置项 show_author 驱动） */
+body.ob-hide-author .empty-author {
+  display: none;
 }
