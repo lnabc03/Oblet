@@ -9,6 +9,7 @@ import { Plugin, PluginKey } from "@milkdown/prose/state";
 import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
+import { searchPlugin } from "./search";
 import logoUrl from "../assets/logo.png";
 import {
   disableEmptyLineBr,
@@ -199,6 +200,7 @@ export async function boot() {
       .use(taskListSpaceTrim.options)
       .use(taskListSpaceTrim.plugin)
       .use(userEditTracker)
+      .use(searchPlugin)
       .use(disableEmptyLineBr)
   );
 

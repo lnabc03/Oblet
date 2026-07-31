@@ -462,6 +462,69 @@ body {
   height: 16px;
 }
 
+/* ---- 检索浮条 ---- */
+.search-bar {
+  position: fixed;
+  top: 10px;
+  right: 48px; /* 给右上角设置按钮留位 */
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-interface, var(--ob-font));
+  font-size: 0.85em;
+}
+.search-bar.hidden {
+  display: none;
+}
+.search-bar input {
+  width: 180px;
+  padding: 3px 8px;
+  border: 1px solid var(--ob-border);
+  border-radius: 5px;
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  font: inherit;
+  outline: none;
+}
+.search-bar input:focus {
+  border-color: var(--ob-accent);
+}
+.search-count {
+  min-width: 3.2em;
+  text-align: center;
+  color: var(--ob-text-mut);
+  font-size: 0.92em;
+}
+.search-bar button {
+  padding: 2px 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ob-text-mut);
+  cursor: pointer;
+  font: inherit;
+}
+.search-bar button:hover {
+  background: var(--ob-selection);
+  color: var(--ob-text);
+}
+
+/* 命中高亮：普通命中淡底，活动命中亮底（颜色走主题 selection/accent 变量） */
+.markdown-rendered .ob-search-match {
+  background: var(--ob-selection);
+  border-radius: 2px;
+}
+.markdown-rendered .ob-search-active {
+  background: var(--ob-accent-soft);
+  outline: 1px solid var(--ob-accent);
+}
+
 /* ---- 设置浮层 ---- */
 /* UI 元素走界面字体（--font-interface），未设置时回退正文字体 */
 .settings-btn,
