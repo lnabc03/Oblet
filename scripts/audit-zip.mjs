@@ -22,4 +22,10 @@ console.log(
     ? "齐全"
     : "缺失"
 );
+// 深度清理（十三轮）：绿色包不得夹带本机个人设置——曾因 release/Oblet/data 残留
+// 把私人字体/键位覆盖/auto_save=false 打进 zip；data/ 由运行时自建，打包不带
+console.log(
+  "个人设置泄漏   :",
+  existsSync(join(tmp, "data", "settings.json")) ? "有（违规！）" : "无"
+);
 rmSync(tmp, { recursive: true, force: true });

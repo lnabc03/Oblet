@@ -343,7 +343,7 @@ export const dragMovePlugin = $prose(
             draggingSelection = true;
             return false; // 不 preventDefault——让原生拖动会话启动
           },
-          dragover(view, e) {
+          dragover(_view, e) {
             if (!draggingSelection) return false;
             e.preventDefault(); // 声明接受 → 禁止符号变可放置光标
             if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
