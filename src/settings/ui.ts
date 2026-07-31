@@ -1,4 +1,4 @@
-// 设置浮层：排版覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
+// 设置浮层：排版/编辑器/界面覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
 import {
   getSettings,
   setKeybinding,
@@ -38,13 +38,54 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="text" data-typo="mono_font" placeholder="跟随主题">
           <label>界面字体</label>
           <input type="text" data-typo="interface_font" placeholder="跟随主题">
+          <label>标题字体</label>
+          <input type="text" data-typo="title_font" placeholder="跟随主题">
           <label>基础字号</label>
-          <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="跟随主题">
+          <input type="number" data-num="base_font_size" min="12" max="32" placeholder="跟随主题">
+          <label>行高</label>
+          <input type="number" data-num="line_height" min="1.2" max="2.4" step="0.05" placeholder="1.75">
+          <label>段间距 (em)</label>
+          <input type="number" data-num="paragraph_gap" min="0" max="2" step="0.1" placeholder="0.4">
+          <label>标题缩放</label>
+          <input type="number" data-num="heading_scale" min="0.7" max="1.5" step="0.05" placeholder="1.0">
+          <label>正文颜色</label>
+          <span class="color-row">
+            <input type="color" data-color="text_color">
+            <button class="color-reset" data-reset="text_color" title="恢复跟随主题">✕</button>
+          </span>
+          <label>强调色</label>
+          <span class="color-row">
+            <input type="color" data-color="accent_color">
+            <button class="color-reset" data-reset="accent_color" title="恢复跟随主题">✕</button>
+          </span>
         </div>
         <p class="muted small">留空则跟随主题；修改后失焦或回车生效</p>
       </div>
       <div class="settings-section">
         <h3>编辑器</h3>
+        <label class="check-row">
+          <input type="checkbox" data-check="auto_save" data-default="true">
+          <span>自动保存</span>
+        </label>
+        <label class="check-row">
+          <span>自动保存延迟 (ms)</span>
+          <input type="number" data-num="auto_save_delay_ms" min="200" max="10000" step="100" placeholder="1000">
+        </label>
+        <label class="check-row">
+          <input type="checkbox" data-check="show_active_block" data-default="true">
+          <span>光标所在块底色</span>
+        </label>
+        <label class="check-row">
+          <span>块底色强度</span>
+          <select data-select="active_block_alpha" data-select-type="number">
+            <option value="">默认</option>
+            <option value="0.02">几乎不可见</option>
+            <option value="0.03">淡</option>
+            <option value="0.06">适中</option>
+            <option value="0.09">醒目</option>
+            <option value="0.13">很醒目</option>
+          </select>
+        </label>
         <label class="check-row">
           <input type="checkbox" data-check="code_block_wrap">
           <span>代码块自动换行</span>
@@ -52,6 +93,10 @@ export async function initSettingsUI(container: HTMLElement) {
       </div>
       <div class="settings-section">
         <h3>界面</h3>
+        <label class="check-row">
+          <span>底部留白 (px)</span>
+          <input type="number" data-num="bottom_padding" min="0" max="800" step="10" placeholder="280">
+        </label>
         <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
           <span>起始页显示署名</span>
@@ -155,45 +200,60 @@ export async function initSettingsUI(container: HTMLElement) {
   }
 
   async function renderPanel() {
-    // 排版：回填当前值
     const s = await getSettings();
+    const ed = s.editor as unknown as Record<string, unknown>;
+    // 文本输入：回填当前值
     overlay
       .querySelectorAll<HTMLInputElement>("input[data-typo]")
       .forEach((input) => {
-        const key = input.dataset.typo as
-          | "text_font"
-          | "mono_font"
-          | "interface_font"
-          | "base_font_size";
-        const v = s.editor[key];
+        const v = ed[input.dataset.typo!];
         input.value = v == null ? "" : String(v);
       });
+    // 数字输入：回填当前值
+    overlay
+      .querySelectorAll<HTMLInputElement>("input[data-num]")
+      .forEach((input) => {
+        const v = ed[input.dataset.num!];
+        input.value = v == null ? "" : String(v);
+      });
+    // 颜色输入：无覆盖时显示一个中性占位色（不代表实际主题色）
+    overlay
+      .querySelectorAll<HTMLInputElement>("input[data-color]")
+      .forEach((input) => {
+        const v = ed[input.dataset.color!];
+        input.value = typeof v === "string" && v ? v : "#888888";
+      });
+    // 复选框：默认值由 data-default 声明（默认 false）；值为 null 时按默认值显示
     overlay
       .querySelectorAll<HTMLInputElement>("input[data-check]")
       .forEach((input) => {
-        const key = input.dataset.check as "code_block_wrap" | "show_author";
-        // 复选框默认值由 data-default 声明（默认 false）；值为 null 时按默认值显示
         const def = input.dataset.default === "true";
-        const v = s.editor[key];
+        const v = ed[input.dataset.check!];
         input.checked = v == null ? def : v === true;
       });
     // 下拉框：回填当前值
     overlay
       .querySelectorAll<HTMLSelectElement>("select[data-select]")
       .forEach((sel) => {
-        const key = sel.dataset.select as "window_effect";
-        sel.value = s.editor[key] ?? "";
+        const v = ed[sel.dataset.select!];
+        sel.value = v == null ? "" : String(v);
       });
     renderKeymapList();
   }
 
-  // 下拉框：change 即保存应用；空串 = 关闭（写回 null）
+  // 下拉框：change 即保存应用；空串 = 跟随默认（写回 null）；
+  // data-select-type="number" 的选项值按数字解析（如块底色强度）
   overlay
     .querySelectorAll<HTMLSelectElement>("select[data-select]")
     .forEach((sel) => {
       sel.addEventListener("change", async () => {
-        const patch: Record<string, string | null> = {};
-        patch[sel.dataset.select!] = sel.value || null;
+        const patch: Record<string, string | number | null> = {};
+        patch[sel.dataset.select!] =
+          sel.dataset.selectType === "number"
+            ? sel.value
+              ? Number(sel.value)
+              : null
+            : sel.value || null;
         await switchTypography(patch);
       });
     });
@@ -210,21 +270,57 @@ export async function initSettingsUI(container: HTMLElement) {
       });
     });
 
-  // 排版输入：change（失焦/回车）即保存并应用；留空 = 清除覆盖
+  // 文本输入：change（失焦/回车）即保存并应用；留空 = 清除覆盖
   overlay
     .querySelectorAll<HTMLInputElement>("input[data-typo]")
     .forEach((input) => {
       input.addEventListener("change", async () => {
-        const key = input.dataset.typo!;
-        const raw = input.value.trim();
-        const patch: Record<string, string | number | null> = {};
-        patch[key] =
-          key === "base_font_size"
-            ? raw
-              ? Math.min(32, Math.max(12, Number(raw) || 16))
-              : null
-            : raw || null;
+        const patch: Record<string, string | null> = {};
+        patch[input.dataset.typo!] = input.value.trim() || null;
         await switchTypography(patch);
+      });
+    });
+
+  // 数字输入：change 即保存并应用；按 min/max 夹取；留空 = 清除覆盖（跟随默认）
+  overlay
+    .querySelectorAll<HTMLInputElement>("input[data-num]")
+    .forEach((input) => {
+      input.addEventListener("change", async () => {
+        const raw = input.value.trim();
+        const patch: Record<string, number | null> = {};
+        if (!raw) {
+          patch[input.dataset.num!] = null;
+        } else {
+          const min = input.min ? Number(input.min) : -Infinity;
+          const max = input.max ? Number(input.max) : Infinity;
+          const n = Number(raw);
+          patch[input.dataset.num!] = Number.isFinite(n)
+            ? Math.min(max, Math.max(min, n))
+            : null;
+          input.value = patch[input.dataset.num!] == null ? "" : String(patch[input.dataset.num!]);
+        }
+        await switchTypography(patch);
+      });
+    });
+
+  // 颜色输入：input 事件实时保存应用；✕ 按钮清除覆盖（跟随主题）
+  overlay
+    .querySelectorAll<HTMLInputElement>("input[data-color]")
+    .forEach((input) => {
+      input.addEventListener("input", async () => {
+        const patch: Record<string, string | null> = {};
+        patch[input.dataset.color!] = input.value;
+        await switchTypography(patch);
+      });
+    });
+  overlay
+    .querySelectorAll<HTMLButtonElement>("button[data-reset]")
+    .forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const patch: Record<string, string | null> = {};
+        patch[btn.dataset.reset!] = null;
+        await switchTypography(patch);
+        void renderPanel();
       });
     });
 }

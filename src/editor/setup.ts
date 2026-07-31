@@ -5,15 +5,22 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
-import { replaceAll, $prose } from "@milkdown/utils";
-import { Plugin, PluginKey } from "@milkdown/prose/state";
+import { replaceAll, callCommand, $prose } from "@milkdown/utils";
+import { editorViewCtx } from "@milkdown/core";
+import {
+  toggleEmphasisCommand,
+  toggleInlineCodeCommand,
+  toggleStrongCommand,
+  wrapInHeadingCommand,
+} from "@milkdown/preset-commonmark";
+import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { languages } from "@codemirror/language-data";
-import { initTypography } from "../settings/typography";
+import { currentEditorSettings, initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { contextMenuPlugin } from "./contextmenu";
-import { toolbarConfig } from "./toolbar";
+import { toolbarConfig, toggleHighlight } from "./toolbar";
 import { notify } from "../notify";
 import { registerCommand } from "../commands";
 import logoUrl from "../assets/logo.png";
@@ -32,8 +39,6 @@ interface FilePayload {
   readonly: boolean;
   readonly_reason: string | null;
 }
-
-const AUTOSAVE_DELAY = 1000;
 
 /** 路径归一化比较（拖放路径与登记路径可能一个规范化一个不曾） */
 function samePath(a: string, b: string) {
@@ -184,8 +189,12 @@ export async function boot() {
 
   const scheduleSave = () => {
     dirty = true;
+    // 自动保存开关/延迟走设置（十轮 #5）：关自动保存时只标脏，等 Ctrl+S
+    const ed = currentEditorSettings();
+    if (ed.auto_save === false) return;
+    const delay = Math.min(10000, Math.max(200, ed.auto_save_delay_ms ?? 1000));
     window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => void flushSave(), AUTOSAVE_DELAY);
+    saveTimer = window.setTimeout(() => void flushSave(), delay);
   };
 
   // Ctrl+S 立即保存（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
@@ -285,6 +294,84 @@ export async function boot() {
   await crepe.create();
   if (payload.readonly) crepe.setReadonly(true);
   await invoke("watch_file", { path });
+
+  // 格式化快捷键（十轮 #4）：经命令注册表统一派发（捕获阶段拦截 + preventDefault，
+  // PM 收不到按键，不会与 Milkdown 内置 Mod-b/Mod-i 重复触发）；默认组合可在设置中覆盖。
+  // 只读文件全部静默放行（命令会真实改文档，不能靠 PM editable 挡）
+  const editable = () => !payload.readonly;
+  registerCommand({
+    id: "bold",
+    title: "加粗",
+    defaultCombo: "Ctrl+B",
+    run: () => {
+      if (editable()) crepe.editor.action(callCommand(toggleStrongCommand.key));
+    },
+  });
+  registerCommand({
+    id: "italic",
+    title: "斜体",
+    defaultCombo: "Ctrl+I",
+    run: () => {
+      if (editable()) crepe.editor.action(callCommand(toggleEmphasisCommand.key));
+    },
+  });
+  registerCommand({
+    id: "inline-code",
+    title: "行内代码",
+    defaultCombo: "Ctrl+`",
+    run: () => {
+      if (editable()) crepe.editor.action(callCommand(toggleInlineCodeCommand.key));
+    },
+  });
+  registerCommand({
+    id: "highlight",
+    title: "高亮",
+    defaultCombo: "Ctrl+H",
+    run: () => {
+      if (editable())
+        crepe.editor.action((ctx) => toggleHighlight(ctx.get(editorViewCtx)));
+    },
+  });
+  for (let level = 1; level <= 6; level++) {
+    registerCommand({
+      id: `heading-${level}`,
+      title: `${level} 级标题`,
+      defaultCombo: `Alt+${level}`,
+      run: () => {
+        if (!editable()) return;
+        crepe.editor.action((ctx) => {
+          // toggle 语义：已是该级标题 → 切回正文（level 0 → setBlockType(paragraph)）
+          const view = ctx.get(editorViewCtx);
+          const parent = view.state.selection.$from.parent;
+          const cur = parent.type.name === "heading" ? parent.attrs.level : 0;
+          callCommand(wrapInHeadingCommand.key, cur === level ? 0 : level)(ctx);
+        });
+      },
+    });
+  }
+
+  // 自动化验证钩子（repro-dist/repro-webview 专用）：合成键盘事件无法驱动 DOM 选区
+  // （浏览器忽略非可信按键的默认行为），选区建立与序列化断言经此句柄进行
+  (window as unknown as Record<string, unknown>).__oblet = {
+    selectLastParagraph: () =>
+      crepe.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const doc = view.state.doc;
+        let pos = -1;
+        doc.descendants((node, p) => {
+          if (node.type.name === "paragraph") pos = p;
+        });
+        if (pos < 0) return;
+        const node = doc.nodeAt(pos)!;
+        view.dispatch(
+          view.state.tr.setSelection(
+            TextSelection.create(doc, pos + 1, pos + 1 + node.content.size)
+          )
+        );
+        view.focus();
+      }),
+    getMarkdown: () => crepe.getMarkdown(),
+  };
 
   // 外链点击调系统默认浏览器：webview 对 target=_blank 不处理（悬浮窗网址点击无响应）。
   // 只劫持浮层里的链接（链接预览悬浮窗等）；正文 .ProseMirror 内的 a 是编辑态，

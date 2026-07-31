@@ -108,5 +108,54 @@ const emptyBlock = await evaluate(`(() => {
   }, 1000));
 })()`);
 console.log("emptyBlock:", JSON.stringify(emptyBlock?.result?.value ?? emptyBlock, null, 1));
+
+// 设置面板（十轮 #5）：打开后清点控件数，确认扩充项渲染
+const settingsPanel = await evaluate(`(() => {
+  const btn = document.querySelector(".settings-btn");
+  if (!btn) return { stage: "no settings btn" };
+  btn.click();
+  return new Promise((res) => setTimeout(() => {
+    const panel = document.querySelector(".settings-panel");
+    res({
+      stage: "done",
+      hidden: document.querySelector(".settings-overlay")?.classList.contains("hidden") ?? null,
+      textInputs: panel?.querySelectorAll("input[data-typo]").length ?? 0,
+      numInputs: panel?.querySelectorAll("input[data-num]").length ?? 0,
+      colorInputs: panel?.querySelectorAll("input[data-color]").length ?? 0,
+      checkboxes: panel?.querySelectorAll("input[data-check]").length ?? 0,
+      selects: panel?.querySelectorAll("select[data-select]").length ?? 0,
+      keymapRows: panel?.querySelectorAll(".keymap-row").length ?? 0,
+    });
+  }, 800));
+})()`);
+console.log("settingsPanel:", JSON.stringify(settingsPanel?.result?.value ?? settingsPanel, null, 1));
+await evaluate(`document.querySelector(".settings-close")?.click()`);
+
+// 格式化快捷键（十轮 #4）：与 repro-dist 同款——选区走 __oblet 钩子，按键真实派发，
+// 断言序列化结果（加粗/高亮/行内代码/标题 toggle 全链路）
+const shortcut = await evaluate(`(() => {
+  const ob = window.__oblet;
+  if (!ob) return { stage: "no __oblet hook" };
+  const press = (init) => window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+  const step = (ms) => new Promise((r) => setTimeout(r, ms));
+  return (async () => {
+    ob.selectLastParagraph();
+    await step(200);
+    press({ code: "KeyB", ctrlKey: true });
+    await step(300);
+    const afterBold = ob.getMarkdown();
+    press({ code: "KeyB", ctrlKey: true });
+    await step(300);
+    press({ code: "Digit3", altKey: true });  // Alt+3 → 三级标题
+    await step(300);
+    const afterH3 = ob.getMarkdown();
+    press({ code: "Digit3", altKey: true });
+    await step(300);
+    const afterH3Off = ob.getMarkdown();
+    return { stage: "done", afterBold, afterH3, afterH3Off, errors: window.__errors };
+  })();
+})()`);
+console.log("shortcut:", JSON.stringify(shortcut?.result?.value ?? shortcut, null, 1));
+
 await evaluate(`window.close()`).catch(() => {});
 process.exit(0);

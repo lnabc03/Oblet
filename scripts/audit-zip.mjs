@@ -13,8 +13,8 @@ const md5 = (p) => createHash("md5").update(readFileSync(p)).digest("hex");
 const zipExe = md5(join(tmp, "oblet.exe"));
 const buildExe = md5("src-tauri/target/release/oblet.exe");
 console.log("zip 内 exe MD5 :", zipExe);
-console.log("九轮构建 MD5   :", buildExe);
-console.log(zipExe === buildExe ? "MATCH: zip 内 exe 即九轮构建产物" : "MISMATCH!");
+console.log("构建产物 MD5   :", buildExe);
+console.log(zipExe === buildExe ? "MATCH: zip 内 exe 即当前构建产物" : "MISMATCH!");
 console.log("licenses 份数  :", readdirSync(join(tmp, "licenses")).length);
 console.log(
   "bat 脚本       :",

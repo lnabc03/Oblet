@@ -7,8 +7,9 @@ import "./styles/anuppuccin-custom.css";
 import { boot } from "./editor/setup";
 import { initKeymap } from "./commands";
 
-// 4.5 当前行高亮原型：主题里 anp-current-line 的 CM5 选择器是死规则，
-// 实际显隐由这个类门控 .ob-active-block 原型样式——评审后保留或移除，不留中间态
+// 4.5 当前块高亮：主题里 anp-current-line 的 CM5 选择器是死规则，
+// 实际显隐由这个类门控 .ob-active-block 样式。先默认加上（设置加载前的瞬时态），
+// 设置项 show_active_block 生效后由 applyTypography 接管显隐
 document.body.classList.add("anp-current-line");
 
 void initKeymap();

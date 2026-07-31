@@ -189,6 +189,48 @@ const emptyBlock = await evaluate(`(() => {
 })()`);
 console.log("emptyBlock(空代码块浮层可见性):", JSON.stringify(emptyBlock, null, 1));
 
+// 格式化快捷键（十轮 #4）：选区经 __oblet 钩子建立（合成按键无法驱动 DOM 选区），
+// 按键本身真实走 window 捕获派发器；断言用序列化结果——快捷键的最终语义就是文档变化
+const shortcut = await evaluate(`(() => {
+  const ob = window.__oblet;
+  if (!ob) return { stage: "no __oblet hook" };
+  const press = (init) => window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+  const step = (ms) => new Promise((r) => setTimeout(r, ms));
+  return (async () => {
+    ob.selectLastParagraph();
+    await step(200);
+    press({ code: "KeyB", ctrlKey: true });   // Ctrl+B 加粗
+    await step(300);
+    const afterBold = ob.getMarkdown();
+    press({ code: "KeyB", ctrlKey: true });   // 再 Ctrl+B 解加粗
+    await step(300);
+    const afterUnbold = ob.getMarkdown();
+    press({ code: "KeyH", ctrlKey: true });   // Ctrl+H 高亮
+    await step(300);
+    const afterHl = ob.getMarkdown();
+    press({ code: "KeyH", ctrlKey: true });   // 再 Ctrl+H 解高亮
+    await step(300);
+    const afterUnhl = ob.getMarkdown();
+    press({ code: "Backquote", ctrlKey: true }); // Ctrl+\` 行内代码
+    await step(300);
+    const afterCode = ob.getMarkdown();
+    press({ code: "Backquote", ctrlKey: true }); // 解行内代码
+    await step(300);
+    press({ code: "Digit2", altKey: true });  // Alt+2 → 二级标题
+    await step(300);
+    const afterH2 = ob.getMarkdown();
+    press({ code: "Digit2", altKey: true });  // 再 Alt+2 → 回正文
+    await step(300);
+    const afterH2Off = ob.getMarkdown();
+    return {
+      stage: "done",
+      afterBold, afterUnbold, afterHl, afterUnhl, afterCode, afterH2, afterH2Off,
+      errors: window.__errors ?? [],
+    };
+  })();
+})()`);
+console.log("shortcut(格式化快捷键):", JSON.stringify(shortcut, null, 1));
+
 edge.kill();
 server.close();
 process.exit(0);

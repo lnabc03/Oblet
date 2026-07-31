@@ -165,9 +165,9 @@ pub fn watch_file(state: State<AppState>, window: tauri::Window, path: String) -
 pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -> Result<(), String> {
     let res = match effect.as_deref() {
         Some("mica") => window_vibrancy::apply_mica(&window, Some(true)),
-        // 深色亚克力：tint 取 Catppuccin Mocha base (30,30,46) 贴近主题紫黑；
-        // alpha 60→150→179→200：60 显亮割裂、150"基本全透"、179 仍不够实（九轮批示→200，78% 不透明）
-        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((30, 30, 46, 200))),
+        // 深紫黑亚克力：十轮批示"底色改为非常深的紫黑色，alpha→250"（98% 不透明，近实底）。
+        // alpha 演进 60→150→179→200→250；底色 (30,30,46) mocha base → (24,18,42) 深紫黑
+        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((24, 18, 42, 250))),
         _ => {
             // 关：两种都清（互不知晓对方是否应用过；未应用时 clear 亦安全返回）
             let a = window_vibrancy::clear_mica(&window);

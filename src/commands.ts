@@ -108,6 +108,13 @@ export async function initKeymap(): Promise<void> {
     "keydown",
     (e) => {
       if (captureActive) return;
+      // 焦点在输入控件/浮层里时格式化类快捷键不穿透到后台文档
+      // （搜索框里按 Ctrl+B 不应把正文加粗；十轮引入格式化命令后必须有这道防线）
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.closest("input, textarea, select, .settings-overlay")
+      )
+        return;
       const combo = comboOf(e);
       if (!combo) return;
       const cmd = comboMap().get(combo);

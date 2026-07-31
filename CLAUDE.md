@@ -10,7 +10,7 @@ Oblet：轻量、快速的独立 Markdown 编辑器（Windows），双击 .md �
 
 ## 常用命令
 
-```ceshi
+```bash
 npm run tauri dev        # 开发（自动起 vite :1420 + cargo run）
 npm run build            # 前端构建（tsc && vite build，含类型检查）
 npm run tauri build      # 产出绿色版 exe
@@ -62,7 +62,5 @@ node scripts/verify-languages.mjs   # 代码块语言列表注入 + 浮层弹出
 - `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
 - 回复与文档一律使用简体中文。
 
-```bash
-npm run build
-```
+
 
