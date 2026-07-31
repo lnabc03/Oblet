@@ -157,8 +157,10 @@ export const searchPlugin = $prose(() => {
       bar.className = "search-bar hidden";
       bar.innerHTML = `
         <div class="search-row">
-          <input type="text" class="search-query" placeholder="搜索…" spellcheck="false">
-          <span class="search-count"></span>
+          <span class="search-field">
+            <input type="text" class="search-query" placeholder="搜索…" spellcheck="false">
+            <span class="search-count"></span>
+          </span>
           <button class="search-prev" title="上一个 (Shift+Enter)">↑</button>
           <button class="search-next" title="下一个 (Enter)">↓</button>
           <button class="search-close" title="关闭 (Esc)">✕</button>

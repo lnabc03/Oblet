@@ -178,6 +178,20 @@ pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -
     res.map_err(|e| e.to_string())
 }
 
+// 外链用系统默认浏览器打开：Tauri webview 对 target=_blank 不做任何处理，
+// 悬浮窗里的网址点击会无响应（七轮反馈）。rundll32 方案零新增依赖。
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("仅支持打开 http/https 链接".to_string());
+    }
+    std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", &url])
+        .spawn()
+        .map_err(|e| format!("打开链接失败: {e}"))?;
+    Ok(())
+}
+
 // 粘贴/拖入图片落盘（3.7 收口）：Crepe 默认 onUpload 是 blob: 内存 URL，
 // 保存进 md 重开即失效——复制到 md 同目录 assets/ 并返回相对引用（对齐 Obsidian 附件行为）
 #[tauri::command]

@@ -63,15 +63,20 @@ fn md_arg_from(argv: &[String], cwd: &str) -> Option<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            // 第二实例启动：唤醒已有窗口或新开窗口
-            if let Some(path) = md_arg_from(&argv, &cwd) {
-                open_or_focus(app, &path);
-            } else if let Some(win) = app.get_webview_window("main") {
-                let _ = win.set_focus();
-            }
-        }))
+    let builder = tauri::Builder::default();
+    // 单实例仅 release 注册：锁按 AppID 不分 debug/release，常驻的 dev 实例持锁时，
+    // zip 版 release 启动会被劫持转发到陈旧 dev 窗口——用户看到的永远是旧前端快照
+    //（七轮"修复未生效"悬案的根因）。dev 不持锁，release 启动即正常自建窗口
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        // 第二实例启动：唤醒已有窗口或新开窗口
+        if let Some(path) = md_arg_from(&argv, &cwd) {
+            open_or_focus(app, &path);
+        } else if let Some(win) = app.get_webview_window("main") {
+            let _ = win.set_focus();
+        }
+    }));
+    builder
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_window_file,
@@ -81,6 +86,7 @@ pub fn run() {
             commands::watch_file,
             commands::set_window_effect,
             commands::save_image_asset,
+            commands::open_url,
             settings::get_settings,
             settings::save_settings,
         ])

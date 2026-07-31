@@ -31,3 +31,4 @@ release/
 
 # 本地参考素材（milkdown 官方示例库快照，体积大且无需入库）
 ref/milkdown-examples/
+scripts/.repro/

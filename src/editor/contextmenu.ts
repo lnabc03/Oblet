@@ -5,6 +5,7 @@ import { Plugin, PluginKey } from "@milkdown/prose/state";
 import { AllSelection, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
 import { toggleHighlight, toggleCallout } from "./toolbar";
+import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { notify } from "../notify";
 
 interface Item {
@@ -66,6 +67,12 @@ const ITEMS: Item[] = [
       run: (v) => toggleCallout(v, type),
       enabled: (v) => v.editable,
     })),
+  },
+  {
+    // 无 frontmatter 的文档才有创建入口；插入空属性栏并聚焦键名（见 frontmatter.ts）
+    label: "添加笔记属性",
+    run: (v) => insertFrontmatter(v),
+    enabled: (v) => v.editable && !hasFrontmatter(v.state.doc),
   },
 ];
 

@@ -262,4 +262,59 @@ export const activeBlockPlugin = $prose(
     })
 );
 
-export const obletPlugins = [highlightPlugin, calloutPlugin, activeBlockPlugin];
+// ---- 代码块语言自由输入（1.4 批注落地）----
+// Crepe 原版语言浮层的搜索框回车没有任何行为（只能从预设列表点选）。
+// 捕获 Enter：以输入文本设置当前代码块语言——命中预设（按 name/alias 匹配）照常
+// 懒加载高亮；自定义语言无高亮、按纯文本渲染，围栏序列化保留原文（与 Obsidian 一致）。
+export const languageFreeInputPlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("oblet-language-free-input"),
+      view(view) {
+        const onKeydown = (e: KeyboardEvent) => {
+          if (e.key !== "Enter") return;
+          const input = e.target;
+          if (
+            !(input instanceof HTMLInputElement) ||
+            !input.classList.contains("search-input")
+          ) {
+            return;
+          }
+          const text = input.value.trim();
+          if (!text) return;
+          const blockDom = input.closest(".milkdown-code-block");
+          if (!blockDom) return;
+          e.preventDefault();
+          e.stopPropagation();
+          // 浮层挂在 NodeView dom 内：posAtDOM 反查文档位置，沿深度链找 code_block
+          const pos = view.posAtDOM(blockDom, 0);
+          const $pos = view.state.doc.resolve(pos);
+          for (let d = $pos.depth; d >= 0; d--) {
+            if ($pos.node(d).type.name !== "code_block") continue;
+            view.dispatch(
+              view.state.tr.setNodeAttribute($pos.before(d), "language", text)
+            );
+            break;
+          }
+          // 组件浮层由 window click 监听关闭（点击目标在 picker 外即收起），
+          // 派一个落到 body 的 click 让它自然收起；焦点还给编辑器
+          document.body.click();
+          view.focus();
+        };
+        // capture 阶段：抢在组件与 PM 的 keydown 处理之前
+        view.dom.addEventListener("keydown", onKeydown, true);
+        return {
+          destroy() {
+            view.dom.removeEventListener("keydown", onKeydown, true);
+          },
+        };
+      },
+    })
+);
+
+export const obletPlugins = [
+  highlightPlugin,
+  calloutPlugin,
+  activeBlockPlugin,
+  languageFreeInputPlugin,
+];

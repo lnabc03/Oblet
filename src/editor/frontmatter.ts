@@ -12,7 +12,8 @@ import type { Ctx, MilkdownPlugin } from '@milkdown/ctx'
 import { InitReady, remarkStringifyOptionsCtx } from '@milkdown/core'
 import { remarkPreserveEmptyLinePlugin } from '@milkdown/preset-commonmark'
 import { $nodeSchema, $remark, $view } from '@milkdown/utils'
-import type { NodeView } from '@milkdown/prose/view'
+import type { EditorView, NodeView } from '@milkdown/prose/view'
+import type { Node as PMNode } from '@milkdown/prose/model'
 import type { Handle, Join } from 'mdast-util-to-markdown'
 import remarkFrontmatter from 'remark-frontmatter'
 
@@ -125,6 +126,13 @@ export const frontmatterView = $view(
 
         if ((newKey == null || newKey === '') && newValue.trim() === '') {
           lines.splice(index, 1)
+          // 所有行都被删光 → 整个 frontmatter 节点移除（对齐 Ob：
+          // 清空属性后 --- 围栏消失，不留空壳）；刚插入就放弃的空属性栏也走这条路
+          if (lines.every((l) => l.trim() === '')) {
+            const pos = typeof getPos === 'function' ? getPos() : undefined
+            if (pos != null) view.dispatch(view.state.tr.delete(pos, pos + cur.nodeSize))
+            return
+          }
           replaceText(lines.join('\n'))
           return
         }
@@ -239,6 +247,24 @@ export const frontmatterView = $view(
       }
     }
 )
+
+// ---- 创建入口（七轮）：无 frontmatter 的文档在文首插入空属性栏 ----
+// 空文本节点经 NodeView 渲染为一行"属性名"虚拟输入框，填键回车即写成 key: value；
+// 一行都不填就离开 → commit 的清空分支把整个节点移除，不落空 --- 围栏
+export const hasFrontmatter = (doc: PMNode) =>
+  doc.firstChild?.type.name === 'frontmatter'
+
+export function insertFrontmatter(view: EditorView) {
+  const type = view.state.schema.nodes.frontmatter
+  if (!type || hasFrontmatter(view.state.doc)) return
+  view.dispatch(view.state.tr.insert(0, type.create()))
+  // NodeView 在 dispatch 后挂载，推迟一拍聚焦新行键名输入框
+  setTimeout(() => {
+    view.dom
+      .querySelector<HTMLInputElement>('.ob-frontmatter .fm-key-input')
+      ?.focus()
+  }, 0)
+}
 
 // text 处理器：默认转义后，撤销破坏 Obsidian 语义的 \[! 与 \==
 const keepObsidianSyntax: Handle = (node, _parent, state, info) =>

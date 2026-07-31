@@ -286,6 +286,27 @@ export async function boot() {
   if (payload.readonly) crepe.setReadonly(true);
   await invoke("watch_file", { path });
 
+  // 外链点击调系统默认浏览器：webview 对 target=_blank 不处理（悬浮窗网址点击无响应）。
+  // 只劫持浮层里的链接（链接预览悬浮窗等）；正文 .ProseMirror 内的 a 是编辑态，
+  // 点击是定位光标，不能拦。capture 阶段拦截，抢在浮层自身处理器之前
+  document.addEventListener(
+    "click",
+    (e) => {
+      const el = e.target;
+      if (!(el instanceof Element)) return;
+      const a = el.closest("a[href]");
+      if (!a || a.closest(".ProseMirror")) return;
+      const href = a.getAttribute("href") || "";
+      if (!/^https?:\/\//i.test(href)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      invoke("open_url", { url: href }).catch((err) =>
+        notify(`打开链接失败：${err}`, "error")
+      );
+    },
+    true
+  );
+
   // ---- 外部变更：无脏内容自动重载，有则提示 ----
   const winLabel = getCurrentWindow().label;
   await listen(`file-changed:${winLabel}`, async () => {
