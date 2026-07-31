@@ -27,7 +27,11 @@
     "shortDescription": "轻量独立的 Markdown 编辑器",
     "longDescription": "Oblet：双击 .md 即编辑的独立 Markdown 编辑器，AnuPpuccin 深色主题，每文件一窗口，序列化保真。",
     "icon": [
-      "icons/icon.png"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ]
   }
 }

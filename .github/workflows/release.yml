@@ -1,0 +1,51 @@
+# tag 触发（v*）：Windows 构建 → 绿色 zip → 上传到 GitHub Release
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # 只产出绿色 exe（发行物是 zip；msi 安装包不做，跳过 bundling）
+      - run: npm run tauri build -- --no-bundle
+
+      # 组包：exe + 注册脚本 + 第三方许可 → 绿色 zip
+      - name: Stage and zip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = 'staging/Oblet'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item src-tauri/target/release/oblet.exe $stage/
+          Copy-Item release/Oblet/register-md.bat, release/Oblet/unregister-md.bat $stage/
+          Copy-Item -Recurse release/Oblet/licenses $stage/licenses
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $zip = "Oblet-$version-win-x64.zip"
+          Compress-Archive -Path staging/Oblet -DestinationPath $zip -CompressionLevel Optimal
+          echo "ZIP=$zip" >> $env:GITHUB_ENV
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
