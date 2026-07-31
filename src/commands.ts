@@ -9,6 +9,8 @@ export interface Command {
   /** 默认组合（"Ctrl+S" 形）；覆盖见 settings editor.keymap */
   defaultCombo: string;
   run: () => void;
+  /** false = 键位写死：设置列表不显示、keymap 覆盖不生效（默认 true） */
+  remappable?: boolean;
 }
 
 const registry: Command[] = [];
@@ -21,7 +23,7 @@ export function registerCommand(cmd: Command) {
 }
 
 export function listCommands(): readonly Command[] {
-  return registry;
+  return registry.filter((c) => c.remappable !== false);
 }
 
 // ---------------------------------------------------------------- 组合串规范化
@@ -73,16 +75,19 @@ export function setKeymapOverrides(map: Record<string, string> | null | undefine
   overrides = map ?? {};
 }
 
-/** 命令的当前生效组合 */
+/** 命令的当前生效组合（remappable=false 的命令忽略覆盖，默认写死） */
 export function effectiveCombo(cmd: Command): string {
-  return overrides[cmd.id] ?? cmd.defaultCombo;
+  return cmd.remappable === false
+    ? cmd.defaultCombo
+    : (overrides[cmd.id] ?? cmd.defaultCombo);
 }
 
-/** combo → command 反查表（覆盖优先） */
+/** combo → command 反查表（覆盖优先；写死命令只挂默认组合） */
 function comboMap(): Map<string, Command> {
   const map = new Map<string, Command>();
   for (const cmd of registry) map.set(cmd.defaultCombo, cmd);
   for (const cmd of registry) {
+    if (cmd.remappable === false) continue;
     const ov = overrides[cmd.id];
     if (ov) {
       // 覆盖生效后，默认组合让位（除非它恰是另一命令的生效组合——罕见冲突，先到先得）

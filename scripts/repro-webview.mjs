@@ -60,6 +60,35 @@ const evaluate = async (expr) =>
 // 装错误收集器（后装只能收新错误；同时读已有状态）
 await evaluate(`window.__errors = window.__errors || []; true`);
 
+// 选区拖动移动（十二轮 HTML5 DnD 方案）：合成 dragstart/dragover/drop 事件序列
+// （DragEventInit.dataTransfer 必须是真 DataTransfer，stub 会被构造器拒绝）
+// 注意：本段必须最先跑——前面 language-button 点击会把焦点/选区状态留在代码块组件上，
+// 后续 selectLastParagraph + DnD 序列会受干扰（实测：放在 shortcut 段后必现 start=0）
+const dragMove = await evaluate(`(() => {
+  const ob = window.__oblet;
+  const pm = document.querySelector(".ProseMirror");
+  if (!ob || !pm) return { stage: "no hook/pm" };
+  const step = (ms) => new Promise((r) => setTimeout(r, ms));
+  const fire = (type, init) => pm.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), ...init }));
+  return (async () => {
+    ob.selectLastParagraph();
+    await step(200);
+    const ps = pm.querySelectorAll("p");
+    const lastP = ps[ps.length - 1];
+    const from = lastP.getBoundingClientRect();
+    const h1 = pm.querySelector("h1").getBoundingClientRect();
+    const sx = from.left + 20, sy = from.top + from.height / 2;
+    fire("dragstart", { clientX: sx, clientY: sy });
+    await step(200);
+    fire("dragover", { clientX: h1.right - 5, clientY: h1.top + h1.height / 2 });
+    await step(200);
+    fire("drop", { clientX: h1.right - 5, clientY: h1.top + h1.height / 2 });
+    await step(300);
+    return { stage: "done", afterDrag: ob.getMarkdown(), errors: window.__errors ?? [] };
+  })();
+})()`);
+console.log("dragMove:", JSON.stringify(dragMove?.result?.value ?? dragMove, null, 1));
+
 const report = await evaluate(`(() => {
   const btn = document.querySelector(".milkdown-code-block .language-button");
   if (!btn) return { stage: "no language button", hasEditor: !!document.querySelector(".ProseMirror"), body: document.body.innerHTML.slice(0, 400) };
@@ -132,12 +161,15 @@ await evaluate(`document.querySelector(".settings-close")?.click()`);
 
 // 格式化快捷键（十轮 #4）：与 repro-dist 同款——选区走 __oblet 钩子，按键真实派发，
 // 断言序列化结果（加粗/高亮/行内代码/标题 toggle 全链路）
+// 注意：dragMove 段会真实移动文档内容，这里先重置文档再测（否则末段已被拖进 h1）
 const shortcut = await evaluate(`(() => {
   const ob = window.__oblet;
   if (!ob) return { stage: "no __oblet hook" };
   const press = (init) => window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
   const step = (ms) => new Promise((r) => setTimeout(r, ms));
   return (async () => {
+    ob.reset("# 标题\\n\\n\`\`\`python\\nprint(1)\\n\`\`\`\\n\\n\`\`\`\\n\`\`\`\\n\\n正文段落。\\n");
+    await step(400);
     ob.selectLastParagraph();
     await step(200);
     press({ code: "KeyB", ctrlKey: true });

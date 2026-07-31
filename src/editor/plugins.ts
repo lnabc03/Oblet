@@ -312,17 +312,75 @@ export const languageFreeInputPlugin = $prose(
     })
 );
 
-// ---- 选区拖动移动（十一轮 #5）→（2026-08-01 回滚）----
+// ---- 选区拖动移动（十一轮 #5 → 回滚 → 十二轮落地）----
 // 需求源于"文字选中后无法拖动到其他位置，是禁止拖动的符号"。
-// 根因：Tauri 的文件拖放（wry）在窗口上 RevokeDragDrop + 注册自家 IDropTarget，
-// Chromium 的 OLE 拖动会话（页面内拖文字也走 OLE）被它接管，非文件载荷一律回
-// DROPEFFECT_NONE——于是选区拖动只剩"禁止"光标。
-// 曾实现鼠标事件自驱动版（git 历史可查），但发现与文件拖放冲突：禁止 dragstart
-// 后外部文件拖入失效（被原生 OLE 会话吞掉，到不了 Tauri 的 IDropTarget）。
-// 两功能在 OLE 层互斥，运行时无法动态切换（tauri 2.11 无 set_drag_drop_enabled）。
-// 经权衡保留文件拖入（拖入换文件是核心交互），牺牲选区拖动移动。
-// 后续：若 Tauri 暴露运行时拖放开关或改走 JS File API（如 webview2-com），可重开。
-export const dragMovePlugin = $prose(() => new Plugin({ key: new PluginKey("oblet-drag-move") }));
+// 上轮定性"被 wry 吞掉"有误——重读 wry 0.55 drag_drop.rs 源码：
+// 其 IDropTarget 每个回调开头都是 enter_is_valid = hdrop.is_some()，
+// 非文件载荷（页面内拖文本无 CF_HDROP）第一时间 return Ok(()) 放行——
+// OLE 层只有一个 drop target，但它是"文件才接管、文本全放行"的。
+// 禁止光标的真因是 HTML5 DnD 语义：dragover 元素未 preventDefault 声明接受，
+// 浏览器就显示禁止符号。ProseMirror 默认无拖放 handler。
+// 修法只一层：dragover preventDefault（声明接受）→ drop 按落点移动选区。
+// 文件拖入走 wry OLE 分支，与 HTML5 DnD 不同层，天然共存无需分区。
+export const dragMovePlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("oblet-drag-move"),
+      props: {
+        handleDOMEvents: {
+          dragstart(view, e) {
+            draggingSelection = false;
+            const { selection } = view.state;
+            if (selection.empty || !view.editable) return false;
+            // 只接管选区文本的拖动（行内位置选区）；NodeSelection 交回 PM 默认
+            if (!(selection instanceof TextSelection)) return false;
+            const dt = e.dataTransfer;
+            if (!dt) return false;
+            // 自描述标记 + 效果声明；setData 是某些浏览器启动拖动会话的必要条件
+            dt.setData("application/x-oblet-drag", "1");
+            dt.setData("text/plain", view.state.doc.textBetween(selection.from, selection.to));
+            dt.effectAllowed = "move";
+            draggingSelection = true;
+            return false; // 不 preventDefault——让原生拖动会话启动
+          },
+          dragover(view, e) {
+            if (!draggingSelection) return false;
+            e.preventDefault(); // 声明接受 → 禁止符号变可放置光标
+            if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+            return true;
+          },
+          drop(view, e) {
+            if (!draggingSelection) return false;
+            draggingSelection = false;
+            e.preventDefault();
+            const { selection } = view.state;
+            if (selection.empty) return true;
+            const drop = view.posAtCoords({ left: e.clientX, top: e.clientY });
+            // 落回原选区内：保持不动
+            if (!drop || (drop.pos >= selection.from && drop.pos <= selection.to))
+              return true;
+            const slice = selection.content();
+            const tr = view.state.tr;
+            tr.delete(selection.from, selection.to);
+            // 删除区间后的落点经 mapping 左移修正；replaceRange 处理跨块开边切片
+            const at = tr.mapping.map(drop.pos, -1);
+            tr.replaceRange(at, at, slice);
+            const $at = tr.doc.resolve(at);
+            tr.setSelection(TextSelection.near($at, 1));
+            view.dispatch(tr.scrollIntoView());
+            return true;
+          },
+          dragend(_view, _e) {
+            draggingSelection = false;
+            return false;
+          },
+        },
+      },
+    })
+);
+
+/** 本次 OLE 会话是否源于本编辑器的选区拖动（dragover/drop 的门控依据） */
+let draggingSelection = false;
 
 export const obletPlugins = [
   highlightPlugin,

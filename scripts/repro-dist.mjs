@@ -231,6 +231,31 @@ const shortcut = await evaluate(`(() => {
 })()`);
 console.log("shortcut(格式化快捷键):", JSON.stringify(shortcut, null, 1));
 
+// 选区拖动移动（十二轮 HTML5 DnD 方案）：合成 dragstart/dragover/drop 事件序列；
+// DragEventInit.dataTransfer 必须是真 DataTransfer（stub 会被构造器拒绝）
+const dragMove = await evaluate(`(() => {
+  const ob = window.__oblet;
+  const pm = document.querySelector(".ProseMirror");
+  if (!ob || !pm) return { stage: "no hook/pm" };
+  const step = (ms) => new Promise((r) => setTimeout(r, ms));
+  const fire = (type, init) => pm.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), ...init }));
+  return (async () => {
+    ob.selectLastParagraph();
+    await step(200);
+    const ps = pm.querySelectorAll("p");
+    const lastP = ps[ps.length - 1];
+    const from = lastP.getBoundingClientRect();
+    const h1 = pm.querySelector("h1").getBoundingClientRect();
+    const sx = from.left + 20, sy = from.top + from.height / 2;
+    fire("dragstart", { clientX: sx, clientY: sy });
+    fire("dragover", { clientX: h1.right - 5, clientY: h1.top + h1.height / 2 });
+    fire("drop", { clientX: h1.right - 5, clientY: h1.top + h1.height / 2 });
+    await step(300);
+    return { stage: "done", afterDrag: ob.getMarkdown(), errors: window.__errors ?? [] };
+  })();
+})()`);
+console.log("dragMove(选区拖动移动):", JSON.stringify(dragMove, null, 1));
+
 edge.kill();
 server.close();
 process.exit(0);

@@ -349,6 +349,7 @@ export async function boot() {
       id: `heading-${level}`,
       title: `${level} 级标题`,
       defaultCombo: `Alt+${level}`,
+      remappable: false, // 十二轮批示：标题键位写死，不进设置列表
       run: () => {
         if (!editable()) return;
         crepe.editor.action((ctx) => {
@@ -383,6 +384,9 @@ export async function boot() {
         view.focus();
       }),
     getMarkdown: () => crepe.getMarkdown(),
+    /** 重置文档（验证脚本用）：多段测试同窗口连续跑时避免状态污染 */
+    reset: (content: string) =>
+      crepe.editor.action(replaceAll(content)),
   };
 
   // 外链点击调系统默认浏览器：webview 对 target=_blank 不处理（悬浮窗网址点击无响应）。
