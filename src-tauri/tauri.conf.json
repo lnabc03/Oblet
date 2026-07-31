@@ -22,6 +22,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "弋鹓 (lnabc03)",
+    "copyright": "Copyright © 2026 弋鹓 (lnabc03)",
+    "shortDescription": "轻量独立的 Markdown 编辑器",
+    "longDescription": "Oblet：双击 .md 即编辑的独立 Markdown 编辑器，AnuPpuccin 深色主题，每文件一窗口，序列化保真。",
     "icon": [
       "icons/icon.png"
     ]

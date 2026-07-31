@@ -146,7 +146,7 @@
 
 - [ ] README.md：简介、截图（深色主题 + 属性栏 + callout）、下载使用、register-md.bat 说明、AnuPpuccin attribution + Buy Me a Coffee 链接（GPL-3.0 义务）、SmartScreen 说明。
 - [ ] LICENSE 与第三方许可归置：AnuPpuccin GPL-3.0、KaTeX/Milkdown 等依赖许可打包进 zip（`licenses/` 目录）。
-- [ ] 版本号与关于信息：exe 文件属性经 tauri.conf.json 补齐；窗口标题格式（随 1.1 定稿）。
+- [x] 版本号与关于信息：exe 文件属性经 tauri.conf.json 补齐 ✅ 2026-07-31（publisher/copyright/description 已嵌入 winres，中文经 UTF-8 落盘验证无损）；窗口标题格式（随 1.1 定稿）。
 - [ ] GitHub Actions：tag 触发 Windows 构建 + 自动上传 zip 到 Release。
 
 ---
