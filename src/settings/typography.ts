@@ -12,34 +12,17 @@ export interface Settings {
 /** 排版覆盖（对齐 Obsidian appearance.json），null/undefined = 跟随主题 */
 export interface EditorSettings {
   auto_save: boolean;
-  auto_save_delay_ms: number;
   text_font?: string | null;
   mono_font?: string | null;
   interface_font?: string | null;
   base_font_size?: number | null;
-  /** 标题字体（--h1-font） */
-  title_font?: string | null;
-  /** 行高倍数（默认 1.75） */
-  line_height?: number | null;
-  /** 段间距 em（默认 0.4） */
-  paragraph_gap?: number | null;
-  /** 标题字号缩放倍数（默认 1） */
-  heading_scale?: number | null;
   /** 光标所在块底色（null/true = 显示） */
   show_active_block?: boolean | null;
-  /** 当前块底色强度 alpha（默认 0.045） */
-  active_block_alpha?: number | null;
-  /** 底部留白 px（默认 280） */
-  bottom_padding?: number | null;
-  /** 正文颜色 #rrggbb（--text-normal） */
-  text_color?: string | null;
-  /** 强调色 #rrggbb（--interactive-accent） */
-  accent_color?: string | null;
   /** 代码块软换行（null/false = 不换行，CM 默认横向滚动） */
   code_block_wrap?: boolean | null;
   /** 起始页署名显示（null/true = 显示） */
   show_author?: boolean | null;
-  /** 窗口材质效果：null/"none" = 关；"mica" | "acrylic" */
+  /** 窗口材质效果：null/"none" = 关；"mica"（Acrylic 已按十一轮终审删除） */
   window_effect?: string | null;
   /** 键位覆盖（4.4）：命令 id → 组合串；null = 全部默认 */
   keymap?: Record<string, string> | null;
@@ -54,8 +37,8 @@ export async function saveSettings(s: Settings): Promise<void> {
 }
 
 /** 当前生效的编辑器设置缓存（applyTypography 时刷新）——
- *  供编辑器侧读行为项（自动保存开关/延迟等），不必每次 invoke */
-let current: EditorSettings = { auto_save: true, auto_save_delay_ms: 1000 };
+ *  供编辑器侧读行为项（自动保存开关等），不必每次 invoke */
+let current: EditorSettings = { auto_save: true };
 
 export function currentEditorSettings(): EditorSettings {
   return current;
@@ -77,16 +60,6 @@ export function applyTypography(e: EditorSettings) {
   set("--font-monospace", e.mono_font);
   set("--font-interface", e.interface_font);
   set("--font-text-size", e.base_font_size ? `${e.base_font_size}px` : null);
-  // 十轮扩充项：行高（无单位倍数）/段间距（em）/标题缩放（倍数）/底部留白（px）/当前块强度（alpha）
-  set("--h1-font", e.title_font);
-  set("--ob-line-height", e.line_height != null ? String(e.line_height) : null);
-  set("--ob-para-gap", e.paragraph_gap != null ? `${e.paragraph_gap}em` : null);
-  set("--ob-heading-scale", e.heading_scale != null ? String(e.heading_scale) : null);
-  set("--ob-bottom-padding", e.bottom_padding != null ? `${e.bottom_padding}px` : null);
-  set("--ob-active-alpha", e.active_block_alpha != null ? String(e.active_block_alpha) : null);
-  // 颜色覆盖：主题变量定义在 body.theme-dark 类规则上，body 内联样式优先级更高
-  set("--text-normal", e.text_color);
-  set("--interactive-accent", e.accent_color);
   // 字号直接内联（Obsidian baseFontSize 同款做法）：不经过 --ob-font-size 变量链，
   // 避免主题在深层作用域重定义变量导致覆盖失效；em 尺寸（标题等）随之等比缩放
   for (const t of targets) {

@@ -161,15 +161,13 @@ pub fn watch_file(state: State<AppState>, window: tauri::Window, path: String) -
 
 // 窗口材质效果（毛玻璃）：window-vibrancy 官方方案。
 // 窗口建为 transparent，效果开启时前端 CSS 让出背景（body.ob-vibrancy 透明链路）
+// Acrylic 已按十一轮终审删除（方案留档见打磨清单 4.1，浅色主题适配时或可参考复用）
 #[tauri::command]
 pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -> Result<(), String> {
     let res = match effect.as_deref() {
         Some("mica") => window_vibrancy::apply_mica(&window, Some(true)),
-        // 深紫黑亚克力：十轮批示"底色改为非常深的紫黑色，alpha→250"（98% 不透明，近实底）。
-        // alpha 演进 60→150→179→200→250；底色 (30,30,46) mocha base → (24,18,42) 深紫黑
-        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((24, 18, 42, 250))),
         _ => {
-            // 关：两种都清（互不知晓对方是否应用过；未应用时 clear 亦安全返回）
+            // 关：两种都清（mica 互不知晓 acrylic 是否应用过——旧版本可能残留；未应用时 clear 亦安全返回）
             let a = window_vibrancy::clear_mica(&window);
             let b = window_vibrancy::clear_acrylic(&window);
             a.and(b)

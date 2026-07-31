@@ -8,8 +8,6 @@ use std::path::PathBuf;
 pub struct EditorSetting {
     #[serde(default = "default_true")]
     pub auto_save: bool,
-    #[serde(default = "default_delay")]
-    pub auto_save_delay_ms: u64,
     // 排版覆盖（对齐 Obsidian appearance.json）：None 表示跟随主题。
     // 全部显式序列化（None → null）：让 settings.json 自说明，空文件也写完整默认形
     #[serde(default)]
@@ -20,40 +18,16 @@ pub struct EditorSetting {
     pub interface_font: Option<String>,
     #[serde(default)]
     pub base_font_size: Option<u32>,
-    // 十轮设置扩充（均为 None = 跟随主题/默认，前端消费）：
-    #[serde(default)]
-    pub title_font: Option<String>,
-    // 行高倍数（默认 1.75）
-    #[serde(default)]
-    pub line_height: Option<f64>,
-    // 段间距 em（默认 0.4）
-    #[serde(default)]
-    pub paragraph_gap: Option<f64>,
-    // 标题字号缩放倍数（默认 1.0）
-    #[serde(default)]
-    pub heading_scale: Option<f64>,
     // 光标所在块底色：None/true = 显示
     #[serde(default)]
     pub show_active_block: Option<bool>,
-    // 当前块底色强度 alpha（默认 0.045）
-    #[serde(default)]
-    pub active_block_alpha: Option<f64>,
-    // 底部留白 px（默认 280）
-    #[serde(default)]
-    pub bottom_padding: Option<u32>,
-    // 正文颜色（#rrggbb）
-    #[serde(default)]
-    pub text_color: Option<String>,
-    // 强调色（#rrggbb）
-    #[serde(default)]
-    pub accent_color: Option<String>,
     // 代码块软换行：None/false = 不换行（CM 默认横向滚动）
     #[serde(default)]
     pub code_block_wrap: Option<bool>,
     // 起始页署名：None/true = 显示
     #[serde(default)]
     pub show_author: Option<bool>,
-    // 窗口材质效果：None/"none" = 关；"mica"（Win11）；"acrylic"（Win10/11）
+    // 窗口材质效果：None/"none" = 关；"mica"（Win11）。Acrylic 已按十一轮终审删除
     #[serde(default)]
     pub window_effect: Option<String>,
     // 键位覆盖（4.4）：命令 id → 组合串（"Ctrl+Shift+F" 形）；None = 全部默认
@@ -63,9 +37,6 @@ pub struct EditorSetting {
 
 fn default_true() -> bool {
     true
-}
-fn default_delay() -> u64 {
-    1000
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

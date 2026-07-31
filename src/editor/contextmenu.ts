@@ -1,10 +1,11 @@
-// 编辑器语境右键菜单：复制/剪切/粘贴/全选 + 高亮/callout（与工具栏共用命令）
+// 编辑器语境右键菜单：复制/剪切/粘贴/全选 + callout（与工具栏共用命令）
 // 浏览器风格的系统右键菜单在编辑器里没有价值，替换为贴合 Oblet 语境的自绘菜单
+// （高亮项已按十一轮批示移除——快捷键 Ctrl+H 与工具栏按钮已够）
 import { $prose } from "@milkdown/utils";
 import { Plugin, PluginKey } from "@milkdown/prose/state";
 import { AllSelection, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
-import { toggleHighlight, toggleCallout } from "./toolbar";
+import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { notify } from "../notify";
 
@@ -52,11 +53,6 @@ const ITEMS: Item[] = [
     label: "全选",
     run: (v) => v.dispatch(v.state.tr.setSelection(new AllSelection(v.state.doc))),
     enabled: () => true,
-  },
-  {
-    label: "高亮",
-    run: (v) => toggleHighlight(v),
-    enabled: (v) => !v.state.selection.empty && v.editable,
   },
   {
     // 已处于 callout 内时选同类型 = 回退原样，选异类型 = 换类型（见 toggleCallout）

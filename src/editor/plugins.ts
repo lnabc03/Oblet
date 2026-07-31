@@ -3,7 +3,7 @@
 // 2. Callout：装饰器方案 —— > [!type] 引用块加 .callout 类与 data-callout 属性，
 //    隐藏 [!type] 标记，注入图标 widget；AnuPpuccin 等主题的 callout 样式直接命中
 import { $prose } from "@milkdown/utils";
-import { Plugin, PluginKey } from "@milkdown/prose/state";
+import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorState } from "@milkdown/prose/state";
 import type { Node as PMNode } from "@milkdown/prose/model";
@@ -312,9 +312,22 @@ export const languageFreeInputPlugin = $prose(
     })
 );
 
+// ---- 选区拖动移动（十一轮 #5）→（2026-08-01 回滚）----
+// 需求源于"文字选中后无法拖动到其他位置，是禁止拖动的符号"。
+// 根因：Tauri 的文件拖放（wry）在窗口上 RevokeDragDrop + 注册自家 IDropTarget，
+// Chromium 的 OLE 拖动会话（页面内拖文字也走 OLE）被它接管，非文件载荷一律回
+// DROPEFFECT_NONE——于是选区拖动只剩"禁止"光标。
+// 曾实现鼠标事件自驱动版（git 历史可查），但发现与文件拖放冲突：禁止 dragstart
+// 后外部文件拖入失效（被原生 OLE 会话吞掉，到不了 Tauri 的 IDropTarget）。
+// 两功能在 OLE 层互斥，运行时无法动态切换（tauri 2.11 无 set_drag_drop_enabled）。
+// 经权衡保留文件拖入（拖入换文件是核心交互），牺牲选区拖动移动。
+// 后续：若 Tauri 暴露运行时拖放开关或改走 JS File API（如 webview2-com），可重开。
+export const dragMovePlugin = $prose(() => new Plugin({ key: new PluginKey("oblet-drag-move") }));
+
 export const obletPlugins = [
   highlightPlugin,
   calloutPlugin,
   activeBlockPlugin,
   languageFreeInputPlugin,
+  dragMovePlugin,
 ];

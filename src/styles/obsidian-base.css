@@ -223,11 +223,10 @@ body.ob-vibrancy .search-bar input {
 .markdown-rendered {
   flex: 1;
   overflow-y: auto;
-  /* 底部留白固定值：原 40vh 随窗高线性膨胀（最大化时近半屏），九轮批示改固定——
-   * 280px ≈ 默认窗口（960×720）下原 40vh 的观感，末行可滚至视口中下部；
-   * 十轮起设置项 bottom_padding 可覆盖（--ob-bottom-padding） */
-  padding: 24px 32px var(--ob-bottom-padding, 280px);
-  line-height: var(--ob-line-height, 1.75); /* 设置项 line_height 可覆盖 */
+  /* 底部留白按十一轮批示归零：实测滚到底空白恒为 280px+ 但用户观感以 0 为最佳
+   *（原 40vh → 280px → 0 的演进见打磨清单 3.1） */
+  padding: 24px 32px 0;
+  line-height: 1.75;
 }
 
 /* 滚动条：轨道透明、滑块低透明度、隐藏两端箭头按钮。
@@ -280,13 +279,12 @@ body.ob-vibrancy .search-bar input {
 /* 排版规则一律用 .markdown-rendered .ProseMirror 前缀（0,2,1）：
  * Crepe reset.css 用 .milkdown .ProseMirror hN/p（0,2,1）把字号/行高钉成 px，
  * 本文件加载在其后，同优先级靠顺序胜出，把控制权抢回 --ob-* 变量桥 */
-/* 标题字号经 --ob-heading-scale 整体缩放（设置项 heading_scale，默认 1） */
-.markdown-rendered .ProseMirror h1 { color: var(--ob-h1); font-size: calc(var(--ob-h1-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
-.markdown-rendered .ProseMirror h2 { color: var(--ob-h2); font-size: calc(var(--ob-h2-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
-.markdown-rendered .ProseMirror h3 { color: var(--ob-h3); font-size: calc(var(--ob-h3-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
-.markdown-rendered .ProseMirror h4 { color: var(--ob-h4); font-size: calc(var(--ob-h4-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
-.markdown-rendered .ProseMirror h5 { color: var(--ob-h5); font-size: calc(var(--ob-h5-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
-.markdown-rendered .ProseMirror h6 { color: var(--ob-h6); font-size: calc(var(--ob-h6-size) * var(--ob-heading-scale, 1)); line-height: 1.3; }
+.markdown-rendered .ProseMirror h1 { color: var(--ob-h1); font-size: var(--ob-h1-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h2 { color: var(--ob-h2); font-size: var(--ob-h2-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h3 { color: var(--ob-h3); font-size: var(--ob-h3-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h4 { color: var(--ob-h4); font-size: var(--ob-h4-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h5 { color: var(--ob-h5); font-size: var(--ob-h5-size); line-height: 1.3; }
+.markdown-rendered .ProseMirror h6 { color: var(--ob-h6); font-size: var(--ob-h6-size); line-height: 1.3; }
 
 /* 正文：解除 Crepe 的 16px/24px 钉值，字号随 body（含用户 baseFontSize 内联） */
 .markdown-rendered .ProseMirror p {
@@ -463,7 +461,7 @@ body.ob-vibrancy .search-bar input {
 
 /* Milkdown 占位/工具样式微调 */
 .ProseMirror p {
-  margin: var(--ob-para-gap, 0.4em) 0; /* 设置项 paragraph_gap 可覆盖 */
+  margin: 0.4em 0;
 }
 
 /* 软换行可见：对齐 Obsidian 默认行为（段落内单换行渲染为换行而非空格）
@@ -799,7 +797,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 /* 排版设置 */
 .typo-grid {
   display: grid;
-  grid-template-columns: 7em 1fr;
+  grid-template-columns: 5.5em 1fr;
   gap: 8px 10px;
   align-items: center;
 }
@@ -878,49 +876,6 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 .check-row input {
   accent-color: var(--ob-accent);
 }
-/* 设置面板数字输入（行高/延迟/留白等，十轮扩充） */
-.settings-panel input[type="number"] {
-  border: 1px solid var(--ob-border);
-  background: var(--ob-bg-alt);
-  color: var(--ob-text);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 0.9em;
-  font-family: inherit;
-  width: 7em;
-}
-.settings-panel input[type="number"]:focus {
-  outline: 1px solid var(--ob-accent);
-  border-color: var(--ob-accent);
-}
-/* 颜色行：色块 + 跟随主题复位钮 */
-.color-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.color-row input[type="color"] {
-  width: 3.2em;
-  height: 1.8em;
-  padding: 0;
-  border: 1px solid var(--ob-border);
-  border-radius: 6px;
-  background: var(--ob-bg-alt);
-  cursor: pointer;
-}
-.color-reset {
-  border: 1px solid var(--ob-border);
-  background: transparent;
-  color: var(--ob-text-mut);
-  border-radius: 6px;
-  padding: 2px 7px;
-  font-size: 0.85em;
-  cursor: pointer;
-}
-.color-reset:hover {
-  border-color: var(--ob-accent);
-  color: var(--ob-accent);
-}
 
 /* Frontmatter（笔记属性）：键值对渲染为紧凑表格，值可直接编辑；
    所有文字统一走界面字体与正文字号 */
@@ -991,8 +946,8 @@ body.ob-hide-author .empty-author {
 }
 
 /* 光标所在块淡底色（4.5）：显隐由 body.anp-current-line 门控（设置项 show_active_block）。
- * 十轮反馈"过于醒目"：alpha 0.07 → 0.045；强度设置项 active_block_alpha 经 --ob-active-alpha 覆盖 */
+ * alpha 演进 0.07 → 0.045（十轮"过于醒目"调淡；十一轮"默认刚好"定稿） */
 body.anp-current-line .markdown-rendered .ob-active-block {
-  background: rgba(var(--ctp-mauve, 150, 110, 220), var(--ob-active-alpha, 0.045));
+  background: rgba(var(--ctp-mauve, 150, 110, 220), 0.045);
   border-radius: 6px;
 }

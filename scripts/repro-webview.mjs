@@ -109,7 +109,7 @@ const emptyBlock = await evaluate(`(() => {
 })()`);
 console.log("emptyBlock:", JSON.stringify(emptyBlock?.result?.value ?? emptyBlock, null, 1));
 
-// 设置面板（十轮 #5）：打开后清点控件数，确认扩充项渲染
+// 设置面板（十一轮收敛形态）：Acrylic 已删、窗口效果改 Mica 开关、十轮扩充项全撤
 const settingsPanel = await evaluate(`(() => {
   const btn = document.querySelector(".settings-btn");
   if (!btn) return { stage: "no settings btn" };
@@ -120,10 +120,9 @@ const settingsPanel = await evaluate(`(() => {
       stage: "done",
       hidden: document.querySelector(".settings-overlay")?.classList.contains("hidden") ?? null,
       textInputs: panel?.querySelectorAll("input[data-typo]").length ?? 0,
-      numInputs: panel?.querySelectorAll("input[data-num]").length ?? 0,
-      colorInputs: panel?.querySelectorAll("input[data-color]").length ?? 0,
       checkboxes: panel?.querySelectorAll("input[data-check]").length ?? 0,
-      selects: panel?.querySelectorAll("select[data-select]").length ?? 0,
+      micaToggle: !!panel?.querySelector("#mica-toggle"),
+      noLeftovers: !panel?.querySelector("input[data-num], input[data-color], select"),
       keymapRows: panel?.querySelectorAll(".keymap-row").length ?? 0,
     });
   }, 800));
@@ -152,7 +151,13 @@ const shortcut = await evaluate(`(() => {
     press({ code: "Digit3", altKey: true });
     await step(300);
     const afterH3Off = ob.getMarkdown();
-    return { stage: "done", afterBold, afterH3, afterH3Off, errors: window.__errors };
+    press({ code: "KeyA", altKey: true });    // Alt+A → callout 包裹
+    await step(300);
+    const afterCallout = ob.getMarkdown();
+    press({ code: "KeyA", altKey: true });    // 再 Alt+A → 回退
+    await step(300);
+    const afterCalloutOff = ob.getMarkdown();
+    return { stage: "done", afterBold, afterH3, afterH3Off, afterCallout, afterCalloutOff, errors: window.__errors };
   })();
 })()`);
 console.log("shortcut:", JSON.stringify(shortcut?.result?.value ?? shortcut, null, 1));

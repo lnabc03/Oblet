@@ -20,7 +20,7 @@ import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { contextMenuPlugin } from "./contextmenu";
-import { toolbarConfig, toggleHighlight } from "./toolbar";
+import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { notify } from "../notify";
 import { registerCommand } from "../commands";
 import logoUrl from "../assets/logo.png";
@@ -39,6 +39,8 @@ interface FilePayload {
   readonly: boolean;
   readonly_reason: string | null;
 }
+
+const AUTOSAVE_DELAY = 500; // 十一轮批示写死（原 1000）
 
 /** 路径归一化比较（拖放路径与登记路径可能一个规范化一个不曾） */
 function samePath(a: string, b: string) {
@@ -189,12 +191,11 @@ export async function boot() {
 
   const scheduleSave = () => {
     dirty = true;
-    // 自动保存开关/延迟走设置（十轮 #5）：关自动保存时只标脏，等 Ctrl+S
+    // 自动保存开关走设置；延迟按十一轮批示写死 500ms
     const ed = currentEditorSettings();
     if (ed.auto_save === false) return;
-    const delay = Math.min(10000, Math.max(200, ed.auto_save_delay_ms ?? 1000));
     window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => void flushSave(), delay);
+    saveTimer = window.setTimeout(() => void flushSave(), AUTOSAVE_DELAY);
   };
 
   // Ctrl+S 立即保存（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
@@ -330,6 +331,17 @@ export async function boot() {
     run: () => {
       if (editable())
         crepe.editor.action((ctx) => toggleHighlight(ctx.get(editorViewCtx)));
+    },
+  });
+  registerCommand({
+    id: "callout",
+    title: "Callout 包裹",
+    defaultCombo: "Alt+A",
+    run: () => {
+      if (editable())
+        crepe.editor.action((ctx) =>
+          toggleCallout(ctx.get(editorViewCtx), "note", { revertAnyType: true })
+        );
     },
   });
   for (let level = 1; level <= 6; level++) {
