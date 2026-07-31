@@ -33,6 +33,7 @@
   实现：Crepe BlockEdit featureConfig 项置 `null`（官方机制），语法本身不受影响（\$\$ 围栏、#### 标题仍可用）。
   保留：Text、H1-H3、三种列表、Code、Table。
   二轮修订（2026-07-31）：代码块语言选择弹出空白——Crepe 不传 `languages` 时以**空数组**覆盖组件默认配置。修复：显式传入 `@codemirror/language-data` 全量预设（升为直接依赖，高亮按需懒加载）；预设外的自定义语言可在标记文本上直接改。
+  三轮修订（2026-07-31，真根因）：**空代码块**（新建/删空内容）浮层空白，有内容的正常——自有 CSS `.milkdown-code-block { overflow: hidden }`（圆角裁剪）把 NodeView dom 内的浮层裁掉，空块高度不足以容纳 410px 列表。DOM 内 143 项一直在，只是像素被裁；此前验证全用 getBoundingClientRect 量布局尺寸故漏检。修法：`:has(.language-button[data-expanded="true"]) { overflow: visible }`，浮层展开才放开裁剪。判定方法固化为 `elementFromPoint` 像素级取样（repro-dist/repro-webview 均已加空块断言，真机 CDP 通过）。
 
 - [x] **1.5 logo 低对比、不醒目**（小-中）✅ 2026-07-31
   方案：`scripts/brighten-icon.mjs` 后处理——晶体中调 gamma 0.65 提升 + 饱和 1.3，深色背景不动。
@@ -118,6 +119,8 @@
   全链路落地：`window-vibrancy` 0.6 直接依赖 → 窗口建为 `transparent: true`（两处 WindowBuilder）→ 新命令 `set_window_effect`（mica/acrylic/关，关时双清）→ 设置项 `window_effect`（界面节下拉，默认关）→ `body.ob-vibrancy` + html 透明链路 CSS；跨窗口广播随排版事件。
   Acrylic tint 深色 (24,20,40,60) 贴近主题底色。默认关 = 默认路径与之前视觉一致（CSS 背景不透明）。
   **实机效果（Mica 材质透出程度、Acrylic 可读性、启动闪白与否）待使用者目测。**
+  二轮修订（2026-07-31）：文档主体 `.milkdown` 透明化（原"两边透明中间紫黑"）；设置按钮半透明化；Acrylic tint alpha 60→150。
+  三轮修订（2026-07-31）：Mica 罩 text 色 5% 薄纱调浅色调（系统不透明材质给不了"更透"）；Acrylic alpha 150→**179**（≈70% 不透明深灰目标，**仍"基本全透"则按使用者预案删除 Acrylic 方案**）；浮层家族（搜索浮条/设置面板/toast/右键菜单）半透明 `rgba(ctp-base,0.72)` + `backdrop-filter: blur(24px)`；body 增 `ob-vibrancy-mica/acrylic` 子类区分叠加策略。
 
 - [x] **4.2 完善设置页面**（大）✅ 2026-07-31（随 4.1/4.4 收口）
   设置页现为统一四节信息架构：**排版**（字体/字号覆盖）、**编辑器**（代码块自动换行）、**界面**（起始页署名、窗口效果）、**快捷键**（4.4 键位列表）。
@@ -150,7 +153,7 @@
 
 ## 批次 6：发布前最后一遍（P2 出口检查，备忘）
 
-- [x] README.md：✅ 2026-07-31 初稿落地（简介/特性/下载使用/register-md.bat 说明/SmartScreen 说明/快捷键表/许可与致谢含 Buy Me a Coffee 链接）；**截图待补**（深色主题 + 属性栏 + callout，需实机截取）。
+- [x] README.md：✅ 2026-07-31 初稿落地（简介/特性/下载使用/register-md.bat 说明/SmartScreen 说明/快捷键表/许可与致谢含 Buy Me a Coffee 链接）；截图已补 `docs/screenshot.png`（`scripts/capture-readme-shot.mjs` 实机 CDP 截屏：深色主题 + 属性栏 + callout + 代码高亮 + 任务列表，vision 检查全元素渲染正常）。
 - [x] LICENSE 与第三方许可归置：✅ 2026-07-31 `scripts/collect-licenses.mjs` 自动收集生产依赖闭包 217 份 + 手工补齐 4 份（@tauri-apps/api 双许可、remark-math、format、AnuPpuccin GPL-3.0 原文 + NOTICE 署名 + Oblet MIT），共 221 份入 zip `licenses/`。
   ⚠️ **遗留决策**：根 LICENSE 为 MIT，但静态打包的 AnuPpuccin 衍生 CSS 是 GPL-3.0——发行二进制按 GPL-3.0 义务归置了许可文本，根 LICENSE 是否改为 GPL-3.0 由使用者定夺。
 - [x] 版本号与关于信息：exe 文件属性经 tauri.conf.json 补齐 ✅ 2026-07-31（publisher/copyright/description 已嵌入 winres，中文经 UTF-8 落盘验证无损）；窗口标题格式（随 1.1 定稿）。
@@ -188,6 +191,6 @@
 | 内存（10 万字）    | 合计 \~670MB（主进程 82 + WV 588）                | 2026-07-31 | 同上                                 |
 | 内存（1MB 级）    | 合计 \~1006MB（主进程 82 + WV 924）               | 2026-07-31 | 5.2 夹具（923KB/40万字）；打开到 CPU 安静 4.5s |
 | 内存（5窗口×10万字） | 合计 \~591MB                                 | 2026-07-31 | 单进程多窗口，WV 共享复用，无线性驻留               |
-| zip 体积       | 4.55MB                                     | 2026-07-31 | 含 licenses/（221 份）与批次 4 全部落地       |
+| zip 体积       | 4.57MB                                     | 2026-07-31 | 八轮后重封（含 licenses/ 与空代码块浮层修复、毛玻璃三轮） |
 | exe 体积       | 10.9MB                                     | 2026-07-31 | 批次 4 后重打（含 window-vibrancy）        |
 

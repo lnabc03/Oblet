@@ -4,7 +4,7 @@
 
 主题固化为 AnuPpuccin 深色定制版，视觉向 Obsidian 看齐；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
-<!-- 截图待补：深色主题编辑界面 / 属性栏（frontmatter）/ callout -->
+![Oblet 编辑界面：AnuPpuccin 深色主题、笔记属性栏、callout、代码高亮](docs/screenshot.png)
 
 ## 特性
 
