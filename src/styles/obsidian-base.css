@@ -110,11 +110,20 @@ body {
 }
 
 /* 毛玻璃透明链路（设置项 window_effect 驱动，4.1）：
- * 窗口已是 transparent；效果开启时让出 html/body 背景，露出 DWM 材质。
- * 浮层（设置/toast/菜单等）自带背景不受影响；文字色不动，靠材质本身的深色保证可读 */
+ * 窗口已是 transparent；效果开启时让出 html/body 与编辑器主体背景，露出 DWM 材质。
+ * 代码块/表格等自带 --crepe-color-surface 色块保持不变（浮起感，且保证可读）；
+ * 浮层（设置/toast/菜单等）自带背景不受影响 */
 body.ob-vibrancy,
 html:has(body.ob-vibrancy) {
   background: transparent;
+}
+/* 文档主体透明化：.milkdown 的 --crepe-color-background 即"两边透明中间紫黑"的来源 */
+body.ob-vibrancy .milkdown {
+  background: transparent;
+}
+/* 起始页/控件适配透明背景：设置按钮原是不透明紫黑块，浮在材质上突兀 → 半透明 */
+body.ob-vibrancy .settings-btn {
+  background: rgba(var(--ctp-surface0, 49, 50, 68), 0.5);
 }
 
 .empty-state {
@@ -468,25 +477,31 @@ html:has(body.ob-vibrancy) {
 
 /* Callout 兜底样式（主题有 .callout 定义时主题优先——基座样式优先级低） */
 :where(.markdown-rendered) blockquote.callout {
-  --callout-color: 68, 138, 255;
+  --callout-color: var(--ctp-blue, 137, 180, 250);
   background-color: rgba(var(--callout-color), 0.1);
   border-left: 4px solid rgb(var(--callout-color));
   border-radius: 6px;
   padding: 8px 12px;
 }
-:where(.markdown-rendered) blockquote.callout[data-callout="warning"],
-:where(.markdown-rendered) blockquote.callout[data-callout="caution"] {
-  --callout-color: 234, 179, 8;
-}
-:where(.markdown-rendered) blockquote.callout[data-callout="danger"],
-:where(.markdown-rendered) blockquote.callout[data-callout="failure"],
-:where(.markdown-rendered) blockquote.callout[data-callout="fail"] {
-  --callout-color: 239, 68, 68;
-}
+/* 五类型差异化配色（用户批示：每种图标和颜色完全不同）——对齐 Ob 官方语义色，
+ * 取自 Catppuccin 调色板：note=蓝、tip=青、important=紫、warning=橙、caution=红 */
 :where(.markdown-rendered) blockquote.callout[data-callout="tip"],
 :where(.markdown-rendered) blockquote.callout[data-callout="hint"],
 :where(.markdown-rendered) blockquote.callout[data-callout="success"] {
-  --callout-color: 34, 197, 94;
+  --callout-color: var(--ctp-teal, 148, 226, 213);
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="important"] {
+  --callout-color: var(--ctp-mauve, 203, 166, 247);
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="warning"],
+:where(.markdown-rendered) blockquote.callout[data-callout="attention"] {
+  --callout-color: var(--ctp-peach, 250, 179, 135);
+}
+:where(.markdown-rendered) blockquote.callout[data-callout="caution"],
+:where(.markdown-rendered) blockquote.callout[data-callout="danger"],
+:where(.markdown-rendered) blockquote.callout[data-callout="failure"],
+:where(.markdown-rendered) blockquote.callout[data-callout="fail"] {
+  --callout-color: var(--ctp-red, 243, 139, 168);
 }
 /* 标题行：widget（span.callout-title，行内 flex 放图标）+ 行内标题文字
  * Ob 行为：[!type] 后首行文字为自定义标题；无标题时 widget 追加类型名回退 */
@@ -530,13 +545,16 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 
 /* ---- 检索浮条 ---- */
+/* 两行共用同一 5 列网格（display:contents 把两行的子元素铺进同一张 grid），
+   替换行输入框跨前 3 列、按钮对齐检索行的 next/close 列——消除行间空隙错位 */
 .search-bar {
   position: fixed;
   top: 10px;
   right: 48px; /* 给右上角设置按钮留位 */
   z-index: 40;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  align-items: center;
   gap: 4px;
   padding: 6px 8px;
   background: var(--ob-bg-alt);
@@ -550,9 +568,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   display: none;
 }
 .search-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  display: contents;
 }
 .search-bar input {
   width: 180px;
@@ -566,6 +582,10 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .search-bar input:focus {
   border-color: var(--ob-accent);
+}
+/* 替换行：输入框跨"查询框+计数+prev"三列，替换/全部按钮自然落 next/close 列对齐右缘 */
+.search-replace {
+  grid-column: 1 / 4;
 }
 .search-count {
   min-width: 3.2em;
@@ -860,7 +880,9 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   border-bottom: none;
 }
 .markdown-rendered .ProseMirror .ob-frontmatter td.fm-key {
-  width: 1%;
+  /* 固定比例列宽：input 是百分比宽度不贡献 intrinsic，auto 布局下列宽必须来自 td 自身，
+   * 否则键名列被压回 input 的 size 属性宽度（内容不可见的三轮回归） */
+  width: 30%;
   white-space: nowrap;
   padding-right: 14px;
   color: var(--ob-text-mut);
@@ -886,10 +908,6 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .markdown-rendered .ProseMirror .ob-frontmatter input:disabled {
   cursor: default;
-}
-/* 键名输入框与值输入框统一：填满单元格，点击高亮框两列同宽 */
-.markdown-rendered .ProseMirror .ob-frontmatter input.fm-key-input {
-  max-width: 100%;
 }
 
 /* 起始页署名隐藏开关（设置项 show_author 驱动） */

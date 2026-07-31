@@ -17,7 +17,7 @@ export async function initSettingsUI(container: HTMLElement) {
   const btn = document.createElement("button");
   btn.className = "settings-btn";
   btn.textContent = "⚙";
-  btn.title = "设置 (Ctrl+,)";
+  btn.title = "设置 (Ctrl+/)";
   document.body.appendChild(btn);
 
   // 浮层
@@ -86,11 +86,12 @@ export async function initSettingsUI(container: HTMLElement) {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) toggle(false);
   });
-  // Ctrl+,（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
+  // Ctrl+/（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
+  // 默认从 Ctrl+, 改为 Ctrl+/：部分输入法/键盘布局下 Comma 键码不可靠（用户批示）
   registerCommand({
     id: "settings",
     title: "设置",
-    defaultCombo: "Ctrl+,",
+    defaultCombo: "Ctrl+/",
     run: () => {
       toggle(overlay.classList.contains("hidden"));
       if (!overlay.classList.contains("hidden")) void renderPanel();

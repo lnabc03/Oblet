@@ -43,11 +43,11 @@ npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 |---|---|
 | Ctrl+S | 立即保存 |
 | Ctrl+F | 检索 / 替换 |
-| Ctrl+, | 设置 |
+| Ctrl+/ | 设置 |
 
 ## 许可与致谢
 
-- Oblet 源码：[MIT License](LICENSE)（Copyright © 2026 lnabc03）
+- Oblet 源码：[GPL-3.0 License](LICENSE)（Copyright © 2026 弋鹓 | lnabc03）——因包含 GPL-3.0 许可的 AnuPpuccin 衍生样式，整体按 GPL-3.0 发布
 - 编辑器主题基于 **[AnuPpuccin](https://github.com/AnubisNekhet/AnuPpuccin)**（GPL-3.0）修改定制，感谢作者 AnubisNekhet——如果你喜欢这个主题，可以[请作者喝杯咖啡](https://www.buymeacoffee.com/anubisnekhet)
 - 构建于 [Milkdown](https://milkdown.dev/) / [Crepe](https://github.com/Milkdown/crepe)、[CodeMirror](https://codemirror.net/)、[KaTeX](https://katex.org/)、[Tauri](https://tauri.app/) 之上
 - 发行包 `licenses/` 目录内含全部第三方许可文本

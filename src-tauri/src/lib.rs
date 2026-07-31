@@ -80,6 +80,7 @@ pub fn run() {
             commands::write_file,
             commands::watch_file,
             commands::set_window_effect,
+            commands::save_image_asset,
             settings::get_settings,
             settings::save_settings,
         ])

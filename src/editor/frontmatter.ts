@@ -169,11 +169,8 @@ export const frontmatterView = $view(
             keyInput.className = 'fm-key-input'
             keyInput.value = row.key ?? ''
             if (row.key == null) keyInput.placeholder = '属性名'
-            // 宽度按内容估算（CJK 记 2），配合 CSS field-sizing 自适应
-            keyInput.size = Math.max(
-              [...(row.key ?? '')].reduce((w, ch) => w + ((ch.codePointAt(0) ?? 0) > 0xff ? 2 : 1), 0),
-              2
-            )
+            // 列宽由 CSS 控制（td.fm-key 固定 30%），input width:100% 填满单元格；
+            // 不要再按内容估算 size——百分比宽度下 intrinsic 宽度会把列压回 size 宽度
             const valueInput = document.createElement('input')
             valueInput.value = row.value
             // Tab 在同行键/值间移动时 relatedTarget 是对方——跳过提交，

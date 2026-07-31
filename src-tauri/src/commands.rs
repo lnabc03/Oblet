@@ -165,8 +165,9 @@ pub fn watch_file(state: State<AppState>, window: tauri::Window, path: String) -
 pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -> Result<(), String> {
     let res = match effect.as_deref() {
         Some("mica") => window_vibrancy::apply_mica(&window, Some(true)),
-        // 深色亚克力，tint 贴近主题底色，alpha 压低保可读性
-        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((24, 20, 40, 60))),
+        // 深色亚克力：tint 取 Catppuccin Mocha base (30,30,46) 贴近主题紫黑；
+        // alpha 从 60 提到 150——60 时桌面亮内容大量透入，观感发亮与界面割裂（用户反馈）
+        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((30, 30, 46, 150))),
         _ => {
             // 关：两种都清（互不知晓对方是否应用过；未应用时 clear 亦安全返回）
             let a = window_vibrancy::clear_mica(&window);
@@ -175,4 +176,55 @@ pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -
         }
     };
     res.map_err(|e| e.to_string())
+}
+
+// 粘贴/拖入图片落盘（3.7 收口）：Crepe 默认 onUpload 是 blob: 内存 URL，
+// 保存进 md 重开即失效——复制到 md 同目录 assets/ 并返回相对引用（对齐 Obsidian 附件行为）
+#[tauri::command]
+pub fn save_image_asset(
+    state: State<AppState>,
+    window: tauri::Window,
+    name: String,
+    data: Vec<u8>,
+) -> Result<String, String> {
+    let path = state
+        .path_for(window.label())
+        .ok_or("窗口未登记文件")?;
+    let dir = Path::new(&path)
+        .parent()
+        .ok_or("非法路径")?
+        .join("assets");
+    fs::create_dir_all(&dir).map_err(|e| format!("创建 assets 目录失败: {e}"))?;
+
+    // Windows 非法字符净化；空名回退 image.png
+    let clean: String = name
+        .chars()
+        .map(|c| match c {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+            c if c.is_control() => '_',
+            c => c,
+        })
+        .collect();
+    let clean = if clean.trim().is_empty() {
+        "image.png".to_string()
+    } else {
+        clean
+    };
+    let p = PathBuf::from(&clean);
+    let stem = p
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("image")
+        .to_string();
+    let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("png");
+
+    // 冲突去重：foo.png → foo-1.png → foo-2.png
+    let mut file_name = format!("{stem}.{ext}");
+    let mut i = 1;
+    while dir.join(&file_name).exists() {
+        file_name = format!("{stem}-{i}.{ext}");
+        i += 1;
+    }
+    fs::write(dir.join(&file_name), &data).map_err(|e| format!("写入图片失败: {e}"))?;
+    Ok(format!("assets/{file_name}"))
 }

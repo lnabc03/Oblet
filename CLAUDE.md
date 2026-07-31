@@ -19,6 +19,9 @@ cd src-tauri && cargo check   # Rust 快速检查
 # 序列化回归测试（独立脚本，非测试框架；改序列化逻辑后必跑，需全部 PASS）
 node test-break-roundtrip.mjs   # 换行/hr/转义/frontmatter 往返
 node test-list-roundtrip.mjs    # 列表/任务列表污染回归
+
+# 组件配置冒烟（jsdom，改 Crepe featureConfig 后跑）
+node scripts/verify-languages.mjs   # 代码块语言列表注入 + 浮层弹出交互
 ```
 
 ## 架构

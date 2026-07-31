@@ -76,16 +76,22 @@ export function inBlockquote(view: EditorView): boolean {
 /** Callout 开关：
  *  - 不在引用块内 → 选区覆盖的顶层块包成 [!type] callout（光标态包当前块）
  *  - 已在同类型 callout 内 → 回退：删标记 + 解除引用包裹，恢复原样
- *  - 已在其他类型 callout 内 → 改写标记文本换类型
+ *  - 已在其他类型 callout 内 → 改写标记文本换类型；
+ *    revertAnyType 时（工具栏按钮）不区分类型直接回退——用户批示：
+ *    非 note callout 点按钮应直接回退，而不是先变 note 再回退
  *  - 普通引用块（无标记）→ 补标记升级为 callout */
-export function toggleCallout(view: EditorView, type = "note") {
+export function toggleCallout(
+  view: EditorView,
+  type = "note",
+  opts?: { revertAnyType?: boolean }
+) {
   const ctx = calloutContext(view);
   const tr = view.state.tr;
 
   if (ctx) {
     const markerStart = ctx.pos + 2; // blockquote 首段内容起点
     if (ctx.type !== null) {
-      if (ctx.type === type) {
+      if (opts?.revertAnyType || ctx.type === type) {
         // 回退：解除引用包裹，同时剥掉首段的 [!type] 标记
         const first = ctx.node.firstChild!;
         const newFirst = first.type.create(
@@ -165,7 +171,8 @@ export const toolbarConfig = {
             return false;
           }
         },
-        onRun: (ctx: Ctx) => toggleCallout(ctx.get(editorViewCtx)),
+        onRun: (ctx: Ctx) =>
+          toggleCallout(ctx.get(editorViewCtx), "note", { revertAnyType: true }),
       });
   },
 };

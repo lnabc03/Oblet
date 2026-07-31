@@ -228,6 +228,15 @@ export async function boot() {
       // 图片：本地路径（绝对/相对）经 asset 协议渲染（块级与行内共用此钩子）
       [Crepe.Feature.ImageBlock]: {
         proxyDomURL: toDomUrl,
+        // 粘贴/拖入图片落盘：Crepe 默认 blob: 内存 URL 保存后重开即失效，
+        // 复制到 md 同目录 assets/ 并返回相对引用（对齐 Obsidian 附件行为）
+        onUpload: async (file: File) => {
+          const data = Array.from(new Uint8Array(await file.arrayBuffer()));
+          return await invoke<string>("save_image_asset", {
+            name: file.name || "image.png",
+            data,
+          });
+        },
       },
     },
   });
