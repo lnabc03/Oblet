@@ -1,6 +1,7 @@
 // Oblet 编辑器装配（Crepe 底座）与文件生命周期
 // 流程：取窗口文件 → 读文件 → 建 Crepe → 防抖自动保存 / Ctrl+S → 外部变更监听
 import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
@@ -38,6 +39,43 @@ function samePath(a: string, b: string) {
   return a.replace(/\//g, "\\").toLowerCase() === b.replace(/\//g, "\\").toLowerCase();
 }
 
+// ---- 图片 src 解析（3.7）：网络/data 图原样放行；本地路径经 asset 协议转换 ----
+// 相对路径相对当前 md 文件所在目录解析（对齐 Ob/VSCode 惯例）；
+// 渲染只影响 DOM src，文档里的 src 原文不动（保真原则的渲染侧体现）
+const REMOTE_SRC_RE = /^(https?:|data:|blob:|asset:|tauri:)/i;
+const ABS_PATH_RE = /^([a-zA-Z]:[\\/]|\\\\|\/)/;
+
+function decodeMaybe(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+function dirnameOf(p: string): string {
+  const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"));
+  return i < 0 ? p : p.slice(0, i);
+}
+
+/** 拼合 dir 与 rel 并归一化 . / .. 段（保留盘符与 UNC 前缀） */
+function joinResolve(dir: string, rel: string): string {
+  const combined = `${dir}\\${rel}`;
+  const unc = combined.startsWith("\\\\");
+  const parts = combined.split(/[\\/]+/).filter(Boolean);
+  const out: string[] = [];
+  for (const seg of parts) {
+    if (seg === ".") continue;
+    if (seg === "..") {
+      // 盘符（C:）与 UNC 主机\共享名不可弹出
+      if (out.length > (unc ? 2 : 1)) out.pop();
+      continue;
+    }
+    out.push(seg);
+  }
+  return (unc ? "\\\\" : "") + out.join("\\");
+}
+
 export async function boot() {
   const app = document.getElementById("app")!;
   await initTypography();
@@ -68,6 +106,17 @@ export async function boot() {
 
   let path = initialPath;
   const payload = await invoke<FilePayload>("read_file", { path });
+
+  /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
+   *  闭包读的是 let path，拖入换文件后 replaceAll 重渲染自动跟随新目录 */
+  const toDomUrl = (src: string): string => {
+    if (!src || REMOTE_SRC_RE.test(src)) return src;
+    const decoded = decodeMaybe(src);
+    const abs = ABS_PATH_RE.test(decoded)
+      ? decoded
+      : joinResolve(dirnameOf(path), decoded);
+    return convertFileSrc(abs);
+  };
 
   // 编辑器容器：对齐 Ob 阅读视图类名
   const host = document.createElement("div");
@@ -173,6 +222,10 @@ export async function boot() {
       },
       // 快捷操作栏追加：==高亮== 开关 + callout 包裹（见 toolbar.ts）
       [Crepe.Feature.Toolbar]: toolbarConfig,
+      // 图片：本地路径（绝对/相对）经 asset 协议渲染（块级与行内共用此钩子）
+      [Crepe.Feature.ImageBlock]: {
+        proxyDomURL: toDomUrl,
+      },
     },
   });
 
