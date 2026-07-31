@@ -35,6 +35,13 @@ export async function initSettingsUI(container: HTMLElement) {
         </div>
         <p class="muted small">留空则跟随主题；修改后失焦或回车生效</p>
       </div>
+      <div class="settings-section">
+        <h3>编辑器</h3>
+        <label class="check-row">
+          <input type="checkbox" data-check="code_block_wrap">
+          <span>代码块自动换行</span>
+        </label>
+      </div>
     </div>`;
   container.appendChild(overlay);
 
@@ -74,7 +81,24 @@ export async function initSettingsUI(container: HTMLElement) {
         const v = s.editor[key];
         input.value = v == null ? "" : String(v);
       });
+    overlay
+      .querySelectorAll<HTMLInputElement>("input[data-check]")
+      .forEach((input) => {
+        const key = input.dataset.check as "code_block_wrap";
+        input.checked = s.editor[key] === true;
+      });
   }
+
+  // 复选框：change 即保存应用
+  overlay
+    .querySelectorAll<HTMLInputElement>("input[data-check]")
+    .forEach((input) => {
+      input.addEventListener("change", async () => {
+        const patch: Record<string, boolean | null> = {};
+        patch[input.dataset.check!] = input.checked || null;
+        await switchTypography(patch);
+      });
+    });
 
   // 排版输入：change（失焦/回车）即保存并应用；留空 = 清除覆盖
   overlay

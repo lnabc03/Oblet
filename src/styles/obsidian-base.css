@@ -504,6 +504,14 @@ body {
   height: 16px;
 }
 
+/* 代码块软换行开关（body.ob-code-wrap，设置项 code_block_wrap 驱动）。
+ * CM6 的 lineWrapping 扩展本质也是注入同类样式；切换瞬间的行高缓存
+ * 在下一个渲染周期自愈 */
+body.ob-code-wrap .markdown-rendered .cm-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ---- 检索浮条 ---- */
 .search-bar {
   position: fixed;
@@ -700,6 +708,16 @@ body {
 .typo-grid input:focus {
   outline: 1px solid var(--ob-accent);
   border-color: var(--ob-accent);
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.check-row input {
+  accent-color: var(--ob-accent);
 }
 
 /* Frontmatter（笔记属性）：键值对渲染为紧凑表格，值可直接编辑；

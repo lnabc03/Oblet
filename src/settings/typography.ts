@@ -16,6 +16,8 @@ export interface EditorSettings {
   mono_font?: string | null;
   interface_font?: string | null;
   base_font_size?: number | null;
+  /** 代码块软换行（null/false = 不换行，CM 默认横向滚动） */
+  code_block_wrap?: boolean | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -46,6 +48,8 @@ export function applyTypography(e: EditorSettings) {
   for (const t of targets) {
     t.style.fontSize = e.base_font_size ? `${e.base_font_size}px` : "";
   }
+  // 代码块软换行开关（body 类 + CSS；CM 行高缓存下一次渲染周期自愈）
+  document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
 }
 
 /** 保存排版设置并广播到所有窗口 */

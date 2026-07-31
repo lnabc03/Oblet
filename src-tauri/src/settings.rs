@@ -19,6 +19,9 @@ pub struct EditorSetting {
     pub interface_font: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_font_size: Option<u32>,
+    // 代码块软换行：None/false = 不换行（CM 默认横向滚动）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_block_wrap: Option<bool>,
 }
 
 fn default_true() -> bool {
