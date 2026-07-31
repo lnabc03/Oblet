@@ -21,7 +21,7 @@ window.__TAURI_INTERNALS__ = {
   invoke(cmd) {
     const routes = {
       get_window_file: () => "C:\\\\mock\\\\demo.md",
-      read_file: () => ({ content: "# 标题\\n\\n\`\`\`python\\nprint(1)\\n\`\`\`\\n\\n正文段落。", newline: "LF", readonly: false, readonly_reason: null }),
+      read_file: () => ({ content: "# 标题\\n\\n\`\`\`python\\nprint(1)\\n\`\`\`\\n\\n\`\`\`\\n\`\`\`\\n\\n正文段落。", newline: "LF", readonly: false, readonly_reason: null }),
       get_settings: () => ({ version: 1, editor: {} }), // editor 必须非空（typography/commands 直接读 .editor.keymap）
       save_settings: () => null,
       watch_file: () => null,
@@ -158,6 +158,36 @@ const freeInput = await evaluate(`(() => {
   }, 600));
 })()`);
 console.log("freeInput(自定义语言回车):", JSON.stringify(freeInput));
+
+// 空代码块浮层可见性（八轮悬案核心场景）：布局尺寸量不出 overflow 裁剪，
+// 必须用 elementFromPoint 在 ul 中部取样——被裁时命中的是底层元素
+const emptyBlock = await evaluate(`(() => {
+  const blocks = document.querySelectorAll(".milkdown-code-block");
+  if (blocks.length < 2) return { stage: "only " + blocks.length + " code block(s)" };
+  const block = blocks[1]; // 空代码块（无语言、无内容）
+  const btn = block.querySelector(".language-button");
+  if (!btn) return { stage: "empty block not initialized (no language button)", html: block.innerHTML.slice(0, 200) };
+  btn.click();
+  return new Promise((res) => setTimeout(() => {
+    const ul = block.querySelector(".language-list");
+    if (!ul) { res({ stage: "no ul" }); return; }
+    const items = ul.querySelectorAll(".language-list-item");
+    const r = ul.getBoundingClientRect();
+    // ul 中部取样点（列表项区域，避开顶部搜索框）
+    const cy = Math.min(r.top + 120, r.bottom - 10);
+    const hit = document.elementFromPoint(r.left + r.width / 2, cy);
+    res({
+      stage: "done",
+      liCount: items.length,
+      firstLi: items[0]?.textContent ?? null,
+      ulRect: { w: Math.round(r.width), h: Math.round(r.height) },
+      ulVisible: !!(hit && (hit === ul || ul.contains(hit))),
+      hitTag: hit ? hit.tagName + "." + hit.className : null,
+      blockOverflow: getComputedStyle(block).overflow,
+    });
+  }, 800));
+})()`);
+console.log("emptyBlock(空代码块浮层可见性):", JSON.stringify(emptyBlock, null, 1));
 
 edge.kill();
 server.close();

@@ -59,10 +59,14 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
   // 起始页署名显示开关（默认显示，显式 false 才隐藏）
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
-  // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路
+  // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路。
+  // 子类区分 mica/acrylic：两者 CSS 叠加策略不同（Mica 不透明材质叠薄纱调色，
+  // Acrylic 半透明材质保持全透）
   const effect =
     e.window_effect && e.window_effect !== "none" ? e.window_effect : null;
   document.body.classList.toggle("ob-vibrancy", effect !== null);
+  document.body.classList.toggle("ob-vibrancy-mica", effect === "mica");
+  document.body.classList.toggle("ob-vibrancy-acrylic", effect === "acrylic");
   void invoke("set_window_effect", { effect }).catch(() => {});
 }
 

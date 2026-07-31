@@ -125,6 +125,25 @@ body.ob-vibrancy .milkdown {
 body.ob-vibrancy .settings-btn {
   background: rgba(var(--ctp-surface0, 49, 50, 68), 0.5);
 }
+/* Mica 是系统不透明材质（深色系），"再透"物理上给不了，只能罩一层 text 色 5% 薄纱
+ * 把材质色调略调浅（八轮反馈"背景色略浅一点点"）；Acrylic 本身是半透明材质，保持全透 */
+body.ob-vibrancy-mica .milkdown {
+  background: rgba(var(--ctp-text, 205, 214, 244), 0.05);
+}
+/* 浮层家族适配（八轮反馈"搜索栏浮窗和设置界面未适配"）：不透明紫黑块浮在材质上突兀，
+ * 统一半透明化 + backdrop-filter 模糊背后的页面内容（VS Code 风格） */
+body.ob-vibrancy .search-bar,
+body.ob-vibrancy .settings-panel,
+body.ob-vibrancy .toast,
+body.ob-vibrancy .context-menu {
+  background: rgba(var(--ctp-base, 30, 30, 46), 0.72);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+}
+/* 搜索框输入框嵌在浮条内，同步半透明，避免浮条里嵌一块实心 */
+body.ob-vibrancy .search-bar input {
+  background: rgba(var(--ctp-base, 30, 30, 46), 0.45);
+}
 
 .empty-state {
   margin: auto;
@@ -345,6 +364,12 @@ body.ob-vibrancy .settings-btn {
 .markdown-rendered .ProseMirror .milkdown-code-block {
   border-radius: 6px;
   overflow: hidden;
+}
+/* 语言浮层展开时放开裁剪：浮层（.language-picker）在 NodeView dom 内、向下溢出代码块盒子，
+ * 空代码块高度只有一两行，ul 会被 overflow:hidden 整体裁掉——DOM 里 143 项齐全但视觉空白
+ *（八轮悬案根因；elementFromPoint 实测命中底层 .markdown-rendered）。按钮 data-expanded 是组件原生状态属性 */
+.markdown-rendered .ProseMirror .milkdown-code-block:has(.language-button[data-expanded="true"]) {
+  overflow: visible;
 }
 .markdown-rendered .ProseMirror .milkdown-code-block .cm-editor {
   border-radius: 6px;
