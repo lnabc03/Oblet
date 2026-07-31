@@ -43,14 +43,18 @@
 
 ## 批次 2：复杂问题与代码治理（后端/诊断/大项）
 
-- [ ] **2.1 dev 模式拖拽新 md 卡死悬案**（P0 / 待定）
+- [ ] **2.1 dev 模式拖拽新 md 卡死悬案**（P0 / 待定）⏸ 待使用者复测
   线索：dev 模式热修复后拖拽新 md 渲染有概率直接卡死，已发生数起。
   行动：先定性——release 版同路径反复拖拽复测；release 不发生则降级为 dev-only（HMR 状态残留）记录，发生则收集卡死时主进程/webview 状态。无稳定复现前不动序列化层。
+  状态：**等使用者在 release 版（zip 已重封，含批次 1 修复）反复拖拽复测后反馈**。
 
-- [ ] **2.2 渲染逻辑系统性梳理（"屎山"治理）**（P0 / 大）
-  从头到尾系统梳理 Milkdown 底座上的魔改：无用甚至副作用的代码能删就删，不能全靠兜底机制撑着。
-  方法：借助专门 code review skill 全面审查 + 人工定夺；每个兜底机制要么注释固化它防的具体问题，要么删除。
-  出口：frontmatter.ts / plugins.ts / setup.ts 每个 hack 有据可查；回归测试全过。
+- [x] **2.2 渲染逻辑系统性梳理（"屎山"治理）**（P0 / 大）✅ 2026-07-31（首轮）
+  结论：自有代码仅 ~800 行（frontmatter 331 / setup 260 / plugins 200+），魔改比预想收敛。
+  - frontmatter.ts：8 处兜底机制**全部已有注释固化**（InitReady 时序、relatedTarget 跳提交、pendingFocus 延迟聚焦、currentNode 取新鲜节点防过时 nodeSize、stopEvent 全拦截防 NodeSelection 吞节点、join 容忍字符串 spread、任务项空格解析侧修剪、disableEmptyLineBr）。
+  - plugins.ts：高亮/callout 两插件骨架完全重复 → 提取 `makeDecoratorPlugin` 工厂收口；装饰计算注释齐全。
+  - setup.ts：userEditTracker（appendedTransaction 过滤）、suppressSave、lastContent 归一化比较均有注释；showTip 为临时实现，待 3.4 通知系统统一收口。
+  - 无可删死代码（主题层 v2.0 已删）；回归测试 8 项全过。
+  遗留观察项（不阻塞）：装饰器全量重算是大文档性能嫌疑（见 5.2）；payload 可变捕获模式在 3.4/3.6 落地时顺带收敛。
 
 ## 批次 3：体验与视觉增强（新增，小→中排序）
 

@@ -8,9 +8,39 @@ import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorState } from "@milkdown/prose/state";
 import type { Node as PMNode } from "@milkdown/prose/model";
 
-// ---------------------------------------------------------------- ==高亮==
+// ---------------------------------------------------------------- 装饰器插件工厂
 
-const highlightKey = new PluginKey("oblet-highlight");
+/** 装饰器插件骨架：仅 doc 变更时全量重算装饰（选区变化直接复用）。
+ *  全量重建 DecorationSet 是大文档打字卡顿的最大嫌疑，增量优化见打磨清单 5.2；
+ *  目前文档规模下全量足够，先保持实现简单 */
+function makeDecoratorPlugin(
+  name: string,
+  compute: (state: EditorState) => DecorationSet
+) {
+  const key = new PluginKey(name);
+  return $prose(
+    () =>
+      new Plugin({
+        key,
+        props: {
+          decorations(state) {
+            return key.getState(state) as DecorationSet;
+          },
+        },
+        state: {
+          init(_, state) {
+            return compute(state);
+          },
+          apply(tr, old, _o, newState) {
+            if (!tr.docChanged) return old;
+            return compute(newState);
+          },
+        },
+      })
+  );
+}
+
+// ---------------------------------------------------------------- ==高亮==
 
 function highlightDecorations(state: EditorState): DecorationSet {
   const decos: Decoration[] = [];
@@ -61,30 +91,12 @@ function highlightDecorations(state: EditorState): DecorationSet {
   return DecorationSet.create(state.doc, decos);
 }
 
-export const highlightPlugin = $prose(
-  () =>
-    new Plugin({
-      key: highlightKey,
-      props: {
-        decorations(state) {
-          return highlightKey.getState(state) as DecorationSet;
-        },
-      },
-      state: {
-        init(_, state) {
-          return highlightDecorations(state);
-        },
-        apply(tr, old, _o, newState) {
-          if (!tr.docChanged) return old;
-          return highlightDecorations(newState);
-        },
-      },
-    })
+export const highlightPlugin = makeDecoratorPlugin(
+  "oblet-highlight",
+  highlightDecorations
 );
 
 // ---------------------------------------------------------------- Callout
-
-const calloutKey = new PluginKey("oblet-callout");
 
 // 常见 callout 类型的图标（简易内联 SVG，对齐 lucide 风格）
 const ICONS: Record<string, string> = {
@@ -199,25 +211,9 @@ function calloutDecorations(state: EditorState): DecorationSet {
   return DecorationSet.create(state.doc, decos);
 }
 
-export const calloutPlugin = $prose(
-  () =>
-    new Plugin({
-      key: calloutKey,
-      props: {
-        decorations(state) {
-          return calloutKey.getState(state) as DecorationSet;
-        },
-      },
-      state: {
-        init(_, state) {
-          return calloutDecorations(state);
-        },
-        apply(tr, old, _o, newState) {
-          if (!tr.docChanged) return old;
-          return calloutDecorations(newState);
-        },
-      },
-    })
+export const calloutPlugin = makeDecoratorPlugin(
+  "oblet-callout",
+  calloutDecorations
 );
 
 export const obletPlugins = [highlightPlugin, calloutPlugin];
