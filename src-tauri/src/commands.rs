@@ -166,9 +166,8 @@ pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -
     let res = match effect.as_deref() {
         Some("mica") => window_vibrancy::apply_mica(&window, Some(true)),
         // 深色亚克力：tint 取 Catppuccin Mocha base (30,30,46) 贴近主题紫黑；
-        // alpha 60→150→179：60 时桌面亮内容大量透入显亮割裂；150 仍被反馈"基本全透"，
-        // 179 ≈ 70% 不透明（八轮目标观感"深灰、70% 左右"）。再不行按预案删 Acrylic 方案
-        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((30, 30, 46, 179))),
+        // alpha 60→150→179→200：60 显亮割裂、150"基本全透"、179 仍不够实（九轮批示→200，78% 不透明）
+        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((30, 30, 46, 200))),
         _ => {
             // 关：两种都清（互不知晓对方是否应用过；未应用时 clear 亦安全返回）
             let a = window_vibrancy::clear_mica(&window);

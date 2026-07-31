@@ -125,12 +125,8 @@ body.ob-vibrancy .milkdown {
 body.ob-vibrancy .settings-btn {
   background: rgba(var(--ctp-surface0, 49, 50, 68), 0.5);
 }
-/* Mica 是系统不透明材质（深色系），"再透"物理上给不了，只能罩一层 text 色 5% 薄纱
- * 把材质色调略调浅（八轮反馈"背景色略浅一点点"）；Acrylic 本身是半透明材质，保持全透 */
-body.ob-vibrancy-mica .milkdown {
-  background: rgba(var(--ctp-text, 205, 214, 244), 0.05);
-}
-/* 浮层家族适配（八轮反馈"搜索栏浮窗和设置界面未适配"）：不透明紫黑块浮在材质上突兀，
+/* Mica 薄纱已按九轮批示回滚（"回滚Mica，取消薄纱材质"）——Mica 即系统材质原样透出 */
+/* 浮层家族适配（八轮"搜索栏浮窗和设置界面未适配"）：不透明紫黑块浮在材质上突兀，
  * 统一半透明化 + backdrop-filter 模糊背后的页面内容（VS Code 风格） */
 body.ob-vibrancy .search-bar,
 body.ob-vibrancy .settings-panel,
@@ -227,7 +223,9 @@ body.ob-vibrancy .search-bar input {
 .markdown-rendered {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px 40vh;
+  /* 底部留白固定值：原 40vh 随窗高线性膨胀（最大化时近半屏），九轮批示改固定——
+   * 280px ≈ 默认窗口（960×720）下原 40vh 的观感，末行可滚至视口中下部 */
+  padding: 24px 32px 280px;
   line-height: 1.75;
 }
 
