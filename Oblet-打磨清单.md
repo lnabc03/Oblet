@@ -162,6 +162,7 @@
 - [x] 版本号与关于信息：exe 文件属性经 tauri.conf.json 补齐 ✅ 2026-07-31（publisher/copyright/description 已嵌入 winres，中文经 UTF-8 落盘验证无损）；窗口标题格式（随 1.1 定稿）。
 - [x] GitHub Actions：✅ 2026-07-31 `.github/workflows/release.yml`（tag v\* 触发 → windows-latest 构建 `--no-bundle` → 组 zip → softprops/action-gh-release 上传）。未实际触发过，首个 tag 时验证。
   备注：本机 WiX light.exe 环境问题导致 msi 打包失败（已用 ASCII 元数据对照实验排除中文因素）；发行物为绿色 zip，不受影响，构建统一走 `--no-bundle`。
+- [x] zip 出口审计：✅ 2026-07-31 `scripts/audit-zip.mjs`——zip 内 exe 与构建产物 MD5 一致（九轮）、licenses 222 份齐全、register/unregister bat 在位。
 
 ---
 
