@@ -109,6 +109,14 @@ body {
   flex-direction: column;
 }
 
+/* 毛玻璃透明链路（设置项 window_effect 驱动，4.1）：
+ * 窗口已是 transparent；效果开启时让出 html/body 背景，露出 DWM 材质。
+ * 浮层（设置/toast/菜单等）自带背景不受影响；文字色不动，靠材质本身的深色保证可读 */
+body.ob-vibrancy,
+html:has(body.ob-vibrancy) {
+  background: transparent;
+}
+
 .empty-state {
   margin: auto;
   text-align: center;
@@ -762,6 +770,20 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   outline: 1px solid var(--ob-accent);
   border-color: var(--ob-accent);
 }
+/* 设置面板下拉框（窗口效果等） */
+.settings-panel select {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.9em;
+  font-family: inherit;
+}
+.settings-panel select:focus {
+  outline: 1px solid var(--ob-accent);
+  border-color: var(--ob-accent);
+}
 .check-row {
   display: flex;
   align-items: center;
@@ -841,4 +863,11 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 /* 起始页署名隐藏开关（设置项 show_author 驱动） */
 body.ob-hide-author .empty-author {
   display: none;
+}
+
+/* 光标所在块淡底色（4.5 原型）：显隐由 body.anp-current-line 门控。
+ * 极低不透明度 mauve，不与 callout/代码块自带背景冲突时也能感知 */
+body.anp-current-line .markdown-rendered .ob-active-block {
+  background: rgba(var(--ctp-mauve, 150, 110, 220), 0.07);
+  border-radius: 6px;
 }

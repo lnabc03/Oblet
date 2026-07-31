@@ -20,6 +20,8 @@ export interface EditorSettings {
   code_block_wrap?: boolean | null;
   /** 起始页署名显示（null/true = 显示） */
   show_author?: boolean | null;
+  /** 窗口材质效果：null/"none" = 关；"mica" | "acrylic" */
+  window_effect?: string | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -54,6 +56,11 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
   // 起始页署名显示开关（默认显示，显式 false 才隐藏）
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
+  // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路
+  const effect =
+    e.window_effect && e.window_effect !== "none" ? e.window_effect : null;
+  document.body.classList.toggle("ob-vibrancy", effect !== null);
+  void invoke("set_window_effect", { effect }).catch(() => {});
 }
 
 /** 保存排版设置并广播到所有窗口 */

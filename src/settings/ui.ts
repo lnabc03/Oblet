@@ -48,6 +48,14 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="checkbox" data-check="show_author" data-default="true">
           <span>起始页显示署名</span>
         </label>
+        <label class="check-row">
+          <span>窗口效果</span>
+          <select data-select="window_effect">
+            <option value="">关闭</option>
+            <option value="mica">Mica（Win11）</option>
+            <option value="acrylic">Acrylic（Win10/11）</option>
+          </select>
+        </label>
       </div>
     </div>`;
   container.appendChild(overlay);
@@ -104,7 +112,25 @@ export async function initSettingsUI(container: HTMLElement) {
         const v = s.editor[key];
         input.checked = v == null ? def : v === true;
       });
+    // 下拉框：回填当前值
+    overlay
+      .querySelectorAll<HTMLSelectElement>("select[data-select]")
+      .forEach((sel) => {
+        const key = sel.dataset.select as "window_effect";
+        sel.value = s.editor[key] ?? "";
+      });
   }
+
+  // 下拉框：change 即保存应用；空串 = 关闭（写回 null）
+  overlay
+    .querySelectorAll<HTMLSelectElement>("select[data-select]")
+    .forEach((sel) => {
+      sel.addEventListener("change", async () => {
+        const patch: Record<string, string | null> = {};
+        patch[sel.dataset.select!] = sel.value || null;
+        await switchTypography(patch);
+      });
+    });
 
   // 复选框：change 即保存应用；取值为默认值时写回 null（跟随默认，文件自说明）
   overlay

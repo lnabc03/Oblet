@@ -158,3 +158,21 @@ pub fn watch_file(state: State<AppState>, window: tauri::Window, path: String) -
     }
     Ok(())
 }
+
+// 窗口材质效果（毛玻璃）：window-vibrancy 官方方案。
+// 窗口建为 transparent，效果开启时前端 CSS 让出背景（body.ob-vibrancy 透明链路）
+#[tauri::command]
+pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -> Result<(), String> {
+    let res = match effect.as_deref() {
+        Some("mica") => window_vibrancy::apply_mica(&window, Some(true)),
+        // 深色亚克力，tint 贴近主题底色，alpha 压低保可读性
+        Some("acrylic") => window_vibrancy::apply_acrylic(&window, Some((24, 20, 40, 60))),
+        _ => {
+            // 关：两种都清（互不知晓对方是否应用过；未应用时 clear 亦安全返回）
+            let a = window_vibrancy::clear_mica(&window);
+            let b = window_vibrancy::clear_acrylic(&window);
+            a.and(b)
+        }
+    };
+    res.map_err(|e| e.to_string())
+}

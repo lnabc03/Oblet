@@ -34,6 +34,8 @@ fn open_or_focus(app: &AppHandle, path: &str) {
     match WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title(format!("Oblet - {title}"))
         .inner_size(960.0, 720.0)
+        // 透明窗口：毛玻璃（Mica/Acrylic）的前提；CSS 背景不透明时与之前视觉一致
+        .transparent(true)
         .build()
     {
         Ok(_win) => {
@@ -77,6 +79,7 @@ pub fn run() {
             commands::read_file,
             commands::write_file,
             commands::watch_file,
+            commands::set_window_effect,
             settings::get_settings,
             settings::save_settings,
         ])
@@ -152,6 +155,7 @@ pub fn run() {
                 )
                 .title("Oblet")
                 .inner_size(960.0, 720.0)
+                .transparent(true)
                 .build()?;
             }
             Ok(())

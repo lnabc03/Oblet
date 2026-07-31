@@ -26,6 +26,9 @@ pub struct EditorSetting {
     // 起始页署名：None/true = 显示
     #[serde(default)]
     pub show_author: Option<bool>,
+    // 窗口材质效果：None/"none" = 关；"mica"（Win11）；"acrylic"（Win10/11）
+    #[serde(default)]
+    pub window_effect: Option<String>,
 }
 
 fn default_true() -> bool {

@@ -224,4 +224,42 @@ export const calloutPlugin = makeDecoratorPlugin(
   calloutDecorations
 );
 
-export const obletPlugins = [highlightPlugin, calloutPlugin];
+// ---------------------------------------------------------------- 光标所在块淡底色（4.5 原型）
+
+/** 原型评审机制：装饰常驻计算，显隐由 body.anp-current-line 一个类决定。
+ *  决策=保留或移除该类（连本插件与 CSS 一起），不留中间态。
+ *  与另两个装饰器不同：选区变化也要重算（光标移动即换块） */
+function activeBlockDecorations(state: EditorState): DecorationSet {
+  const { $from } = state.selection;
+  if ($from.depth < 1) return DecorationSet.empty;
+  const start = $from.before(1);
+  const node = $from.node(1);
+  return DecorationSet.create(state.doc, [
+    Decoration.node(start, start + node.nodeSize, { class: "ob-active-block" }),
+  ]);
+}
+
+const activeBlockKey = new PluginKey<DecorationSet>("oblet-active-block");
+
+export const activeBlockPlugin = $prose(
+  () =>
+    new Plugin({
+      key: activeBlockKey,
+      props: {
+        decorations(state) {
+          return activeBlockKey.getState(state);
+        },
+      },
+      state: {
+        init(_, state) {
+          return activeBlockDecorations(state);
+        },
+        apply(tr, old, _o, newState) {
+          if (!tr.docChanged && !tr.selectionSet) return old;
+          return activeBlockDecorations(newState);
+        },
+      },
+    })
+);
+
+export const obletPlugins = [highlightPlugin, calloutPlugin, activeBlockPlugin];
