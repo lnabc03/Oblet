@@ -10,6 +10,7 @@ import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
+import { toolbarConfig } from "./toolbar";
 import { notify } from "../notify";
 import logoUrl from "../assets/logo.png";
 import {
@@ -166,6 +167,8 @@ export async function boot() {
         textGroup: { h4: null, h5: null, h6: null, quote: null, divider: null },
         advancedGroup: { image: null, math: null },
       },
+      // 快捷操作栏追加：==高亮== 开关 + callout 包裹（见 toolbar.ts）
+      [Crepe.Feature.Toolbar]: toolbarConfig,
     },
   });
 
