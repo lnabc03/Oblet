@@ -126,6 +126,14 @@ const ICONS: Record<string, string> = {
   example: "M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13",
   abstract: "M4 6h16M4 12h16M4 18h10",
   summary: "M4 6h16M4 12h16M4 18h10",
+  tldr: "M4 6h16M4 12h16M4 18h10",
+  faq: "M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z",
+  attention:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  error:
+    "M12 8v5M12 16.5h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z",
+  cite: "M7 7h4v6H7zM7 13c0 2 1 3 3 3M15 7h4v6h-4zM15 13c0 2 1 3 3 3",
+  missing: "M18 6 6 18M6 6l12 12",
 };
 
 function calloutIconSvg(type: string): string {

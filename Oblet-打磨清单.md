@@ -89,8 +89,10 @@
   已知：网络 URL 图片预览默认可用（CSP 已放行 https）。
   检查：圆角、边框/阴影、加载中/失败占位、块内对齐、caption 输入框字体；前端样式与后端 asset 协议都可能要调。本地绝对路径 + 网络 URL 两类图源都测。
 
-- [ ] **3.8 callout 颜色与样式丰富**（中）
-  补全 Ob 全部 callout 类型图标映射；确认 AnuPpuccin callout 定制（`anp-callout-sleek` 等）在装饰器 DOM 上的命中情况，不命中的手工桥接。
+- [x] **3.8 callout 颜色与样式丰富**（中）✅ 2026-07-31（图标映射部分）
+  图标映射补全 Ob 全部类型别名：新增 tldr/faq/attention/error/cite/missing（原 24 → 30 项）。
+  主题命中：`Decoration.node` 在 blockquote 上设 `.callout` + `data-callout`，主题内 149 处 `data-callout` 选择器形状吻合；
+  各类型配色与 `anp-callout-sleek` 等定制的实际观感待使用者目测，不命中的再手工桥接。
 
 - [ ] **3.9 Crepe 浮层组件主题化**（中）
   斜杠菜单（1.4 删减后）、工具栏、链接提示框的圆角/阴影/hover/字体向 AnuPpuccin 浮层语言看齐。在 3.3/3.4/3.6 落地后统一过一遍，避免重复劳动。
@@ -110,8 +112,8 @@
 - [ ] **4.2 完善设置页面**（大）
   汇总所有已落地设置项统一设计：排版覆盖、代码块换行、透明度（4.1）、快捷键（4.4）……信息架构分组，视觉与通知系统/右键菜单同语言。
 
-- [ ] **4.3 settings 默认值实体化**（小）
-  settings.json 保存一套完整默认值，而非全跟主题（空文件也写入默认 editor 节）。
+- [x] **4.3 settings 默认值实体化**（小）✅ 2026-07-31
+  首次运行 get_settings 即落盘完整默认形（version:1 + editor 全字段，None 显式序列化为 null），与设计文档 §8 示例一致，文件自说明可手改。
 
 - [ ] **4.4 快捷键系统（可设置）**（大）
   命令注册表 + settings.json 键位覆盖 + 设置页键位编辑 UI。不依赖 vault/hotkeys.json（设计文档已定）。
