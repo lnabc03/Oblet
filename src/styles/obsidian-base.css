@@ -135,13 +135,55 @@ body {
   opacity: 0.55;
 }
 
-.readonly-banner,
-.external-change-tip {
+/* 只读横幅（持久状态指示，瞬态提示一律走 toast） */
+.readonly-banner {
   padding: 6px 12px;
   font-size: 0.85em;
   background: var(--ob-bg-alt);
   border-bottom: 1px solid var(--ob-border);
   color: var(--ob-text-mut);
+}
+
+/* ---- 统一通知（toast）---- */
+.toast-container {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none; /* 容器不挡鼠标，单条 toast 恢复可点 */
+}
+.toast {
+  pointer-events: auto;
+  max-width: 70vw;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-border);
+  border-left-width: 3px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: var(--ob-text);
+  font-family: var(--font-interface, var(--ob-font));
+  font-size: 0.85em;
+  cursor: pointer;
+  animation: toast-in 0.25s ease-out;
+}
+.toast-info { border-left-color: var(--ob-accent); }
+.toast-warn { border-left-color: var(--ob-toast-warn, #d8a248); }
+.toast-error { border-left-color: var(--ob-toast-error, #d84848); }
+.toast-out {
+  animation: toast-out 0.2s ease-in forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(-8px); }
 }
 
 /* 编辑容器：对齐 Ob 阅读视图 */
@@ -530,7 +572,6 @@ body {
 .settings-btn,
 .settings-panel,
 .readonly-banner,
-.external-change-tip,
 .empty-state {
   font-family: var(--font-interface, var(--ob-font));
 }

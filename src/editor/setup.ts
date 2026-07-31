@@ -10,6 +10,7 @@ import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
+import { notify } from "../notify";
 import logoUrl from "../assets/logo.png";
 import {
   disableEmptyLineBr,
@@ -118,6 +119,7 @@ export async function boot() {
       return true;
     } catch (e) {
       console.error("保存失败:", e);
+      notify(`保存失败：${e}`, "error");
       return false;
     } finally {
       saving = false;
@@ -213,20 +215,13 @@ export async function boot() {
 
   // ---- 外部变更：无脏内容自动重载，有则提示 ----
   const winLabel = getCurrentWindow().label;
-  const showTip = (text: string) => {
-    const tip = document.createElement("div");
-    tip.className = "external-change-tip";
-    tip.textContent = text;
-    app.prepend(tip);
-    setTimeout(() => tip.remove(), 6000);
-  };
   await listen(`file-changed:${winLabel}`, async () => {
     if (!dirty && !saving) {
       let fresh: FilePayload;
       try {
         fresh = await invoke<FilePayload>("read_file", { path });
       } catch {
-        showTip("文件已被外部删除或移动。");
+        notify("文件已被外部删除或移动。", "warn");
         return;
       }
       payload.newline = fresh.newline;
@@ -235,7 +230,7 @@ export async function boot() {
       crepe.editor.action(replaceAll(fresh.content));
       suppressSave = false;
     } else {
-      showTip("文件已被外部修改，当前有未保存内容，未自动重载。");
+      notify("文件已被外部修改，当前有未保存内容，未自动重载。", "warn");
     }
   });
 
@@ -248,7 +243,7 @@ export async function boot() {
     // 先落盘当前文件；保存失败则不切换，避免丢内容
     window.clearTimeout(saveTimer);
     if (dirty && !(await flushSave())) {
-      showTip("当前文件保存失败，未切换新文件。");
+      notify("当前文件保存失败，未切换新文件。", "error");
       return;
     }
 
