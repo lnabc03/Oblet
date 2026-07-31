@@ -7,6 +7,7 @@ import type { Transaction } from "@milkdown/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorView } from "@milkdown/prose/view";
 import type { Node as PMNode } from "@milkdown/prose/model";
+import { registerCommand } from "../commands";
 
 interface Match {
   from: number;
@@ -239,11 +240,14 @@ export const searchPlugin = $prose(() => {
         }
       });
 
-      // Ctrl+F 全局捕获：浮条聚焦时再按 Ctrl+F 会触发 webview 默认检索，
-      // 必须 capture 阶段 preventDefault；已打开则聚焦回输入框（编辑器惯例）
-      const onGlobalKey = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") {
-          e.preventDefault();
+      // Ctrl+F（4.4 起经命令注册表统一派发，键位可在设置中覆盖）：
+      // 全局捕获已在 commands.ts 派发器内，此处只注册行为；
+      // 已打开则聚焦回输入框（编辑器惯例）
+      registerCommand({
+        id: "search",
+        title: "检索 / 替换",
+        defaultCombo: "Ctrl+F",
+        run: () => {
           const s = searchKey.getState(v.state)!;
           if (s.open) {
             input.focus();
@@ -251,9 +255,9 @@ export const searchPlugin = $prose(() => {
           } else {
             dispatchMeta({ type: "open" });
           }
-        }
-      };
-      window.addEventListener("keydown", onGlobalKey, true);
+        },
+      });
+      // 注意：编辑器生命周期 = 窗口生命周期，无需在 destroy 里注销命令
 
       return {
         update(v2) {
@@ -283,7 +287,6 @@ export const searchPlugin = $prose(() => {
         },
         destroy() {
           bar.remove();
-          window.removeEventListener("keydown", onGlobalKey, true);
           view = null;
         },
       };

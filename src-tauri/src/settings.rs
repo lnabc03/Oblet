@@ -29,6 +29,9 @@ pub struct EditorSetting {
     // 窗口材质效果：None/"none" = 关；"mica"（Win11）；"acrylic"（Win10/11）
     #[serde(default)]
     pub window_effect: Option<String>,
+    // 键位覆盖（4.4）：命令 id → 组合串（"Ctrl+Shift+F" 形）；None = 全部默认
+    #[serde(default)]
+    pub keymap: Option<std::collections::HashMap<String, String>>,
 }
 
 fn default_true() -> bool {

@@ -15,6 +15,7 @@ import { searchPlugin } from "./search";
 import { contextMenuPlugin } from "./contextmenu";
 import { toolbarConfig } from "./toolbar";
 import { notify } from "../notify";
+import { registerCommand } from "../commands";
 import logoUrl from "../assets/logo.png";
 import {
   disableEmptyLineBr,
@@ -187,13 +188,15 @@ export async function boot() {
     saveTimer = window.setTimeout(() => void flushSave(), AUTOSAVE_DELAY);
   };
 
-  // Ctrl+S 立即保存
-  window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-      e.preventDefault();
+  // Ctrl+S 立即保存（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
+  registerCommand({
+    id: "save",
+    title: "保存",
+    defaultCombo: "Ctrl+S",
+    run: () => {
       window.clearTimeout(saveTimer);
       void flushSave();
-    }
+    },
   });
 
   const crepe = new Crepe({

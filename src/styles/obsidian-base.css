@@ -784,6 +784,38 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   outline: 1px solid var(--ob-accent);
   border-color: var(--ob-accent);
 }
+
+/* 快捷键列表（4.4） */
+.keymap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 0.9em;
+}
+.keymap-row span {
+  color: var(--ob-text);
+}
+.keymap-combo {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.88em;
+  font-family: var(--font-monospace, var(--ob-font-mono));
+  cursor: pointer;
+  min-width: 6.5em;
+  text-align: center;
+}
+.keymap-combo:hover {
+  border-color: var(--ob-accent);
+}
+.keymap-combo.capturing {
+  border-color: var(--ob-accent);
+  color: var(--ob-accent);
+}
 .check-row {
   display: flex;
   align-items: center;

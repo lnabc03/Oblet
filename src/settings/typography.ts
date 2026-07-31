@@ -2,6 +2,7 @@
 // （主题已固化为 AnuPpuccin 深色单主题，这里只剩排版覆盖）
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
+import { setKeymapOverrides } from "../commands";
 
 export interface Settings {
   version: number | null;
@@ -22,6 +23,8 @@ export interface EditorSettings {
   show_author?: boolean | null;
   /** 窗口材质效果：null/"none" = 关；"mica" | "acrylic" */
   window_effect?: string | null;
+  /** 键位覆盖（4.4）：命令 id → 组合串；null = 全部默认 */
+  keymap?: Record<string, string> | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -72,13 +75,27 @@ export async function switchTypography(patch: Partial<EditorSettings>) {
   await emit("oblet-typography-changed", {});
 }
 
+/** 保存键位覆盖（4.4）：combo 为 null = 恢复默认；空表归一为 null */
+export async function setKeybinding(id: string, combo: string | null) {
+  const s = await getSettings();
+  const map = { ...(s.editor.keymap ?? {}) };
+  if (combo) map[id] = combo;
+  else delete map[id];
+  s.editor.keymap = Object.keys(map).length ? map : null;
+  await saveSettings(s);
+  setKeymapOverrides(s.editor.keymap);
+  await emit("oblet-typography-changed", {});
+}
+
 /** 启动时初始化：读 settings 应用排版；监听其他窗口的排版广播 */
 export async function initTypography(): Promise<void> {
   await listen("oblet-typography-changed", async () => {
     const fresh = await getSettings();
+    setKeymapOverrides(fresh.editor.keymap);
     applyTypography(fresh.editor);
   });
 
   const s = await getSettings();
+  setKeymapOverrides(s.editor.keymap);
   applyTypography(s.editor);
 }

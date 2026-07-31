@@ -1,8 +1,16 @@
 // 设置浮层：排版覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
 import {
   getSettings,
+  setKeybinding,
   switchTypography,
 } from "./typography";
+import {
+  comboOf,
+  effectiveCombo,
+  listCommands,
+  registerCommand,
+  setKeymapCaptureActive,
+} from "../commands";
 
 export async function initSettingsUI(container: HTMLElement) {
   // 设置按钮（右上角浮动）
@@ -57,6 +65,11 @@ export async function initSettingsUI(container: HTMLElement) {
           </select>
         </label>
       </div>
+      <div class="settings-section">
+        <h3>快捷键</h3>
+        <div class="keymap-list"></div>
+        <p class="muted small">点击组合键后按新键位；Esc 取消；双击恢复默认</p>
+      </div>
     </div>`;
   container.appendChild(overlay);
 
@@ -73,21 +86,72 @@ export async function initSettingsUI(container: HTMLElement) {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) toggle(false);
   });
+  // Ctrl+,（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
+  registerCommand({
+    id: "settings",
+    title: "设置",
+    defaultCombo: "Ctrl+,",
+    run: () => {
+      toggle(overlay.classList.contains("hidden"));
+      if (!overlay.classList.contains("hidden")) void renderPanel();
+    },
+  });
+  // Esc 关闭浮层是面板自身行为，不进命令表
   window.addEventListener(
     "keydown",
     (e) => {
-      // 物理键码判定（e.code）：中文输入法下 e.key 可能是全角"，"；
-      // capture 阶段拦截：焦点在 CM/PM 内部编辑器时事件可能被 stopPropagation，
-      // 冒泡阶段的监听器收不到
-      if ((e.ctrlKey || e.metaKey) && e.code === "Comma") {
-        e.preventDefault();
-        toggle(overlay.classList.contains("hidden"));
-        if (!overlay.classList.contains("hidden")) void renderPanel();
-      }
       if (e.key === "Escape") toggle(false);
     },
     true
   );
+
+  // 快捷键列表：当前生效组合（覆盖 > 默认）；点击进入捕获模式，双击恢复默认
+  function renderKeymapList() {
+    const host = overlay.querySelector(".keymap-list");
+    if (!host) return;
+    host.innerHTML = "";
+    for (const cmd of listCommands()) {
+      const row = document.createElement("div");
+      row.className = "keymap-row";
+      const label = document.createElement("span");
+      label.textContent = cmd.title;
+      const btn = document.createElement("button");
+      btn.className = "keymap-combo";
+      btn.textContent = effectiveCombo(cmd);
+      btn.addEventListener("click", () => {
+        // 捕获模式：派发器静默（否则按 Ctrl+S 改键会先触发保存）
+        setKeymapCaptureActive(true);
+        btn.classList.add("capturing");
+        btn.textContent = "按下新组合…";
+        const onKey = (e: KeyboardEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.removeEventListener("keydown", onKey, true);
+          setKeymapCaptureActive(false);
+          btn.classList.remove("capturing");
+          if (e.key === "Escape") {
+            btn.textContent = effectiveCombo(cmd); // 取消
+            return;
+          }
+          const combo = comboOf(e);
+          if (!combo) {
+            // 纯修饰键：继续等下一键
+            btn.textContent = "按下新组合…";
+            window.addEventListener("keydown", onKey, true);
+            return;
+          }
+          void setKeybinding(cmd.id, combo).then(renderKeymapList);
+        };
+        window.addEventListener("keydown", onKey, true);
+      });
+      btn.addEventListener("dblclick", () => {
+        void setKeybinding(cmd.id, null).then(renderKeymapList);
+      });
+      row.appendChild(label);
+      row.appendChild(btn);
+      host.appendChild(row);
+    }
+  }
 
   async function renderPanel() {
     // 排版：回填当前值
@@ -119,6 +183,7 @@ export async function initSettingsUI(container: HTMLElement) {
         const key = sel.dataset.select as "window_effect";
         sel.value = s.editor[key] ?? "";
       });
+    renderKeymapList();
   }
 
   // 下拉框：change 即保存应用；空串 = 关闭（写回 null）
