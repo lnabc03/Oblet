@@ -9,6 +9,7 @@ import { Plugin, PluginKey } from "@milkdown/prose/state";
 import { initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
+import logoUrl from "../assets/logo.png";
 import {
   disableEmptyLineBr,
   frontmatterRemark,
@@ -43,8 +44,12 @@ export async function boot() {
     // （按钮挂在 body 上幸存，点击时切换的已是脱离文档的节点 → 起始页设置打不开）
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.innerHTML = `<p>Oblet</p>
-      <p class="muted">双击任意 .md 文件即可编辑，或直接拖入窗口</p>`;
+    empty.innerHTML = `
+      <img class="empty-logo" src="${logoUrl}" alt="Oblet">
+      <p class="empty-title">Oblet</p>
+      <p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>
+      <p class="muted small">Ctrl+, 打开设置</p>
+      <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
     // 空窗口：登记路径后重载，走正常启动流程
     await getCurrentWindow().onDragDropEvent(async (e) => {

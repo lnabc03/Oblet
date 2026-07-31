@@ -13,6 +13,7 @@ body,
   --ob-text-mut: var(--text-muted, #888888);
   --ob-text-faint: var(--text-faint, #aaaaaa);
   --ob-accent: var(--interactive-accent, #7b6cd9);
+  --ob-accent-soft: rgba(var(--ctp-mauve, 150, 110, 220), 0.35);
   --ob-link: var(--link-color, var(--text-accent, var(--interactive-accent, #7b6cd9)));
   --ob-font: var(--font-text, var(--font-interface, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif));
   --ob-font-mono: var(--font-monospace, Consolas, "Cascadia Mono", monospace);
@@ -112,9 +113,26 @@ body {
   text-align: center;
   color: var(--ob-text-mut);
 }
-.empty-state p:first-child {
+/* 起始页：logo 居中 + 主题色光晕；标题/署名/提示的层级靠字号与透明度区分 */
+.empty-logo {
+  width: 128px;
+  height: 128px;
+  filter: drop-shadow(0 0 24px var(--ob-accent-soft, rgba(150, 110, 220, 0.35)));
+}
+.empty-state .empty-title {
   font-size: 2em;
+  margin: 12px 0 4px;
   color: var(--ob-text);
+}
+.empty-state .small {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.empty-author {
+  margin-top: 2.5em;
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
 }
 
 .readonly-banner,
