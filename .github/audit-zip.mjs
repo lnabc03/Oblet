@@ -1,5 +1,5 @@
 // 出口审计：zip 内容完整性校验（随审随用；任一检查 FAIL 即退出码 1，可作发布硬闸门）
-// 用法: node scripts/audit-zip.mjs [zip 路径]（缺省按 tauri.conf.json 版本号定位）
+// 用法: node .github/audit-zip.mjs [zip 路径]（缺省按 tauri.conf.json 版本号定位）
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, existsSync, rmSync } from "node:fs";

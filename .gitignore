@@ -29,6 +29,11 @@ release/
 *.sln
 *.sw?
 
-# 本地参考素材（milkdown 官方示例库快照，体积大且无需入库）
-ref/milkdown-examples/
-scripts/.repro/
+# 本地开发资产（不入库，仅存在工作区）：
+# 参考素材（历史主题/测试文档）、开发脚本（验证管线/图标管线/截图）、
+# Claude Code 项目说明、打磨过程文档、序列化回归测试
+ref/
+scripts/
+CLAUDE.md
+Oblet-打磨*.md
+test-*-roundtrip.mjs

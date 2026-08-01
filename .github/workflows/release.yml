@@ -30,12 +30,12 @@ jobs:
       # 只产出绿色 exe（发行物是 zip；msi 安装包不做，跳过 bundling）
       - run: npm run tauri build -- --no-bundle
 
-      # 组包 + 出口审计：干净暂存（exe + scripts/ 下的 bat 源 + 现场收集的许可），
+      # 组包 + 出口审计：干净暂存（exe + .github/ 下的 bat 源 + 现场收集的许可），
       # 与本地同一口径（release/ 不入库，干净检出没有那些文件，不能从那里拷贝）
       - name: Pack and audit zip
         run: |
-          node scripts/pack-zip.mjs
-          node scripts/audit-zip.mjs
+          node .github/pack-zip.mjs
+          node .github/audit-zip.mjs
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
