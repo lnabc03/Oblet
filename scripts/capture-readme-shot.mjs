@@ -22,13 +22,21 @@ status: 进行中
 轻量、快速的独立 Markdown 编辑器，与 Obsidian 双向兼容。
 支持 ==高亮==、callout 与属性栏，保存**绝不改写**原文。
 
-> [!tip] 双击即编辑
+## 主要特性
+
+### 双击即编辑
+
+> [!tip] 提示
 > 每个文件一个窗口，自动保存，无需任何配置。
+
+### 代码高亮
 
 \`\`\`python
 def hello(name: str) -> None:
     print(f"Hello, {name}!")
 \`\`\`
+
+## 路线图
 
 - [x] 序列化保真
 - [x] AnuPpuccin 深色主题
