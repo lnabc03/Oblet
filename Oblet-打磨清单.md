@@ -70,7 +70,7 @@
   十一轮修订（2026-08-01）：用户实测对比后定论 **0 为最佳观感**——padding-bottom 归零，设置项与相关代码（--ob-bottom-padding、测量脚本）全删。
 
 - [x] **3.2 起始页设计**（小）✅ 2026-07-31
-  居中排版：logo（`src/assets/logo.png`，提亮版 256px 打包进前端，mauve 光晕 drop-shadow）+ 标题 Oblet + 操作提示 + 署名 **弋鹓 | lnabc03**。样式全走 --ob-\* 变量。
+  居中排版：logo（`src/assets/logo.png`，256px 打包进前端，mauve 光晕 drop-shadow；2026-08-01 起为用户手修终稿，替代提亮版）+ 标题 Oblet + 操作提示 + 署名 **弋鹓 | lnabc03**。样式全走 --ob-\* 变量。
   顺带补齐 `src/vite-env.d.ts`（vite/client 类型，图片 import 不再报 TS2307）。
   二轮修订（2026-07-31）：删去快捷键提示文案；新增设置项 `show_author`（界面节"起始页显示署名"，默认显示）可隐藏署名。
 
