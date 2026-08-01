@@ -1,12 +1,12 @@
-// 第三方许可归置（批次 6）：把生产依赖闭包的 LICENSE 收集到 release/Oblet/licenses/
-// 用法: node scripts/collect-licenses.mjs
+// 第三方许可归置（批次 6）：把生产依赖闭包的 LICENSE 收集到 licenses 目录
+// 用法: node scripts/collect-licenses.mjs [输出目录]（缺省 release/Oblet/licenses）
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const outDir = join(root, "release", "Oblet", "licenses");
+const outDir = process.argv[2] ?? join(root, "release", "Oblet", "licenses");
 mkdirSync(outDir, { recursive: true });
 
 // npm ls 可能因 peer 告警非零退出，stdout 仍可用

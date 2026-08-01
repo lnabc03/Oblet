@@ -20,6 +20,11 @@ cd src-tauri && cargo check   # Rust 快速检查
 node test-break-roundtrip.mjs   # 换行/hr/转义/frontmatter 往返
 node test-list-roundtrip.mjs    # 列表/任务列表污染回归
 
+# 发布组包与出口审计（zip 只从 pack-zip 出，绝不手动对 release/Oblet/ 打包——
+# 那是冒烟运行目录，exe 一跑就自建 data/ 个人设置；审计任一 FAIL 即退出码 1）
+npm run pack     # 干净暂存 → release/Oblet-<版本>-win-x64.zip
+npm run audit    # MD5 + 许可份数 + bat + 无 data/ 泄漏
+
 # 组件配置冒烟（jsdom，改 Crepe featureConfig 后跑）
 node scripts/verify-languages.mjs   # 代码块语言列表注入 + 浮层弹出交互
 ```

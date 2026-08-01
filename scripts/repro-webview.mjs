@@ -69,7 +69,10 @@ const dragMove = await evaluate(`(() => {
   const pm = document.querySelector(".ProseMirror");
   if (!ob || !pm) return { stage: "no hook/pm" };
   const step = (ms) => new Promise((r) => setTimeout(r, ms));
-  const fire = (type, init) => pm.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: new DataTransfer(), ...init }));
+  // 全程共享一个 DataTransfer：评审修复轮后门控改认 types 自描述标记（随会话生灭），
+  // 每事件新建 dt 会丢标记；共享同一对象才贴近真实浏览器会话
+  const dt = new DataTransfer();
+  const fire = (type, init) => pm.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, ...init }));
   return (async () => {
     ob.selectLastParagraph();
     await step(200);

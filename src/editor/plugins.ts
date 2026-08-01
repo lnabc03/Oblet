@@ -322,6 +322,11 @@ export const languageFreeInputPlugin = $prose(
 // 浏览器就显示禁止符号。ProseMirror 默认无拖放 handler。
 // 修法只一层：dragover preventDefault（声明接受）→ drop 按落点移动选区。
 // 文件拖入走 wry OLE 分支，与 HTML5 DnD 不同层，天然共存无需分区。
+// 门控依据是 dataTransfer.types 里的自描述标记，不用模块闩锁——评审修复轮
+// 发现闩锁在"拖动中途外部重载换 doc"时滞留（dragend 随源节点 detach 丢失），
+// 而 types 随拖动会话生灭，无状态可泄漏。
+const OBT_DRAG = "application/x-oblet-drag";
+const isObtDrag = (e: DragEvent) => !!e.dataTransfer?.types.includes(OBT_DRAG);
 export const dragMovePlugin = $prose(
   () =>
     new Plugin({
@@ -329,7 +334,6 @@ export const dragMovePlugin = $prose(
       props: {
         handleDOMEvents: {
           dragstart(view, e) {
-            draggingSelection = false;
             const { selection } = view.state;
             if (selection.empty || !view.editable) return false;
             // 只接管选区文本的拖动（行内位置选区）；NodeSelection 交回 PM 默认
@@ -337,21 +341,19 @@ export const dragMovePlugin = $prose(
             const dt = e.dataTransfer;
             if (!dt) return false;
             // 自描述标记 + 效果声明；setData 是某些浏览器启动拖动会话的必要条件
-            dt.setData("application/x-oblet-drag", "1");
+            dt.setData(OBT_DRAG, "1");
             dt.setData("text/plain", view.state.doc.textBetween(selection.from, selection.to));
             dt.effectAllowed = "move";
-            draggingSelection = true;
             return false; // 不 preventDefault——让原生拖动会话启动
           },
           dragover(_view, e) {
-            if (!draggingSelection) return false;
+            if (!isObtDrag(e)) return false;
             e.preventDefault(); // 声明接受 → 禁止符号变可放置光标
             if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
             return true;
           },
           drop(view, e) {
-            if (!draggingSelection) return false;
-            draggingSelection = false;
+            if (!isObtDrag(e)) return false;
             e.preventDefault();
             const { selection } = view.state;
             if (selection.empty) return true;
@@ -370,17 +372,10 @@ export const dragMovePlugin = $prose(
             view.dispatch(tr.scrollIntoView());
             return true;
           },
-          dragend(_view, _e) {
-            draggingSelection = false;
-            return false;
-          },
         },
       },
     })
 );
-
-/** 本次 OLE 会话是否源于本编辑器的选区拖动（dragover/drop 的门控依据） */
-let draggingSelection = false;
 
 export const obletPlugins = [
   highlightPlugin,
