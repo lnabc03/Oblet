@@ -6,6 +6,10 @@ on:
     tags:
       - "v*"
 
+# GITHUB_TOKEN 默认权限收紧后需显式声明：上传 release 资产要 contents: write
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -14,11 +18,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -41,3 +47,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release/Oblet-*-win-x64.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
