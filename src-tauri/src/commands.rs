@@ -176,6 +176,45 @@ pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -
     res.map_err(|e| e.to_string())
 }
 
+// 保存至 Obsidian Vault（批次 7.1）：把当前 md 原文复制到用户配置的目标文件夹。
+// 路径规整在前端做（引号/正反斜杠/UNC 全容忍），这里只做安全校验 + 原子写入。
+// overwrite=false 且目标已存在时返回约定错误码，由前端弹确认后带 overwrite=true 重试。
+#[tauri::command]
+pub fn export_to_vault(
+    target_dir: String,
+    file_name: String,
+    content: String,
+    overwrite: bool,
+) -> Result<String, String> {
+    // 防逃逸：file_name 必须是纯文件名（路径分隔符/盘符一律拒绝）
+    if file_name.is_empty()
+        || file_name.contains('/')
+        || file_name.contains('\\')
+        || file_name.contains(':')
+    {
+        return Err("非法文件名".to_string());
+    }
+    let dir = PathBuf::from(&target_dir);
+    if !dir.is_dir() {
+        return Err(format!("目录不存在: {target_dir}"));
+    }
+    let dest = dir.join(&file_name);
+    if dest.exists() && !overwrite {
+        return Err("EXISTS".to_string());
+    }
+    // 原子写入（与 write_file 同款临时文件 + rename；rename 在 Windows 上覆盖已存在目标是合法的）
+    let tmp = dir.join(format!(".oblet-tmp-{file_name}"));
+    fs::write(&tmp, content.as_bytes()).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("写入临时文件失败: {e}")
+    })?;
+    fs::rename(&tmp, &dest).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("落盘失败: {e}")
+    })?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
 // 外链用系统默认浏览器打开：Tauri webview 对 target=_blank 不做任何处理，
 // 悬浮窗里的网址点击会无响应（七轮反馈）。rundll32 方案零新增依赖。
 #[tauri::command]

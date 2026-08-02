@@ -19,7 +19,8 @@ import { currentEditorSettings, initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
-import { contextMenuPlugin } from "./contextmenu";
+import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
+import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { notify } from "../notify";
 import { registerCommand } from "../commands";
@@ -387,7 +388,46 @@ export async function boot() {
     /** 重置文档（验证脚本用）：多段测试同窗口连续跑时避免状态污染 */
     reset: (content: string) =>
       crepe.editor.action(replaceAll(content)),
+    /** 批次 7.1 验证钩子：路径规整纯函数单测 */
+    testSanitize: sanitizePathInput,
+    /** 批次 7.1 验证钩子：驱动真实导出链路（菜单同款 handler） */
+    testExportVault: () => exportToVault(path, crepe.getMarkdown()),
+    /** 批次 7.1 验证钩子：写 vault_dir 并刷新设置缓存（模拟设置面板保存） */
+    testSetVaultDir: async (dir: string | null) => {
+      const s = await invoke<{ editor: Record<string, unknown> }>("get_settings");
+      s.editor.vault_dir = dir;
+      await invoke("save_settings", { settings: s });
+      await initTypography(); // 幂等：重新读盘应用 + 刷新 currentEditorSettings 缓存
+    },
   };
+
+  // 批次 7 导出动作注入右键菜单（菜单插件拿不到这里的 path/crepe 闭包）
+  setExportHandlers({
+    // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
+    vault: () => void exportToVault(path, crepe.getMarkdown()),
+    // 7.2 导出 PDF：Mica 开着先临时关（预览所见即所得），afterprint 恢复（超时双保险）
+    print: () => {
+      const effect = currentEditorSettings().window_effect;
+      const micaOn = effect === "mica";
+      const restore = () => {
+        window.clearTimeout(timer);
+        window.removeEventListener("afterprint", restore);
+        if (micaOn) {
+          document.body.classList.add("ob-vibrancy");
+          void invoke("set_window_effect", { effect: "mica" }).catch(() => {});
+        }
+      };
+      let timer = 0;
+      if (micaOn) {
+        document.body.classList.remove("ob-vibrancy");
+        void invoke("set_window_effect", { effect: null }).catch(() => {});
+        window.addEventListener("afterprint", restore);
+        timer = window.setTimeout(restore, 30_000); // 双保险：事件丢失也不会永久关 Mica
+      }
+      // 等一帧让实色背景先渲染，再弹系统打印窗
+      requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    },
+  });
 
   // 外链点击调系统默认浏览器：webview 对 target=_blank 不处理（悬浮窗网址点击无响应）。
   // 只劫持浮层里的链接（链接预览悬浮窗等）；正文 .ProseMirror 内的 a 是编辑态，

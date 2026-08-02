@@ -33,6 +33,10 @@ pub struct EditorSetting {
     // 键位覆盖（4.4）：命令 id → 组合串（"Ctrl+Shift+F" 形）；None = 全部默认
     #[serde(default)]
     pub keymap: Option<std::collections::HashMap<String, String>>,
+    // Obsidian Vault 目标文件夹（批次 7.1）：用户直接填到 Vault 内目标目录；
+    // 规整在前端做（引号/正反斜杠/UNC），None = 未配置
+    #[serde(default)]
+    pub vault_dir: Option<String>,
 }
 
 fn default_true() -> bool {

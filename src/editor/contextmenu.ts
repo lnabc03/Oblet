@@ -9,6 +9,12 @@ import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { notify } from "../notify";
 
+/** 导出动作回调（批次 7）：由 setup.ts 注入（插件内拿不到文件路径闭包） */
+let exportHandlers: { print?: () => void; vault?: () => void } = {};
+export function setExportHandlers(h: typeof exportHandlers) {
+  exportHandlers = h;
+}
+
 interface Item {
   label: string;
   run?: (view: EditorView) => void;
@@ -69,6 +75,18 @@ const ITEMS: Item[] = [
     label: "添加笔记属性",
     run: (v) => insertFrontmatter(v),
     enabled: (v) => v.editable && !hasFrontmatter(v.state.doc),
+  },
+  {
+    // 批次 7.2：系统打印对话框（用户自定义纸张/边距/缩放）；Mica 临时关闭见 setup.ts
+    label: "导出为 PDF…",
+    run: () => exportHandlers.print?.(),
+    enabled: () => !!exportHandlers.print,
+  },
+  {
+    // 批次 7.1：复制当前 md 到 Vault 目标文件夹；未配置时点击给引导 toast
+    label: "保存至 Obsidian Vault…",
+    run: () => exportHandlers.vault?.(),
+    enabled: () => !!exportHandlers.vault,
   },
 ];
 

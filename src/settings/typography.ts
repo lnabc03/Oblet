@@ -26,6 +26,8 @@ export interface EditorSettings {
   window_effect?: string | null;
   /** 键位覆盖（4.4）：命令 id → 组合串；null = 全部默认 */
   keymap?: Record<string, string> | null;
+  /** Obsidian Vault 目标文件夹（批次 7.1）：填到 Vault 内目标目录；null = 未配置 */
+  vault_dir?: string | null;
 }
 
 export async function getSettings(): Promise<Settings> {

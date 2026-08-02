@@ -86,6 +86,7 @@ pub fn run() {
             commands::watch_file,
             commands::set_window_effect,
             commands::save_image_asset,
+            commands::export_to_vault,
             commands::open_url,
             settings::get_settings,
             settings::save_settings,

@@ -69,6 +69,12 @@ export async function initSettingsUI(container: HTMLElement) {
         </label>
       </div>
       <div class="settings-section">
+        <h3>Obsidian</h3>
+        <input type="text" data-typo="vault_dir" class="vault-input"
+               placeholder="如 D:\Notes\MyVault\收件箱（留空 = 未配置）">
+        <p class="muted small">右键菜单"保存至 Obsidian Vault"把当前笔记复制到此目录</p>
+      </div>
+      <div class="settings-section">
         <h3>快捷键</h3>
         <div class="keymap-list"></div>
         <p class="muted small">点击组合键后按新键位；Esc 取消；双击恢复默认</p>

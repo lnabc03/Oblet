@@ -835,6 +835,72 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   border-color: var(--ob-accent);
 }
 
+/* Obsidian Vault 路径输入（批次 7.1）：全宽单框，与 typo-grid 输入同款 */
+.vault-input {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.9em;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
+.vault-input:focus {
+  outline: 1px solid var(--ob-accent);
+  border-color: var(--ob-accent);
+}
+
+/* ==================== 打印（批次 7.2 导出为 PDF） ====================
+ * window.print() 走系统对话框；Mica 由 setup.ts 临时关闭（预览所见即所得），
+ * 这里的实色背景是 Mica 关闭失败的第二道兜底。前景配色全保留。 */
+@media print {
+  html,
+  body {
+    background: var(--ob-bg) !important;
+    /* 前景色/背景图形全部打印（标题彩字/callout 底色/高亮/代码高亮） */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* 工具区不上纸：设置齿轮、检索浮条、设置浮层、右键菜单、toast */
+  .settings-btn,
+  .search-bar,
+  .settings-overlay,
+  .context-menu,
+  .toast {
+    display: none !important;
+  }
+  /* 版心：去编辑态边距与最大宽度，交给 @page 边距自然排版 */
+  .markdown-rendered {
+    padding: 0;
+    overflow: visible; /* 屏幕滚动容器在打印下必须放开，否则只出第一页 */
+  }
+  .markdown-rendered .ProseMirror {
+    max-width: none;
+    margin: 0;
+  }
+  /* 跨页保护：块级元素不拦腰截断 */
+  .markdown-rendered h1,
+  .markdown-rendered h2,
+  .markdown-rendered h3,
+  .markdown-rendered h4,
+  .markdown-rendered .callout,
+  .markdown-rendered .milkdown-code-block,
+  .markdown-rendered table,
+  .markdown-rendered li {
+    break-inside: avoid;
+  }
+  /* 标题不孤立在页尾：与后续内容同页 */
+  .markdown-rendered h1,
+  .markdown-rendered h2,
+  .markdown-rendered h3,
+  .markdown-rendered h4 {
+    break-after: avoid;
+  }
+}
+
 /* 快捷键列表（4.4） */
 .keymap-row {
   display: flex;
