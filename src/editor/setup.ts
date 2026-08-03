@@ -119,7 +119,7 @@ export async function boot() {
       const dir = cfg.new_note_dir?.trim() || await invoke<string>("get_desktop_dir").catch(() => "");
       if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
       try {
-        const dest = await invoke<string>("create_note", { dir, file_name: fileName, overwrite: false });
+        const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
         await invoke("set_window_file", { path: dest });
         location.reload();
       } catch (e) {
@@ -127,7 +127,7 @@ export async function boot() {
           const ok = await confirmDialog(`目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
           if (!ok) return;
           try {
-            const dest = await invoke<string>("create_note", { dir, file_name: fileName, overwrite: true });
+            const dest = await invoke<string>("create_note", { dir, fileName, overwrite: true });
             await invoke("set_window_file", { path: dest });
             location.reload();
           } catch (e2) {

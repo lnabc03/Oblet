@@ -6,8 +6,9 @@ use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct EditorSetting {
-    #[serde(default = "default_true")]
-    pub auto_save: bool,
+    // 自动保存：None/true = 开启（仅显式 false 才关——与前端复选框默认语义一致）
+    #[serde(default)]
+    pub auto_save: Option<bool>,
     // 排版覆盖（对齐 Obsidian appearance.json）：None 表示跟随主题。
     // 全部显式序列化（None → null）：让 settings.json 自说明，空文件也写完整默认形
     #[serde(default)]
@@ -42,10 +43,6 @@ pub struct EditorSetting {
     pub new_note_dir: Option<String>,
 }
 
-fn default_true() -> bool {
-    true
-}
-
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Settings {
     pub version: Option<u32>,
@@ -70,9 +67,16 @@ pub fn get_settings() -> Result<Settings, String> {
     let p = settings_path()?;
     if !p.exists() {
         // 默认值实体化：首次运行即落盘完整默认形，用户可直接看到/手改全部字段
+        // 注意：bool 字段都改为 Option<bool>，None = 跟随默认（开），这里显式 None
+        // 让 JSON 输出为 null（比缺失更自说明）
         let s = Settings {
             version: Some(1),
-            ..Default::default()
+            editor: EditorSetting {
+                auto_save: None,       // None = 默认开启
+                show_active_block: None,
+                show_author: None,
+                ..Default::default()
+            },
         };
         save_settings(s.clone())?;
         return Ok(s);

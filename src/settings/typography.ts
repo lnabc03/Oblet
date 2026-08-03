@@ -11,7 +11,8 @@ export interface Settings {
 
 /** 排版覆盖（对齐 Obsidian appearance.json），null/undefined = 跟随主题 */
 export interface EditorSettings {
-  auto_save: boolean;
+  /** 自动保存：null/true = 开启，false = 关闭（与 Rust Option<bool> 对齐，None = 默认开） */
+  auto_save?: boolean | null;
   text_font?: string | null;
   mono_font?: string | null;
   interface_font?: string | null;
