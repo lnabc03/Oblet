@@ -13,20 +13,32 @@ import {
   setKeymapCaptureActive,
 } from "../commands";
 
+/** 置顶按钮 SVG 大头针路径（纯色，跟随 currentColor，与 ⚙ 同款设计语言） */
+const PIN_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="3.5" r="2.2"/><line x1="8" y1="5.5" x2="8" y2="14.5"/></svg>`;
+
 export async function initSettingsUI(container: HTMLElement) {
-  // 置顶按钮（左上角浮动，大头针图标）
+  // ---- 置顶按钮（左上角浮动，纯色 SVG 大头针图标） ----
   const pinBtn = document.createElement("button");
   pinBtn.className = "pin-btn";
-  pinBtn.textContent = "📌";
-  pinBtn.title = "窗口置顶";
+  pinBtn.innerHTML = PIN_SVG;
+  pinBtn.title = "窗口置顶 (Alt+P)";
   let pinned = false;
-  pinBtn.addEventListener("click", async () => {
+  const togglePin = async () => {
     pinned = !pinned;
     pinBtn.classList.toggle("pinned", pinned);
-    pinBtn.title = pinned ? "取消置顶" : "窗口置顶";
+    pinBtn.title = pinned ? "取消置顶 (Alt+P)" : "窗口置顶 (Alt+P)";
     await getCurrentWindow().setAlwaysOnTop(pinned);
-  });
+  };
+  pinBtn.addEventListener("click", togglePin);
   document.body.appendChild(pinBtn);
+
+  // Alt+P 快捷键（经命令注册表统一派发，键位可在设置中覆盖）
+  registerCommand({
+    id: "toggle-pin",
+    title: "窗口置顶",
+    defaultCombo: "Alt+P",
+    run: togglePin,
+  });
 
   // 设置按钮（右上角浮动）
   const btn = document.createElement("button");

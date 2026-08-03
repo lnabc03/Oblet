@@ -51,6 +51,7 @@ npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 | 快捷键         | 功能                         |
 | ----------- | -------------------------- |
 | Ctrl+S      | 立即保存                       |
+| Alt+P       | 窗口置顶                       |
 | Ctrl+O      | 保存至 Obsidian                |
 | Ctrl+F      | 检索 / 替换                    |
 | Ctrl+/      | 设置                         |

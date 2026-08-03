@@ -827,7 +827,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   font-family: var(--font-interface, var(--ob-font));
 }
 
-/* 置顶按钮（左上角，大头针） */
+/* 置顶按钮（左上角，纯色 SVG 大头针） */
 .pin-btn {
   position: fixed;
   top: 10px;
@@ -840,8 +840,14 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   width: 30px;
   height: 30px;
   cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.pin-btn svg {
+  width: 16px;
+  height: 16px;
 }
 .pin-btn:hover {
   color: var(--ob-text);
