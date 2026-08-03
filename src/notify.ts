@@ -39,3 +39,52 @@ export function notify(text: string, level: Level = "info"): void {
 
   getContainer().appendChild(el);
 }
+
+/** 居中确认弹窗（批次 7 细节调整）：替代原生 window.confirm，与 toast 同一设计语言。
+ *  Esc / 点遮罩 = 取消，Enter / 主按钮 = 确认 */
+export function confirmDialog(
+  message: string,
+  confirmText = "确认",
+  cancelText = "取消"
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "ob-confirm-overlay";
+    overlay.innerHTML = `
+      <div class="ob-confirm" role="dialog" aria-modal="true">
+        <p class="ob-confirm-msg"></p>
+        <div class="ob-confirm-actions">
+          <button class="ob-confirm-btn" data-act="cancel"></button>
+          <button class="ob-confirm-btn ob-confirm-primary" data-act="ok"></button>
+        </div>
+      </div>`;
+    overlay.querySelector(".ob-confirm-msg")!.textContent = message;
+    const cancel = overlay.querySelector<HTMLButtonElement>('[data-act="cancel"]')!;
+    const ok = overlay.querySelector<HTMLButtonElement>('[data-act="ok"]')!;
+    cancel.textContent = cancelText;
+    ok.textContent = confirmText;
+
+    const done = (v: boolean) => {
+      window.removeEventListener("keydown", onKey, true);
+      overlay.remove();
+      resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        done(false);
+      } else if (e.key === "Enter") {
+        e.stopPropagation();
+        done(true);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    cancel.addEventListener("click", () => done(false));
+    ok.addEventListener("click", () => done(true));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) done(false);
+    });
+    document.body.appendChild(overlay);
+    ok.focus();
+  });
+}

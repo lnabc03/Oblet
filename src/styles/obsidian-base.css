@@ -131,6 +131,7 @@ body.ob-vibrancy .settings-btn {
 body.ob-vibrancy .search-bar,
 body.ob-vibrancy .settings-panel,
 body.ob-vibrancy .toast,
+body.ob-vibrancy .ob-confirm,
 body.ob-vibrancy .context-menu {
   background: rgba(var(--ctp-base, 30, 30, 46), 0.72);
   backdrop-filter: blur(24px) saturate(1.3);
@@ -217,6 +218,60 @@ body.ob-vibrancy .search-bar input {
 }
 @keyframes toast-out {
   to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ---- 确认弹窗（confirmDialog，批次 7 细节调整：替代原生 window.confirm）---- */
+.ob-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+.ob-confirm {
+  max-width: 70vw;
+  min-width: 260px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-border);
+  border-left: 3px solid var(--ob-toast-warn, #d8a248);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  color: var(--ob-text);
+  font-family: var(--font-interface, var(--ob-font));
+  font-size: 0.9em;
+  animation: toast-in 0.25s ease-out;
+}
+.ob-confirm-msg {
+  margin: 0 0 12px;
+  white-space: pre-line;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.ob-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.ob-confirm-btn {
+  border: 1px solid var(--ob-border);
+  background: transparent;
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 4px 14px;
+  font-size: 0.88em;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ob-confirm-btn:hover {
+  border-color: var(--ob-accent);
+}
+.ob-confirm-primary {
+  background: var(--ob-accent);
+  border-color: var(--ob-accent);
+  color: var(--ob-bg);
 }
 
 /* 编辑容器：对齐 Ob 阅读视图 */
@@ -864,12 +919,20 @@ body.ob-code-wrap .markdown-rendered .cm-line {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* 工具区不上纸：设置齿轮、检索浮条、设置浮层、右键菜单、toast */
+  /* 工具区不上纸：设置齿轮、检索浮条、设置浮层、右键菜单、toast、确认弹窗 */
   .settings-btn,
   .search-bar,
   .settings-overlay,
   .context-menu,
+  .ob-confirm-overlay,
   .toast {
+    display: none !important;
+  }
+  /* 编辑态痕迹不上纸：光标所在块淡底色、虚拟光标（闪烁竖条） */
+  .markdown-rendered .ob-active-block {
+    background: none !important;
+  }
+  .prosemirror-virtual-cursor {
     display: none !important;
   }
   /* 版心：去编辑态边距与最大宽度，交给 @page 边距自然排版 */

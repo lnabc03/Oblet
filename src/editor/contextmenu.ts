@@ -78,13 +78,13 @@ const ITEMS: Item[] = [
   },
   {
     // 批次 7.2：系统打印对话框（用户自定义纸张/边距/缩放）；Mica 临时关闭见 setup.ts
-    label: "导出为 PDF…",
+    label: "导出为 PDF",
     run: () => exportHandlers.print?.(),
     enabled: () => !!exportHandlers.print,
   },
   {
     // 批次 7.1：复制当前 md 到 Vault 目标文件夹；未配置时点击给引导 toast
-    label: "保存至 Obsidian Vault…",
+    label: "保存至 Obsidian",
     run: () => exportHandlers.vault?.(),
     enabled: () => !!exportHandlers.vault,
   },

@@ -70,9 +70,12 @@ export async function initSettingsUI(container: HTMLElement) {
       </div>
       <div class="settings-section">
         <h3>Obsidian</h3>
-        <input type="text" data-typo="vault_dir" class="vault-input"
-               placeholder="如 D:\Notes\MyVault\收件箱（留空 = 未配置）">
-        <p class="muted small">右键菜单"保存至 Obsidian Vault"把当前笔记复制到此目录</p>
+        <div class="typo-grid">
+          <label>笔记存放至</label>
+          <input type="text" data-typo="vault_dir" class="vault-input"
+                 placeholder="如 D:\Notes\MyVault\收件箱（留空 = 未配置）">
+        </div>
+        <p class="muted small">右键菜单 / Ctrl+O "保存至 Obsidian"把当前笔记复制到此目录</p>
       </div>
       <div class="settings-section">
         <h3>快捷键</h3>

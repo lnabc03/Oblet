@@ -2,7 +2,7 @@
 // 复制语义（原文件不动）；路径规整全兜底——使用者批示"带不带引号、正斜杠反斜杠均可"。
 import { invoke } from "@tauri-apps/api/core";
 import { currentEditorSettings } from "../settings/typography";
-import { notify } from "../notify";
+import { confirmDialog, notify } from "../notify";
 
 /** 规整用户随手输入的路径：去首尾空白与成对引号、正斜杠归一为反斜杠、去末尾分隔符 */
 export function sanitizePathInput(raw: string): string {
@@ -49,7 +49,12 @@ export async function exportToVault(
     notify(`已保存至 ${dest}`);
   } catch (e) {
     if (String(e) === "EXISTS") {
-      if (!window.confirm(`目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`)) return;
+      // 自绘确认弹窗（原生 window.confirm 是浏览器默认样式，与设计语言不符）
+      const ok = await confirmDialog(
+        `目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`,
+        "覆盖"
+      );
+      if (!ok) return;
       try {
         const dest = await invoke<string>("export_to_vault", {
           targetDir: dir,

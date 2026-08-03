@@ -210,6 +210,14 @@ export async function boot() {
     },
   });
 
+  // Ctrl+O 保存至 Obsidian Vault（批次 7 细节调整：进快捷键列表，可改键）
+  registerCommand({
+    id: "save-vault",
+    title: "保存至 Obsidian",
+    defaultCombo: "Ctrl+O",
+    run: () => void exportToVault(path, crepe.getMarkdown()),
+  });
+
   const crepe = new Crepe({
     root: host,
     defaultValue: payload.content,
