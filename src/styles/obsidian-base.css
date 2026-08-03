@@ -122,6 +122,7 @@ body.ob-vibrancy .milkdown {
   background: transparent;
 }
 /* 起始页/控件适配透明背景：设置按钮原是不透明紫黑块，浮在材质上突兀 → 半透明 */
+body.ob-vibrancy .pin-btn,
 body.ob-vibrancy .settings-btn {
   background: rgba(var(--ctp-surface0, 49, 50, 68), 0.5);
 }
@@ -818,11 +819,36 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 
 /* ---- 设置浮层 ---- */
 /* UI 元素走界面字体（--font-interface），未设置时回退正文字体 */
+.pin-btn,
 .settings-btn,
 .settings-panel,
 .readonly-banner,
 .empty-state {
   font-family: var(--font-interface, var(--ob-font));
+}
+
+/* 置顶按钮（左上角，大头针） */
+.pin-btn {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  z-index: 30;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg);
+  color: var(--ob-text-mut);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+.pin-btn:hover {
+  color: var(--ob-text);
+}
+.pin-btn.pinned {
+  color: var(--ob-accent);
+  border-color: var(--ob-accent);
 }
 
 .settings-btn {
@@ -961,7 +987,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* 工具区不上纸：设置齿轮、检索浮条、设置浮层、右键菜单、toast、确认弹窗 */
+  /* 工具区不上纸：置顶/设置按钮、检索浮条、设置浮层、右键菜单、toast、确认弹窗 */
+  .pin-btn,
   .settings-btn,
   .search-bar,
   .settings-overlay,

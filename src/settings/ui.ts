@@ -1,4 +1,5 @@
 // 设置浮层：排版/编辑器/界面覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   getSettings,
   setKeybinding,
@@ -13,6 +14,20 @@ import {
 } from "../commands";
 
 export async function initSettingsUI(container: HTMLElement) {
+  // 置顶按钮（左上角浮动，大头针图标）
+  const pinBtn = document.createElement("button");
+  pinBtn.className = "pin-btn";
+  pinBtn.textContent = "📌";
+  pinBtn.title = "窗口置顶";
+  let pinned = false;
+  pinBtn.addEventListener("click", async () => {
+    pinned = !pinned;
+    pinBtn.classList.toggle("pinned", pinned);
+    pinBtn.title = pinned ? "取消置顶" : "窗口置顶";
+    await getCurrentWindow().setAlwaysOnTop(pinned);
+  });
+  document.body.appendChild(pinBtn);
+
   // 设置按钮（右上角浮动）
   const btn = document.createElement("button");
   btn.className = "settings-btn";
