@@ -14,11 +14,6 @@ document.body.classList.add("anp-current-line");
 
 void initKeymap();
 
-// Mica 调优面板（仅 dev 内用 Ctrl+Shift+M）：动态 import，prodbuild 时 Vite tree-shake 整棵树
-if (import.meta.env.DEV) {
-  import("./mica-tuner").then((m) => m.initMicaTuner());
-}
-
 boot().catch((e) => {
   document.body.innerHTML = `<pre style="color:red;padding:2em">启动失败: ${e}</pre>`;
 });

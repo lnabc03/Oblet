@@ -112,20 +112,19 @@ body {
 /* 毛玻璃透明链路（设置项 window_effect 驱动，4.1）：
  * 窗口已是 transparent；效果开启时让出 html/body 与编辑器主体背景，露出 DWM 材质。
  * 代码块/表格等自带 --crepe-color-surface 色块保持不变（浮起感，且保证可读）；
- * 浮层（设置/toast/菜单等）自带背景不受影响。
- * --mica-* 自定义属性用于 Mica 调优 demo（Ctrl+Shift+M），默认值 = 当前固化参数 */
+ * 浮层（设置/toast/菜单等）自带背景不受影响 */
 body.ob-vibrancy,
 html:has(body.ob-vibrancy) {
-  background: var(--mica-overlay, transparent);
+  background: transparent;
 }
-/* 文档主体透明化：.milkdown 背景叠加半透明遮罩（可调透明度统一露出/遮蔽 Mica 纹理） */
+/* 文档主体透明化：.milkdown 的 --crepe-color-background 即"两边透明中间紫黑"的来源 */
 body.ob-vibrancy .milkdown {
-  background: var(--mica-overlay, transparent);
+  background: transparent;
 }
 /* 起始页/控件适配透明背景：设置按钮原是不透明紫黑块，浮在材质上突兀 → 半透明 */
 body.ob-vibrancy .pin-btn,
 body.ob-vibrancy .settings-btn {
-  background: rgba(var(--ctp-surface0, 49, 50, 68), var(--mica-btn-opacity, 0.5));
+  background: rgba(var(--ctp-surface0, 49, 50, 68), 0.5);
 }
 /* Mica 薄纱已按九轮批示回滚（"回滚Mica，取消薄纱材质"）——Mica 即系统材质原样透出 */
 /* 浮层家族适配（八轮"搜索栏浮窗和设置界面未适配"）：不透明紫黑块浮在材质上突兀，
@@ -135,13 +134,13 @@ body.ob-vibrancy .settings-panel,
 body.ob-vibrancy .toast,
 body.ob-vibrancy .ob-confirm,
 body.ob-vibrancy .context-menu {
-  background: rgba(var(--ctp-base, 30, 30, 46), var(--mica-float-opacity, 0.8));
-  backdrop-filter: blur(var(--mica-float-blur, 1px)) saturate(var(--mica-float-saturate, 2));
-  -webkit-backdrop-filter: blur(var(--mica-float-blur, 1px)) saturate(var(--mica-float-saturate, 2));
+  background: rgba(var(--ctp-base, 30, 30, 46), 0.8);
+  backdrop-filter: blur(1px) saturate(2);
+  -webkit-backdrop-filter: blur(1px) saturate(2);
 }
 /* 搜索框输入框嵌在浮条内，同步半透明，避免浮条里嵌一块实心 */
 body.ob-vibrancy .search-bar input {
-  background: rgba(var(--ctp-base, 30, 30, 46), var(--mica-search-opacity, 0.45));
+  background: rgba(var(--ctp-base, 30, 30, 46), 0.45);
 }
 
 .empty-state {
@@ -1192,166 +1191,4 @@ body.ob-hide-author .empty-author {
 body.anp-current-line .markdown-rendered .ob-active-block {
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.045);
   border-radius: 6px;
-}
-
-/* ==================== Mica 调优面板（开发工具，Ctrl+Shift+M） ==================== */
-.mica-tuner-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 200;
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-end;
-}
-.mica-tuner-overlay.hidden {
-  display: none;
-}
-.mica-tuner-panel {
-  width: 340px;
-  max-width: 90vw;
-  background: var(--ob-bg);
-  border-left: 1px solid var(--ob-border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
-}
-.mica-tuner-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--ob-border);
-  font-size: 1.05em;
-  font-weight: 600;
-  color: var(--ob-text);
-}
-.mica-tuner-close {
-  background: none;
-  border: none;
-  color: var(--ob-text-mut);
-  font-size: 1.15em;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.mica-tuner-close:hover {
-  background: var(--ob-bg-alt);
-  color: var(--ob-text);
-}
-.mica-tuner-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.mica-tuner-group {
-  border: 1px solid var(--ob-border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.mica-tuner-group-title {
-  font-size: 0.82em;
-  font-weight: 600;
-  color: var(--ob-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 2px;
-}
-.mica-tuner-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.88em;
-  color: var(--ob-text);
-}
-.mica-tuner-row > span:first-child {
-  min-width: 60px;
-  flex-shrink: 0;
-}
-.mica-tuner-row em {
-  font-style: normal;
-  font-family: var(--font-monospace, var(--ob-font-mono));
-  font-size: 0.92em;
-  color: var(--ob-accent);
-  min-width: 3.2em;
-  text-align: right;
-}
-.mica-tuner-row input[type="range"] {
-  flex: 1;
-  accent-color: var(--ob-accent);
-  height: 4px;
-}
-.mica-tuner-row select {
-  flex: 1;
-  background: var(--ob-bg-alt);
-  color: var(--ob-text);
-  border: 1px solid var(--ob-border);
-  border-radius: 5px;
-  padding: 4px 8px;
-  font-size: 0.9em;
-  font-family: inherit;
-}
-.mica-tuner-row select:focus {
-  outline: 1px solid var(--ob-accent);
-}
-.mica-tuner-hint {
-  font-size: 0.78em;
-  color: var(--ob-text-mut);
-  margin: 0;
-  padding-left: 70px;
-}
-.mica-tuner-json {
-  background: var(--ob-bg-alt);
-  border: 1px solid var(--ob-border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-family: var(--font-monospace, var(--ob-font-mono));
-  font-size: 0.78em;
-  color: var(--ob-text);
-  max-height: 160px;
-  overflow: auto;
-  white-space: pre;
-  margin: 0;
-  user-select: all;
-}
-.mica-tuner-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-.mica-tuner-btn {
-  flex: 1;
-  padding: 7px 0;
-  border: 1px solid var(--ob-border);
-  border-radius: 6px;
-  background: var(--ob-bg-alt);
-  color: var(--ob-text);
-  font-size: 0.86em;
-  cursor: pointer;
-  font-family: inherit;
-}
-.mica-tuner-btn:hover {
-  border-color: var(--ob-accent);
-}
-.mica-tuner-btn.primary {
-  background: var(--ob-accent);
-  color: #fff;
-  border-color: var(--ob-accent);
-}
-.mica-tuner-btn.primary:hover {
-  filter: brightness(1.1);
-}
-
-/* 打印时隐藏 Mica 调优面板 */
-@media print {
-  .mica-tuner-overlay {
-    display: none !important;
-  }
 }
