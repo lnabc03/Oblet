@@ -114,9 +114,10 @@ export async function boot() {
       const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
       if (!clean) { notify("文件名不能为空", "warn"); return; }
       const fileName = clean.endsWith(".md") ? clean : `${clean}.md`;
-      // 目标目录：设置值优先 → 桌面兜底
+      // 目标目录：设置值优先（经规整管线，与 vault_dir 同款容错）→ 桌面兜底
       const cfg = currentEditorSettings();
-      const dir = cfg.new_note_dir?.trim() || await invoke<string>("get_desktop_dir").catch(() => "");
+      const raw = cfg.new_note_dir?.trim();
+      const dir = raw ? sanitizePathInput(raw) || await invoke<string>("get_desktop_dir").catch(() => "") : await invoke<string>("get_desktop_dir").catch(() => "");
       if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
       try {
         const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
