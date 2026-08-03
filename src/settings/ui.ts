@@ -109,10 +109,14 @@ export async function initSettingsUI(container: HTMLElement) {
     },
   });
   // Esc 关闭浮层是面板自身行为，不进命令表
+  // 仅当设置面板开着时才吞 Esc（stopImmediatePropagation 阻止编辑器 Esc handler 误触退回起始页）
   window.addEventListener(
     "keydown",
     (e) => {
-      if (e.key === "Escape") toggle(false);
+      if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
+        toggle(false);
+        e.stopImmediatePropagation();
+      }
     },
     true
   );

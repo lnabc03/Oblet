@@ -119,7 +119,7 @@ export async function boot() {
       const dir = cfg.new_note_dir?.trim() || await invoke<string>("get_desktop_dir").catch(() => "");
       if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
       try {
-        const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
+        const dest = await invoke<string>("create_note", { dir, file_name: fileName, overwrite: false });
         await invoke("set_window_file", { path: dest });
         location.reload();
       } catch (e) {
@@ -127,7 +127,7 @@ export async function boot() {
           const ok = await confirmDialog(`目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
           if (!ok) return;
           try {
-            const dest = await invoke<string>("create_note", { dir, fileName, overwrite: true });
+            const dest = await invoke<string>("create_note", { dir, file_name: fileName, overwrite: true });
             await invoke("set_window_file", { path: dest });
             location.reload();
           } catch (e2) {
@@ -339,6 +339,10 @@ export async function boot() {
 
   await crepe.create();
   if (payload.readonly) crepe.setReadonly(true);
+  // Crepe.create 期间 Milkdown 内部可能产生修正事务（如 schema 规范化），
+  // userEditTracker 的 appendTransaction 钩子会误判为"用户编辑"置 dirty=true。
+  // 创建完毕后重置，后续只有真实编辑才标脏
+  dirty = false;
   await invoke("watch_file", { path });
 
   // 格式化快捷键（十轮 #4）：经命令注册表统一派发（捕获阶段拦截 + preventDefault，
@@ -445,22 +449,22 @@ export async function boot() {
     },
   };
 
-  // Esc 退回到起始页（有未保存内容时弹确认）
+  // Esc 退回到起始页（有未保存内容时弹确认）。
+  // 设置面板开时其 Esc handler 会 stopImmediatePropagation，这里不会收到事件。
+  // 确认弹窗/提示框开时有自己的 Esc handler 也会吞事件。
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    // 设置面板打开时让设置自己的 Esc 处理
-    if (!document.querySelector(".settings-overlay")?.classList.contains("hidden")) return;
-    // 已有弹窗/确认框打开时不抢
+    // 二次保险：弹窗/提示框打开时不抢
     if (document.querySelector(".ob-confirm-overlay")) return;
     e.preventDefault();
     e.stopPropagation();
     (async () => {
       if (dirty && !payload.readonly) {
         const choice = await confirmDialog("有未保存的更改，返回起始页前要保存吗？", "保存", "丢弃");
-        if (choice === null) return; // 取消了 Esc
+        if (choice === null) return;
         if (choice) {
           window.clearTimeout(saveTimer);
-          if (!(await flushSave())) return; // 保存失败，不跳转
+          if (!(await flushSave())) return;
         }
       }
       await invoke("clear_window_file");

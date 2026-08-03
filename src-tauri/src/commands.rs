@@ -218,12 +218,12 @@ pub fn export_to_vault(
 /// 起始页"新建 Markdown 笔记"：在目标目录创建空 .md 文件，返回完整路径。
 /// 同名冲突返回约定错误码 EXISTS，由前端确认覆盖后带 overwrite=true 重试。
 #[tauri::command]
-pub fn create_note(dir: String, filename: String, overwrite: bool) -> Result<String, String> {
-    // 防逃逸：filename 必须是纯文件名（路径分隔符/盘符一律拒绝）
-    if filename.is_empty()
-        || filename.contains('/')
-        || filename.contains('\\')
-        || filename.contains(':')
+pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<String, String> {
+    // 防逃逸：file_name 必须是纯文件名（路径分隔符/盘符一律拒绝）
+    if file_name.is_empty()
+        || file_name.contains('/')
+        || file_name.contains('\\')
+        || file_name.contains(':')
     {
         return Err("非法文件名".to_string());
     }
@@ -231,7 +231,7 @@ pub fn create_note(dir: String, filename: String, overwrite: bool) -> Result<Str
     if !d.is_dir() {
         return Err(format!("目录不存在: {dir}"));
     }
-    let dest = d.join(&filename);
+    let dest = d.join(&file_name);
     if dest.exists() && !overwrite {
         return Err("EXISTS".to_string());
     }
