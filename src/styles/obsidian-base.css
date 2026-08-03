@@ -162,8 +162,29 @@ body.ob-vibrancy .search-bar input {
   font-size: 0.85em;
   opacity: 0.8;
 }
+.empty-version {
+  margin-top: 2em;
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  opacity: 0.4;
+}
+.empty-new-note {
+  border: 1px solid var(--ob-border);
+  background: transparent;
+  color: var(--ob-accent);
+  border-radius: 6px;
+  padding: 5px 16px;
+  font-size: 0.88em;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.empty-new-note:hover {
+  border-color: var(--ob-accent);
+  background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
+}
 .empty-author {
-  margin-top: 2.5em;
+  margin-top: 2em;
   font-size: 0.8em;
   letter-spacing: 0.08em;
   opacity: 0.55;
@@ -272,6 +293,27 @@ body.ob-vibrancy .search-bar input {
   background: var(--ob-accent);
   border-color: var(--ob-accent);
   color: var(--ob-bg);
+}
+.ob-confirm-label {
+  margin: 0 0 8px;
+  font-size: 0.92em;
+  color: var(--ob-text);
+}
+.ob-prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.9em;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+.ob-prompt-input:focus {
+  outline: 1px solid var(--ob-accent);
+  border-color: var(--ob-accent);
 }
 
 /* 编辑容器：对齐 Ob 阅读视图 */
@@ -1069,7 +1111,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   cursor: default;
 }
 
-/* 起始页署名隐藏开关（设置项 show_author 驱动） */
+/* 起始页版本与署名隐藏开关（设置项"显示版本与署名"驱动） */
+body.ob-hide-author .empty-version,
 body.ob-hide-author .empty-author {
   display: none;
 }

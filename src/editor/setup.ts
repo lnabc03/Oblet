@@ -2,6 +2,7 @@
 // 流程：取窗口文件 → 读文件 → 建 Crepe → 防抖自动保存 / Ctrl+S → 外部变更监听
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
@@ -22,7 +23,7 @@ import { searchPlugin } from "./search";
 import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
-import { notify } from "../notify";
+import { confirmDialog, notify, promptDialog } from "../notify";
 import { registerCommand } from "../commands";
 import logoUrl from "../assets/logo.png";
 import {
@@ -94,14 +95,49 @@ export async function boot() {
   if (!initialPath) {
     // 不能用 app.innerHTML 赋值：会把 initSettingsUI 追加进 #app 的设置浮层一起抹掉
     // （按钮挂在 body 上幸存，点击时切换的已是脱离文档的节点 → 起始页设置打不开）
+    const version = await getVersion().catch(() => "");
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.innerHTML = `
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
       <p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>
+      <p><button class="empty-new-note">新建 Markdown 笔记</button></p>
+      <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
+    // "新建 Markdown 笔记"按钮：弹出文件名输入框 → 创建 → 打开
+    empty.querySelector(".empty-new-note")?.addEventListener("click", async () => {
+      const name = await promptDialog("新建 Markdown 笔记", "输入文件名（不含 .md）", "创建");
+      if (!name) return;
+      // 净化：去非法字符、确保以 .md 结尾
+      const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
+      if (!clean) { notify("文件名不能为空", "warn"); return; }
+      const fileName = clean.endsWith(".md") ? clean : `${clean}.md`;
+      // 目标目录：设置值优先 → 桌面兜底
+      const cfg = currentEditorSettings();
+      const dir = cfg.new_note_dir?.trim() || await invoke<string>("get_desktop_dir").catch(() => "");
+      if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
+      try {
+        const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
+        await invoke("set_window_file", { path: dest });
+        location.reload();
+      } catch (e) {
+        if (String(e) === "EXISTS") {
+          const ok = await confirmDialog(`目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
+          if (!ok) return;
+          try {
+            const dest = await invoke<string>("create_note", { dir, fileName, overwrite: true });
+            await invoke("set_window_file", { path: dest });
+            location.reload();
+          } catch (e2) {
+            notify(`创建失败：${e2}`, "error");
+          }
+        } else {
+          notify(`创建失败：${e}`, "error");
+        }
+      }
+    });
     // 空窗口：登记路径后重载，走正常启动流程
     await getCurrentWindow().onDragDropEvent(async (e) => {
       if (e.payload.type !== "drop") return;
@@ -408,6 +444,29 @@ export async function boot() {
       await initTypography(); // 幂等：重新读盘应用 + 刷新 currentEditorSettings 缓存
     },
   };
+
+  // Esc 退回到起始页（有未保存内容时弹确认）
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    // 设置面板打开时让设置自己的 Esc 处理
+    if (!document.querySelector(".settings-overlay")?.classList.contains("hidden")) return;
+    // 已有弹窗/确认框打开时不抢
+    if (document.querySelector(".ob-confirm-overlay")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (async () => {
+      if (dirty && !payload.readonly) {
+        const choice = await confirmDialog("有未保存的更改，返回起始页前要保存吗？", "保存", "丢弃");
+        if (choice === null) return; // 取消了 Esc
+        if (choice) {
+          window.clearTimeout(saveTimer);
+          if (!(await flushSave())) return; // 保存失败，不跳转
+        }
+      }
+      await invoke("clear_window_file");
+      location.reload();
+    })();
+  }, true);
 
   // 批次 7 导出动作注入右键菜单（菜单插件拿不到这里的 path/crepe 闭包）
   setExportHandlers({

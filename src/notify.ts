@@ -40,6 +40,59 @@ export function notify(text: string, level: Level = "info"): void {
   getContainer().appendChild(el);
 }
 
+/** 居中文本输入弹窗（起始页新建笔记等）：confirmDialog 同族样式，输入框居中弹出。
+ *  Esc / 点遮罩 = 取消（返回 null），Enter / 主按钮 = 确认并返回输入值 */
+export function promptDialog(
+  title: string,
+  placeholder = "",
+  confirmText = "确认",
+  cancelText = "取消"
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "ob-confirm-overlay";
+    overlay.innerHTML = `
+      <div class="ob-confirm" role="dialog" aria-modal="true">
+        <p class="ob-confirm-label"></p>
+        <input type="text" class="ob-prompt-input" placeholder="">
+        <div class="ob-confirm-actions">
+          <button class="ob-confirm-btn" data-act="cancel"></button>
+          <button class="ob-confirm-btn ob-confirm-primary" data-act="ok"></button>
+        </div>
+      </div>`;
+    overlay.querySelector(".ob-confirm-label")!.textContent = title;
+    const input = overlay.querySelector<HTMLInputElement>(".ob-prompt-input")!;
+    input.placeholder = placeholder;
+    const cancel = overlay.querySelector<HTMLButtonElement>('[data-act="cancel"]')!;
+    const ok = overlay.querySelector<HTMLButtonElement>('[data-act="ok"]')!;
+    cancel.textContent = cancelText;
+    ok.textContent = confirmText;
+
+    const done = (v: string | null) => {
+      window.removeEventListener("keydown", onKey, true);
+      overlay.remove();
+      resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        done(null);
+      } else if (e.key === "Enter") {
+        e.stopPropagation();
+        done(input.value.trim() || null);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    cancel.addEventListener("click", () => done(null));
+    ok.addEventListener("click", () => done(input.value.trim() || null));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) done(null);
+    });
+    document.body.appendChild(overlay);
+    input.focus();
+  });
+}
+
 /** 居中确认弹窗（批次 7 细节调整）：替代原生 window.confirm，与 toast 同一设计语言。
  *  Esc / 点遮罩 = 取消，Enter / 主按钮 = 确认 */
 export function confirmDialog(

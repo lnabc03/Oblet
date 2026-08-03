@@ -37,6 +37,9 @@ pub struct EditorSetting {
     // 规整在前端做（引号/正反斜杠/UNC），None = 未配置
     #[serde(default)]
     pub vault_dir: Option<String>,
+    // 起始页"新建 Markdown 笔记"落盘目录：None = 桌面（启动时 get_desktop_dir 兜底）
+    #[serde(default)]
+    pub new_note_dir: Option<String>,
 }
 
 fn default_true() -> bool {

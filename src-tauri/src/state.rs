@@ -25,6 +25,10 @@ impl AppState {
             .insert(label.to_string(), path.to_string());
     }
 
+    pub fn unregister(&self, label: &str) {
+        self.windows.lock().unwrap().remove(label);
+    }
+
     pub fn path_for(&self, label: &str) -> Option<String> {
         self.windows.lock().unwrap().get(label).cloned()
     }

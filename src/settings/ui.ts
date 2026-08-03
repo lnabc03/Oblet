@@ -65,12 +65,14 @@ export async function initSettingsUI(container: HTMLElement) {
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
-          <span>起始页显示署名</span>
+          <span>显示版本与署名</span>
         </label>
       </div>
       <div class="settings-section">
         <h3>Obsidian</h3>
         <div class="typo-grid">
+          <label>笔记新建至</label>
+          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="启动时自动读取桌面路径">
           <label>笔记存放至</label>
           <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
         </div>

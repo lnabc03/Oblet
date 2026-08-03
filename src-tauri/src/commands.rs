@@ -215,6 +215,43 @@ pub fn export_to_vault(
     Ok(dest.to_string_lossy().into_owned())
 }
 
+/// 起始页"新建 Markdown 笔记"：在目标目录创建空 .md 文件，返回完整路径。
+/// 同名冲突返回约定错误码 EXISTS，由前端确认覆盖后带 overwrite=true 重试。
+#[tauri::command]
+pub fn create_note(dir: String, filename: String, overwrite: bool) -> Result<String, String> {
+    // 防逃逸：filename 必须是纯文件名（路径分隔符/盘符一律拒绝）
+    if filename.is_empty()
+        || filename.contains('/')
+        || filename.contains('\\')
+        || filename.contains(':')
+    {
+        return Err("非法文件名".to_string());
+    }
+    let d = PathBuf::from(&dir);
+    if !d.is_dir() {
+        return Err(format!("目录不存在: {dir}"));
+    }
+    let dest = d.join(&filename);
+    if dest.exists() && !overwrite {
+        return Err("EXISTS".to_string());
+    }
+    fs::write(&dest, b"").map_err(|e| format!("创建文件失败: {e}"))?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
+/// 起始页"笔记新建至"默认值：返回用户桌面路径
+#[tauri::command]
+pub fn get_desktop_dir() -> Result<String, String> {
+    let home = std::env::var("USERPROFILE").map_err(|e| format!("获取用户目录失败: {e}"))?;
+    Ok(format!("{home}\\Desktop"))
+}
+
+/// 清除当前窗口的文件登记（Esc 退回到起始页前调用，置空后 reload → boot 走空状态）
+#[tauri::command]
+pub fn clear_window_file(state: State<AppState>, window: tauri::Window) {
+    state.unregister(window.label());
+}
+
 // 外链用系统默认浏览器打开：Tauri webview 对 target=_blank 不做任何处理，
 // 悬浮窗里的网址点击会无响应（七轮反馈）。rundll32 方案零新增依赖。
 #[tauri::command]

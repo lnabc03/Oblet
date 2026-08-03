@@ -28,6 +28,8 @@ export interface EditorSettings {
   keymap?: Record<string, string> | null;
   /** Obsidian Vault 目标文件夹（批次 7.1）：填到 Vault 内目标目录；null = 未配置 */
   vault_dir?: string | null;
+  /** 起始页"新建 Markdown 笔记"落盘目录：null/空 = 桌面（启动时 get_desktop_dir 兜底） */
+  new_note_dir?: string | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -81,7 +83,7 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("anp-current-line", e.show_active_block !== false);
   // 代码块软换行开关（body 类 + CSS；CM 行高缓存下一次渲染周期自愈）
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
-  // 起始页署名显示开关（默认显示，显式 false 才隐藏）
+  // 起始页版本与署名显示开关（默认显示，显式 false 才隐藏）
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
   // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路
   const effect =
