@@ -30,12 +30,12 @@ export async function exportToVault(
 ): Promise<void> {
   const raw = currentEditorSettings().vault_dir;
   if (!raw || !raw.trim()) {
-    notify("请先到 设置 → Obsidian 填写 Vault 目标文件夹", "warn");
+    notify("请先到 设置 → 路径 填写另存目标文件夹", "warn");
     return;
   }
   const dir = sanitizePathInput(raw);
   if (!dir) {
-    notify("Vault 路径为空，请到 设置 → Obsidian 检查", "warn");
+    notify("另存路径为空，请到 设置 → 路径 检查", "warn");
     return;
   }
   const fileName = filePath.split(/[\\/]/).pop() ?? "untitled.md";

@@ -84,7 +84,7 @@ const ITEMS: Item[] = [
   },
   {
     // 批次 7.1：复制当前 md 到 Vault 目标文件夹；未配置时点击给引导 toast
-    label: "保存至 Obsidian",
+    label: "另存",
     run: () => exportHandlers.vault?.(),
     enabled: () => !!exportHandlers.vault,
   },

@@ -17,21 +17,21 @@ export interface EditorSettings {
   mono_font?: string | null;
   interface_font?: string | null;
   base_font_size?: number | null;
-  /** 光标所在块底色（null/true = 显示） */
+  /** 当前行底色（null/true = 显示） */
   show_active_block?: boolean | null;
-  /** 代码块软换行（null/false = 不换行，CM 默认横向滚动） */
+  /** 代码自动换行（null/false = 不换行，CM 默认横向滚动） */
   code_block_wrap?: boolean | null;
   /** 起始页署名显示（null/true = 显示） */
   show_author?: boolean | null;
-  /** 窗口材质效果：null/"none" = 关；"mica"（Acrylic 已按十一轮终审删除） */
+  /** 窗口材质效果：null/"none" = 关；"mica" */
   window_effect?: string | null;
   /** 键位覆盖（4.4）：命令 id → 组合串；null = 全部默认 */
   keymap?: Record<string, string> | null;
-  /** Obsidian Vault 目标文件夹（批次 7.1）：填到 Vault 内目标目录；null = 未配置 */
+  /** 另存目标文件夹（批次 7.1）：填到目标目录；null = 未配置 */
   vault_dir?: string | null;
   /** 起始页"新建 Markdown 笔记"落盘目录：null/空 = 桌面（启动时 get_desktop_dir 兜底） */
   new_note_dir?: string | null;
-  /** 允许多窗口（批次 7.3）：null/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口 */
+  /** 多窗口编辑（批次 7.3）：null/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口 */
   allow_multi_window?: boolean | null;
 }
 
@@ -82,7 +82,7 @@ export function applyTypography(e: EditorSettings) {
   for (const t of targets) {
     t.style.fontSize = `${fontSize}px`;
   }
-  // 光标所在块底色（默认显示，显式 false 才隐藏）：替代 main.ts 的常驻加类
+  // 当前行底色（默认显示，显式 false 才隐藏）
   document.body.classList.toggle("anp-current-line", e.show_active_block !== false);
   // 代码块软换行开关（body 类 + CSS；CM 行高缓存下一次渲染周期自愈）
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);

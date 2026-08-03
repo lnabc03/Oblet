@@ -181,7 +181,7 @@ export async function boot() {
       const cfg = currentEditorSettings();
       const raw = cfg.new_note_dir?.trim();
       const dir = raw ? sanitizePathInput(raw) || await invoke<string>("get_desktop_dir").catch(() => "") : await invoke<string>("get_desktop_dir").catch(() => "");
-      if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
+      if (!dir) { notify("无法确定新建目录，请到 设置 → 路径 填写", "warn"); return; }
       try {
         const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
         const result = await invoke<TabsPayload>("add_tab", { path: dest });
@@ -401,10 +401,10 @@ export async function boot() {
     },
   });
 
-  // Ctrl+O 保存至 Obsidian Vault（批次 7 细节调整：进快捷键列表，可改键）
+  // Ctrl+O 另存（批次 7 细节调整：进快捷键列表，可改键）
   registerCommand({
     id: "save-vault",
-    title: "保存至 Obsidian",
+    title: "另存",
     defaultCombo: "Ctrl+O",
     run: () => void exportToVault(path, crepe.getMarkdown()),
   });

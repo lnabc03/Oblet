@@ -77,34 +77,34 @@ export async function initSettingsUI(container: HTMLElement) {
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="show_active_block" data-default="true">
-          <span>光标所在块底色</span>
+          <span>当前行底色</span>
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="code_block_wrap">
-          <span>代码块自动换行</span>
+          <span>代码自动换行</span>
         </label>
       </div>
       <div class="settings-section">
         <h3>界面</h3>
-        <label class="check-row">
-          <input type="checkbox" id="mica-toggle">
-          <span>Mica 窗口效果</span>
-        </label>
         <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
           <span>显示版本与署名</span>
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="allow_multi_window">
-          <span>允许多窗口</span>
+          <span>多窗口编辑</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="mica-toggle">
+          <span>Mica 材质</span>
         </label>
       </div>
       <div class="settings-section">
-        <h3>Obsidian</h3>
+        <h3>路径</h3>
         <div class="typo-grid">
           <label>笔记新建至</label>
-          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="启动时自动读取桌面路径">
-          <label>笔记存放至</label>
+          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="默认为用户桌面">
+          <label>笔记另存至</label>
           <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
         </div>
       </div>
@@ -157,7 +157,17 @@ export async function initSettingsUI(container: HTMLElement) {
     const host = overlay.querySelector(".keymap-list");
     if (!host) return;
     host.innerHTML = "";
-    for (const cmd of listCommands()) {
+    // 快捷键列表顺序：设置 → 窗口置顶 → 其余按注册序
+    const order = ["settings", "toggle-pin"];
+    const cmds = [...listCommands()].sort((a, b) => {
+      const ai = order.indexOf(a.id);
+      const bi = order.indexOf(b.id);
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return 0;
+    });
+    for (const cmd of cmds) {
       const row = document.createElement("div");
       row.className = "keymap-row";
       const label = document.createElement("span");
