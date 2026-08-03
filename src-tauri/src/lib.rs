@@ -7,7 +7,27 @@ use state::{fnv1a, window_label_for, AppState};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// 打开文件对应窗口；已打开则聚焦
+/// 从 exe 同级 data/settings.json 读取 allow_multi_window 设置
+fn read_allow_multi_window() -> bool {
+    let exe = std::env::current_exe().ok();
+    let path = exe.and_then(|p| {
+        Some(p.parent()?.join("data").join("settings.json"))
+    });
+    let path = match path {
+        Some(p) if p.exists() => p,
+        _ => return false, // 首次运行无设置文件，默认单窗口
+    };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return false,
+    };
+    // 简单解析：找 "allow_multi_window":true（不做完整 JSON 解析，避免引入 serde 依赖到主模块）
+    text.contains("\"allow_multi_window\": true")
+        || text.contains("\"allow_multi_window\":true")
+}
+
+/// 打开文件对应窗口；已打开则聚焦。
+/// 批次 7.3：allow_multi_window=false（默认）时追加到前台窗口的 tab 列表
 fn open_or_focus(app: &AppHandle, path: &str) {
     let label = window_label_for(path);
     if let Some(win) = app.get_webview_window(&label) {
@@ -21,6 +41,28 @@ fn open_or_focus(app: &AppHandle, path: &str) {
         if let Some(win) = app.get_webview_window(&existing) {
             let _ = win.unminimize();
             let _ = win.set_focus();
+            return;
+        }
+    }
+
+    // 多窗口=关（默认）→ 加到前台窗口的 tab 列表中
+    if !read_allow_multi_window() {
+        // 找前台窗口：优先聚焦窗口，其次第一个有登记的窗口
+        let target = app
+            .webview_windows()
+            .into_iter()
+            .find(|(_, w)| w.is_focused().unwrap_or(false))
+            .or_else(|| {
+                app.webview_windows()
+                    .into_iter()
+                    .find(|(_, w)| w.is_visible().unwrap_or(false))
+            });
+        if let Some((_label, win)) = target {
+            let _ = win.unminimize();
+            let _ = win.set_focus();
+            // emit 全局事件通知前端追加 tab
+            let payload = serde_json::json!({ "path": path });
+            let _ = app.emit("add-tab", payload);
             return;
         }
     }
@@ -91,6 +133,9 @@ pub fn run() {
             commands::get_desktop_dir,
             commands::clear_window_file,
             commands::open_url,
+            commands::add_tab,
+            commands::remove_tab,
+            commands::switch_tab,
             settings::get_settings,
             settings::save_settings,
         ])
@@ -116,28 +161,52 @@ pub fn run() {
                             .to_lowercase()
                     };
                     let state = handle.state::<AppState>();
-                    let watched: Vec<(String, PathBuf)> = state
+                    let watched: Vec<(String, Vec<PathBuf>)> = state
                         .watched
                         .lock()
                         .unwrap()
                         .iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .map(|(k, dirs)| (k.clone(), dirs.iter().cloned().collect()))
                         .collect();
 
-                    for (label, file) in watched {
-                        if !event.paths.iter().any(|p| norm(p) == norm(&file)) {
+                    for (label, dirs) in watched {
+                        // 事件路径是否命中该窗口监听的任一目录
+                        if !event.paths.iter().any(|ep| {
+                            dirs.iter().any(|d| {
+                                ep.starts_with(d)
+                            })
+                        }) {
                             continue;
                         }
-                        if let Ok(bytes) = std::fs::read(&file) {
-                            // 文件仍在：哈希一致 = 自身写入或重复事件，跳过。
-                            // 注意：Windows 下"临时文件 + rename 覆盖保存"会对目标
-                            // 路径发 Remove 事件，不能见 Remove 就通知，否则每次
-                            // 自动保存都会误触发一次重载（空行被折叠、光标跳顶）。
-                            if state.is_stale_hash(&file.to_string_lossy(), fnv1a(&bytes)) {
-                                continue;
-                            }
+                        // 检查事件中涉及的 .md 文件是否在该窗口的 tab 列表中
+                        let windows = state.windows.lock().unwrap();
+                        let tab_paths: Vec<String> = windows
+                            .get(&label)
+                            .map(|(tabs, _)| tabs.clone())
+                            .unwrap_or_default();
+                        drop(windows);
+                        // 找到受影响的 tab 文件（事件路径与该 tab 路径匹配）
+                        let affected: Vec<&String> = tab_paths
+                            .iter()
+                            .filter(|tp| {
+                                let norm_tp = norm(&PathBuf::from(tp));
+                                event.paths.iter().any(|ep| norm(ep) == norm_tp)
+                            })
+                            .collect();
+                        if affected.is_empty() {
+                            continue;
                         }
-                        // 读不到 = 真被外部删除/移动，放行通知（前端读失败会给提示）
+                        // 检查哈希过滤：所有受影响的文件哈希都与记录一致则跳过
+                        let all_stale = affected.iter().all(|tp| {
+                            if let Ok(bytes) = std::fs::read(tp) {
+                                state.is_stale_hash(tp, fnv1a(&bytes))
+                            } else {
+                                false // 读不到 = 真被删，放行
+                            }
+                        });
+                        if all_stale {
+                            continue;
+                        }
                         if let Some(win) = handle.get_webview_window(&label) {
                             let _ = win.emit(&format!("file-changed:{label}"), ());
                         }

@@ -94,6 +94,10 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="checkbox" data-check="show_author" data-default="true">
           <span>显示版本与署名</span>
         </label>
+        <label class="check-row">
+          <input type="checkbox" data-check="allow_multi_window">
+          <span>允许多窗口</span>
+        </label>
       </div>
       <div class="settings-section">
         <h3>Obsidian</h3>

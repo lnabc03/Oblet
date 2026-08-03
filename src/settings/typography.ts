@@ -31,6 +31,8 @@ export interface EditorSettings {
   vault_dir?: string | null;
   /** 起始页"新建 Markdown 笔记"落盘目录：null/空 = 桌面（启动时 get_desktop_dir 兜底） */
   new_note_dir?: string | null;
+  /** 允许多窗口（批次 7.3）：null/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口 */
+  allow_multi_window?: boolean | null;
 }
 
 export async function getSettings(): Promise<Settings> {

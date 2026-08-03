@@ -34,12 +34,25 @@ import {
   taskListSpaceTrim,
   tuneSerialization,
 } from "./frontmatter";
+import {
+  createTabsModel,
+  createTabArrows,
+  switchToTab,
+  type TabsModel,
+  type TabArrows,
+} from "./tabs";
 
 interface FilePayload {
   content: string;
   newline: string;
   readonly: boolean;
   readonly_reason: string | null;
+}
+
+interface TabsPayload {
+  path: string;
+  tabs: string[];
+  active_index: number;
 }
 
 const AUTOSAVE_DELAY = 500; // 十一轮批示写死（原 1000）
@@ -90,9 +103,59 @@ export async function boot() {
   const app = document.getElementById("app")!;
   await initTypography();
   void initSettingsUI(app);
-  const initialPath = await invoke<string | null>("get_window_file");
 
-  if (!initialPath) {
+  // 初始化 tab 模型与箭头 UI（无论是否有初始文件）
+  const tabsModel = createTabsModel([], 0);
+  const tabArrows = createTabArrows(document.body);
+
+  // tabCallbacks 在编辑器创建后赋值；空状态路径中为 null
+  let tabCallbacks: Parameters<typeof switchToTab>[3] | null = null;
+
+  const initialPayload = await invoke<TabsPayload | null>("get_window_file");
+
+  // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
+  await listen("add-tab", async (event: { payload: { path: string } }) => {
+    const { path: newPath } = event.payload;
+    if (!newPath) return;
+    // 去重：已在列表中则仅切换
+    const existingIdx = tabsModel.paths.findIndex(
+      (p) => p.replace(/\//g, "\\").toLowerCase() === newPath.replace(/\//g, "\\").toLowerCase()
+    );
+    if (existingIdx >= 0) {
+      if (tabCallbacks) {
+        await switchToTab(tabsModel, tabsModel.paths, existingIdx, tabCallbacks);
+      } else {
+        // 空状态：窗口已开且文件在列表中但未初始化编辑器 → reload
+        location.reload();
+      }
+      return;
+    }
+    // 空状态（编辑器未初始化）：先登记 tab 再 reload 走正常启动
+    if (!tabCallbacks) {
+      try {
+        await invoke<TabsPayload>("add_tab", { path: newPath });
+      } catch (e) {
+        notify(`打开失败：${e}`, "error");
+      }
+      location.reload();
+      return;
+    }
+    try {
+      const result = await invoke<TabsPayload>("add_tab", { path: newPath });
+      tabArrows.show(result.tabs.length >= 2);
+      await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
+    } catch (e) {
+      notify(`打开失败：${e}`, "error");
+    }
+  });
+
+  if (!initialPayload) {
+    // 重置窗口标题（Esc 退回起始页后避免残留旧文件名）
+    await getCurrentWindow().setTitle("Oblet").catch(() => {});
+
+    // 初始化空 tab 模型用于 add-tab 接收
+    tabsModel.sync([], 0);
+
     // 不能用 app.innerHTML 赋值：会把 initSettingsUI 追加进 #app 的设置浮层一起抹掉
     // （按钮挂在 body 上幸存，点击时切换的已是脱离文档的节点 → 起始页设置打不开）
     const version = await getVersion().catch(() => "");
@@ -121,7 +184,9 @@ export async function boot() {
       if (!dir) { notify("无法确定新建目录，请到 设置 → Obsidian 填写", "warn"); return; }
       try {
         const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
-        await invoke("set_window_file", { path: dest });
+        const result = await invoke<TabsPayload>("add_tab", { path: dest });
+        tabsModel.sync(result.tabs, result.active_index);
+        // 新建笔记从起始页进入编辑态：需要初始化编辑器
         location.reload();
       } catch (e) {
         if (String(e) === "EXISTS") {
@@ -129,7 +194,8 @@ export async function boot() {
           if (!ok) return;
           try {
             const dest = await invoke<string>("create_note", { dir, fileName, overwrite: true });
-            await invoke("set_window_file", { path: dest });
+            const result = await invoke<TabsPayload>("add_tab", { path: dest });
+            tabsModel.sync(result.tabs, result.active_index);
             location.reload();
           } catch (e2) {
             notify(`创建失败：${e2}`, "error");
@@ -139,18 +205,26 @@ export async function boot() {
         }
       }
     });
-    // 空窗口：登记路径后重载，走正常启动流程
+    // 空窗口拖入 .md
     await getCurrentWindow().onDragDropEvent(async (e) => {
       if (e.payload.type !== "drop") return;
       const md = e.payload.paths.find((p) => p.toLowerCase().endsWith(".md"));
       if (!md) return;
-      await invoke("set_window_file", { path: md });
-      location.reload();
+      try {
+        const result = await invoke<TabsPayload>("add_tab", { path: md });
+        tabsModel.sync(result.tabs, result.active_index);
+        location.reload();
+      } catch (err) {
+        notify(`打开失败：${err}`, "error");
+      }
     });
     return;
   }
 
-  let path = initialPath;
+  // 初始化 tab 列表
+  tabsModel.sync(initialPayload.tabs, initialPayload.active_index);
+
+  let path = initialPayload.path;
   const payload = await invoke<FilePayload>("read_file", { path });
 
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
@@ -235,6 +309,86 @@ export async function boot() {
     window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => void flushSave(), AUTOSAVE_DELAY);
   };
+
+  // ---- tab 切换桥接（闭包暴露给 tabs.ts 的 switchToTab） ----
+  tabCallbacks = {
+    getCrepe: () => crepe,
+    getSuppressSave: () => suppressSave,
+    setSuppressSave: (v: boolean) => { suppressSave = v; },
+    getDirty: () => dirty,
+    setDirty: (v: boolean) => { dirty = v; },
+    getLastContent: () => lastContent,
+    setLastContent: (v: string) => { lastContent = v; },
+    getPayload: () => ({ newline: payload.newline, readonly: payload.readonly, readonly_reason: payload.readonly_reason }),
+    setPayload: (p: { newline: string; readonly: boolean; readonly_reason: string | null }) => {
+      payload.newline = p.newline;
+      payload.readonly = p.readonly;
+      payload.readonly_reason = p.readonly_reason;
+    },
+    updateBanner,
+    setPath: (p: string) => { path = p; },
+    clearSearch: () => {
+      // 清空搜索高亮状态（如果搜索插件暴露了清理方法）
+      // searchPlugin 暂无公开 clear API，通过关闭搜索浮层来清理
+      document.querySelector(".ob-search")?.remove();
+      document.querySelectorAll(".ob-search-highlight").forEach((el) => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ""), el);
+          parent.normalize();
+        }
+      });
+    },
+  };
+
+  // 初始化活跃 tab 的缓存
+  tabsModel.updateCurrent({
+    content: payload.content.replace(/\r\n/g, "\n"),
+    newline: payload.newline,
+    readonly: payload.readonly,
+    readonly_reason: payload.readonly_reason,
+    dirty: false,
+  });
+
+  // 注册 tab 导航快捷键
+  registerCommand({
+    id: "next-tab",
+    title: "切换到下一个标签页",
+    defaultCombo: "Alt+ArrowRight",
+    run: () => {
+      const next = (tabsModel.activeIndex + 1) % tabsModel.count;
+      void switchToTab(tabsModel, tabsModel.paths, next, tabCallbacks!).then(() => {
+        tabArrows.show(tabsModel.count >= 2);
+      });
+    },
+  });
+
+  registerCommand({
+    id: "prev-tab",
+    title: "切换到上一个标签页",
+    defaultCombo: "Alt+ArrowLeft",
+    run: () => {
+      const prev = (tabsModel.activeIndex - 1 + tabsModel.count) % tabsModel.count;
+      void switchToTab(tabsModel, tabsModel.paths, prev, tabCallbacks!).then(() => {
+        tabArrows.show(tabsModel.count >= 2);
+      });
+    },
+  });
+
+  // 箭头点击事件
+  tabArrows.onLeftClick(() => {
+    const prev = (tabsModel.activeIndex - 1 + tabsModel.count) % tabsModel.count;
+    void switchToTab(tabsModel, tabsModel.paths, prev, tabCallbacks!).then(() => {
+      tabArrows.show(tabsModel.count >= 2);
+    });
+  });
+  tabArrows.onRightClick(() => {
+    const next = (tabsModel.activeIndex + 1) % tabsModel.count;
+    void switchToTab(tabsModel, tabsModel.paths, next, tabCallbacks!).then(() => {
+      tabArrows.show(tabsModel.count >= 2);
+    });
+  });
+  tabArrows.show(tabsModel.count >= 2);
 
   // Ctrl+S 立即保存（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
   registerCommand({
@@ -448,9 +602,16 @@ export async function boot() {
       await invoke("save_settings", { settings: s });
       await initTypography(); // 幂等：重新读盘应用 + 刷新 currentEditorSettings 缓存
     },
+    /** 批次 7.3 验证钩子：tab 信息 */
+    tabs: {
+      count: () => tabsModel.count,
+      activeIndex: () => tabsModel.activeIndex,
+      activePath: () => tabsModel.activePath,
+      paths: () => tabsModel.paths,
+    },
   };
 
-  // Esc 退回到起始页（有未保存内容时弹确认）。
+  // Esc：多 tab → 关当前 tab；单 tab → 退起始页（有未保存内容时弹确认）。
   // 设置面板开时其 Esc handler 会 stopImmediatePropagation，这里不会收到事件。
   // 确认弹窗/提示框开时有自己的 Esc handler 也会吞事件。
   window.addEventListener("keydown", (e) => {
@@ -460,6 +621,35 @@ export async function boot() {
     e.preventDefault();
     e.stopPropagation();
     (async () => {
+      // 多 tab：关闭当前 tab
+      if (tabsModel.count > 1) {
+        if (dirty && !payload.readonly) {
+          const autoSave = currentEditorSettings().auto_save;
+          if (autoSave === false) {
+            const choice = await confirmDialog("有未保存的更改，关闭前要保存吗？", "保存", "丢弃");
+            if (choice === null) return;
+            if (choice) {
+              window.clearTimeout(saveTimer);
+              if (!(await flushSave())) return;
+            }
+          } else {
+            window.clearTimeout(saveTimer);
+            if (!(await flushSave())) return;
+          }
+        }
+        const curIdx = tabsModel.activeIndex;
+        const result = await invoke<TabsPayload | null>("remove_tab", { index: curIdx });
+        if (!result) {
+          // 无剩余 tab → 退起始页
+          await invoke("clear_window_file");
+          location.reload();
+          return;
+        }
+        tabArrows.show(result.tabs.length >= 2);
+        await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks!);
+        return;
+      }
+      // 单 tab：退起始页
       if (dirty && !payload.readonly) {
         const choice = await confirmDialog("有未保存的更改，返回起始页前要保存吗？", "保存", "丢弃");
         if (choice === null) return;
@@ -543,34 +733,32 @@ export async function boot() {
     }
   });
 
-  // ---- 拖入 .md：原窗口就地渲染新文件 ----
+  // ---- 拖入 .md：追加到 tab 列表并切换（批次 7.3） ----
   await getCurrentWindow().onDragDropEvent(async (e) => {
     if (e.payload.type !== "drop") return;
     const md = e.payload.paths.find((p) => p.toLowerCase().endsWith(".md"));
     if (!md || samePath(md, path)) return;
 
-    // 先落盘当前文件；保存失败则不切换，避免丢内容
-    window.clearTimeout(saveTimer);
-    if (dirty && !(await flushSave())) {
-      notify("当前文件保存失败，未切换新文件。", "error");
+    // 去重：已在列表中则仅切换
+    const existingIdx = tabsModel.paths.findIndex((p) => samePath(p, md));
+    if (existingIdx >= 0) {
+      await switchToTab(tabsModel, tabsModel.paths, existingIdx, tabCallbacks!);
       return;
     }
 
-    const fresh = await invoke<FilePayload>("read_file", { path: md });
-    await invoke("set_window_file", { path: md }); // 换登记路径 + 更新窗口标题
-    await invoke("watch_file", { path: md }); // 监听器换绑新文件
-    path = md;
-    payload.newline = fresh.newline;
-    payload.readonly = fresh.readonly;
-    payload.readonly_reason = fresh.readonly_reason;
-    lastContent = fresh.content.replace(/\r\n/g, "\n");
-    dirty = false;
-    pendingSave = false;
+    // 先落盘当前文件；保存失败则不追加，避免丢内容
+    window.clearTimeout(saveTimer);
+    if (dirty && !(await flushSave())) {
+      notify("当前文件保存失败，未打开新文件。", "error");
+      return;
+    }
 
-    suppressSave = true;
-    crepe.editor.action(replaceAll(fresh.content));
-    suppressSave = false;
-    crepe.setReadonly(fresh.readonly);
-    updateBanner();
+    try {
+      const result = await invoke<TabsPayload>("add_tab", { path: md });
+      tabArrows.show(result.tabs.length >= 2);
+      await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks!);
+    } catch (err) {
+      notify(`打开失败：${err}`, "error");
+    }
   });
 }

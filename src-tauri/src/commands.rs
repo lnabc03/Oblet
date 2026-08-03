@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -18,28 +19,110 @@ pub struct FilePayload {
     pub readonly_reason: Option<String>,
 }
 
-/// 当前窗口打开的文件路径（窗口启动时由 Rust 侧登记）
-#[tauri::command]
-pub fn get_window_file(state: State<AppState>, window: tauri::Window) -> Option<String> {
-    state.path_for(window.label())
+/// 窗口 tab 信息（批次 7.3 多文档单窗口）
+#[derive(Serialize, Clone)]
+pub struct TabsPayload {
+    /// 活跃 tab 的文件路径
+    pub path: String,
+    /// 所有 tab 路径（有序）
+    pub tabs: Vec<String>,
+    /// 当前活跃索引
+    pub active_index: usize,
 }
 
-/// 拖入 .md 换文件：更新窗口登记路径并同步标题（label 不可变，仍用旧 label）
+/// 当前窗口的 tab 信息（活跃路径 + 全部 tab 列表 + 索引）
 #[tauri::command]
-pub fn set_window_file(
+pub fn get_window_file(state: State<AppState>, window: tauri::Window) -> Option<TabsPayload> {
+    state.get_tabs(window.label()).map(|(tabs, idx)| TabsPayload {
+        path: tabs.get(idx).cloned().unwrap_or_default(),
+        tabs,
+        active_index: idx,
+    })
+}
+
+/// 追加 tab 到当前窗口并切换到该 tab（批次 7.3）；若路径已在列表中则仅切换。
+/// 返回更新后的 TabsPayload
+#[tauri::command]
+pub fn add_tab(
     state: State<AppState>,
     window: tauri::Window,
     path: String,
-) -> Result<(), String> {
-    state.register(window.label(), &path);
-    let title = Path::new(&path)
+) -> Result<TabsPayload, String> {
+    let label = window.label().to_string();
+    let idx = state.add_tab(&label, &path);
+    let (tabs, _) = state
+        .get_tabs(&label)
+        .ok_or("窗口未登记")?;
+    let title = Path::new(&tabs[idx])
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
     window
         .set_title(&format!("Oblet - {title}"))
         .map_err(|e| format!("设置标题失败: {e}"))?;
+    Ok(TabsPayload {
+        path: tabs[idx].clone(),
+        tabs,
+        active_index: idx,
+    })
+}
+
+/// 关闭指定索引的 tab（批次 7.3）。若窗口无剩余 tab 则返回 None（前端退起始页）
+#[tauri::command]
+pub fn remove_tab(
+    state: State<AppState>,
+    window: tauri::Window,
+    index: usize,
+) -> Result<Option<TabsPayload>, String> {
+    let label = window.label().to_string();
+    let result = state.remove_tab(&label, index);
+    let Some((tabs, idx)) = result else {
+        return Ok(None);
+    };
+    let title = Path::new(&tabs[idx])
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Oblet");
+    window
+        .set_title(&format!("Oblet - {title}"))
+        .map_err(|e| format!("设置标题失败: {e}"))?;
+    Ok(Some(TabsPayload {
+        path: tabs[idx].clone(),
+        tabs,
+        active_index: idx,
+    }))
+}
+
+/// 设置窗口的活跃 tab 索引（前端切 tab 后通知 Rust 换绑标题与监听）
+#[tauri::command]
+pub fn switch_tab(
+    state: State<AppState>,
+    window: tauri::Window,
+    index: usize,
+) -> Result<(), String> {
+    let label = window.label().to_string();
+    state.set_active(&label, index);
+    if let Some(path) = state.path_for(&label) {
+        let title = Path::new(&path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Oblet");
+        window
+            .set_title(&format!("Oblet - {title}"))
+            .map_err(|e| format!("设置标题失败: {e}"))?;
+    }
     Ok(())
+}
+
+/// 拖入 .md 换文件：更新窗口登记路径并同步标题（label 不可变，仍用旧 label）
+/// 批次 7.3 起语义变为追加 tab 并切换（不再替换整个窗口内容）
+#[tauri::command]
+pub fn set_window_file(
+    state: State<AppState>,
+    window: tauri::Window,
+    path: String,
+) -> Result<TabsPayload, String> {
+    add_tab(state, window, path)
 }
 
 #[tauri::command]
@@ -121,40 +204,55 @@ pub fn write_file(
     Ok(())
 }
 
-/// 监听窗口当前文件的外部变更（监听父目录，按文件名过滤，
-/// 以兼容 Obsidian 等编辑器 rename 式原子保存）
+/// 监听窗口当前所有 tab 文件所在目录的外部变更（按文件名过滤，
+/// 以兼容 Obsidian 等编辑器 rename 式原子保存）。
+/// 同一目录被多个 tab 共享时只 watch 一次（引用计数由 HashSet 去重）。
 #[tauri::command]
-pub fn watch_file(state: State<AppState>, window: tauri::Window, path: String) -> Result<(), String> {
+pub fn watch_file(
+    state: State<AppState>,
+    window: tauri::Window,
+    path: String,
+) -> Result<(), String> {
     let label = window.label().to_string();
-    let file = PathBuf::from(&path);
-    let dir = file
-        .parent()
-        .ok_or("非法路径")?
-        .to_path_buf();
 
-    // 换绑：旧文件所在目录若无其他窗口监听则解除
-    let old = state.watched.lock().unwrap().insert(label, file.clone());
-    if let Some(old_file) = old {
-        if old_file != file {
-            let old_dir = old_file.parent().map(|p| p.to_path_buf());
+    // 收集窗口所有 tab 涉及的目录集合
+    let tabs = state
+        .get_tabs(&label)
+        .map(|(tabs, _)| tabs)
+        .unwrap_or_else(|| vec![path.clone()]);
+    let dirs: HashSet<PathBuf> = tabs
+        .iter()
+        .filter_map(|p| Path::new(p).parent().map(|d| d.to_path_buf()))
+        .collect();
+
+    // 新旧目录 diff：新增的 watch，不再需要的 unwatch
+    let old_dirs = state
+        .watched
+        .lock()
+        .unwrap()
+        .insert(label.clone(), dirs.clone())
+        .unwrap_or_default();
+
+    let mut guard = state.watcher.lock().unwrap();
+    if let Some(w) = guard.as_mut() {
+        for dir in dirs.difference(&old_dirs) {
+            let _ = w.watch(dir, RecursiveMode::NonRecursive);
+        }
+        // 解除不再需要的目录（且无其他窗口监听）
+        for old_dir in old_dirs.difference(&dirs) {
             let still_needed = state
                 .watched
                 .lock()
                 .unwrap()
                 .values()
-                .any(|f| f.parent().map(|p| p.to_path_buf()) == old_dir);
+                .any(|d| d.contains(old_dir));
             if !still_needed {
-                if let (Some(w), Some(d)) = (state.watcher.lock().unwrap().as_mut(), old_dir) {
-                    let _ = w.unwatch(&d);
-                }
+                let _ = w.unwatch(old_dir);
             }
         }
-    }
-
-    let mut guard = state.watcher.lock().unwrap();
-    if let Some(w) = guard.as_mut() {
-        w.watch(&dir, RecursiveMode::NonRecursive)
-            .map_err(|e| format!("监听失败: {e}"))?;
+    } else {
+        // watcher 初始化失败（罕见），只更新登记无需报错
+        state.watched.lock().unwrap().insert(label, dirs);
     }
     Ok(())
 }
@@ -246,10 +344,11 @@ pub fn get_desktop_dir() -> Result<String, String> {
     Ok(format!("{home}\\Desktop"))
 }
 
-/// 清除当前窗口的文件登记（Esc 退回到起始页前调用，置空后 reload → boot 走空状态）
+/// 清除当前窗口的文件登记（Esc 退回到起始页前调用）并重置标题
 #[tauri::command]
 pub fn clear_window_file(state: State<AppState>, window: tauri::Window) {
     state.unregister(window.label());
+    let _ = window.set_title("Oblet");
 }
 
 // 外链用系统默认浏览器打开：Tauri webview 对 target=_blank 不做任何处理，

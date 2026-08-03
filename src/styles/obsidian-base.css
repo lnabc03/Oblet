@@ -857,6 +857,40 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   border-color: var(--ob-accent);
 }
 
+/* ---- Tab 切换箭头（批次 7.3，窗口左右边缘垂直居中） ---- */
+.tab-arrow-left,
+.tab-arrow-right {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  z-index: 10;
+  color: var(--ob-text-muted);
+}
+.tab-arrow-left svg,
+.tab-arrow-right svg {
+  width: 18px;
+  height: 18px;
+}
+.tab-arrow-left:hover,
+.tab-arrow-right:hover {
+  opacity: 0.7;
+  color: var(--ob-text);
+}
+.tab-arrow-left { left: 4px; }
+.tab-arrow-right { right: 4px; }
+
+.tab-arrow-hidden {
+  display: none;
+}
+
 .settings-btn {
   position: fixed;
   top: 10px;
@@ -993,9 +1027,11 @@ body.ob-code-wrap .markdown-rendered .cm-line {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* 工具区不上纸：置顶/设置按钮、检索浮条、设置浮层、右键菜单、toast、确认弹窗 */
+  /* 工具区不上纸：置顶/设置按钮、检索浮条、设置浮层、右键菜单、toast、确认弹窗、tab 箭头 */
   .pin-btn,
   .settings-btn,
+  .tab-arrow-left,
+  .tab-arrow-right,
   .search-bar,
   .settings-overlay,
   .context-menu,
