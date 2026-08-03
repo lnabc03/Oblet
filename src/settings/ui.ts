@@ -33,13 +33,13 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>排版</h3>
         <div class="typo-grid">
           <label>正文字体</label>
-          <input type="text" data-typo="text_font" placeholder="跟随主题">
+          <input type="text" data-typo="text_font" placeholder="霞鹜臻楷 GB">
           <label>等宽字体</label>
-          <input type="text" data-typo="mono_font" placeholder="跟随主题">
+          <input type="text" data-typo="mono_font" placeholder="JetBrainsMonoNL NF">
           <label>界面字体</label>
-          <input type="text" data-typo="interface_font" placeholder="跟随主题">
+          <input type="text" data-typo="interface_font" placeholder="华文中宋">
           <label>基础字号</label>
-          <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="跟随主题">
+          <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="17">
         </div>
       </div>
       <div class="settings-section">
@@ -61,7 +61,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>界面</h3>
         <label class="check-row">
           <input type="checkbox" id="mica-toggle">
-          <span>Mica 窗口效果（Win11）</span>
+          <span>Mica 窗口效果</span>
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
@@ -72,8 +72,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>Obsidian</h3>
         <div class="typo-grid">
           <label>笔记存放至</label>
-          <input type="text" data-typo="vault_dir" class="vault-input"
-                 placeholder="如 D:\Notes\MyVault\收件箱（留空 = 未配置）">
+          <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
         </div>
       </div>
       <div class="settings-section">

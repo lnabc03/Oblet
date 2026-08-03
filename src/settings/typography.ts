@@ -46,26 +46,36 @@ export function currentEditorSettings(): EditorSettings {
   return current;
 }
 
-/** 应用排版覆盖：body + #app 双内联（用户 > 主题 > 兜底），对齐 Ob 语义 */
+/** 排版硬默认（用户未覆盖时生效，替代原"跟随主题"的透传策略） */
+const TYPO_DEFAULTS = {
+  text_font: "霞鹜臻楷 GB",
+  mono_font: "JetBrainsMonoNL NF",
+  interface_font: "华文中宋",
+  base_font_size: 17,
+};
+
+/** 应用排版覆盖：body + #app 双内联（用户 > 硬默认 > 主题兜底），对齐 Ob 语义 */
 export function applyTypography(e: EditorSettings) {
   current = e;
   const targets = [document.body, document.getElementById("app")].filter(
     (t): t is HTMLElement => t !== null
   );
-  const set = (k: string, v: string | null | undefined) => {
-    for (const t of targets) {
-      if (v) t.style.setProperty(k, v);
-      else t.style.removeProperty(k);
-    }
+  // 用户覆盖优先，未填则取硬默认（不再透传主题 CSS fallback）
+  const textFont = e.text_font || TYPO_DEFAULTS.text_font;
+  const monoFont = e.mono_font || TYPO_DEFAULTS.mono_font;
+  const interfaceFont = e.interface_font || TYPO_DEFAULTS.interface_font;
+  const fontSize = e.base_font_size ?? TYPO_DEFAULTS.base_font_size;
+  const set = (k: string, v: string) => {
+    for (const t of targets) t.style.setProperty(k, v);
   };
-  set("--font-text", e.text_font);
-  set("--font-monospace", e.mono_font);
-  set("--font-interface", e.interface_font);
-  set("--font-text-size", e.base_font_size ? `${e.base_font_size}px` : null);
+  set("--font-text", textFont);
+  set("--font-monospace", monoFont);
+  set("--font-interface", interfaceFont);
+  set("--font-text-size", `${fontSize}px`);
   // 字号直接内联（Obsidian baseFontSize 同款做法）：不经过 --ob-font-size 变量链，
   // 避免主题在深层作用域重定义变量导致覆盖失效；em 尺寸（标题等）随之等比缩放
   for (const t of targets) {
-    t.style.fontSize = e.base_font_size ? `${e.base_font_size}px` : "";
+    t.style.fontSize = `${fontSize}px`;
   }
   // 光标所在块底色（默认显示，显式 false 才隐藏）：替代 main.ts 的常驻加类
   document.body.classList.toggle("anp-current-line", e.show_active_block !== false);
