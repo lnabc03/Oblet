@@ -127,6 +127,7 @@ pub fn run() {
             commands::write_file,
             commands::watch_file,
             commands::set_window_effect,
+            commands::tune_mica,
             commands::save_image_asset,
             commands::export_to_vault,
             commands::create_note,

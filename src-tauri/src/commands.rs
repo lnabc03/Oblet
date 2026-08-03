@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -272,6 +272,39 @@ pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>) -
         }
     };
     res.map_err(|e| e.to_string())
+}
+
+/// Mica 调优 demo 配置（开发工具）：支持变体/暗色模式切换
+#[derive(Deserialize)]
+pub struct MicaTuneConfig {
+    /// "mica" | "tabbed" | null（清空）
+    #[serde(default)]
+    pub variant: Option<String>,
+    /// None = 跟随系统, Some(true) = 强制暗色, Some(false) = 强制亮色
+    #[serde(default)]
+    pub dark: Option<bool>,
+}
+
+/// Mica 调优（开发 demo）：接受完整配置，清除旧效果后重新应用
+#[tauri::command]
+pub fn tune_mica(
+    window: tauri::WebviewWindow,
+    config: MicaTuneConfig,
+) -> Result<(), String> {
+    // 先清除所有已知效果，避免变体切换时残留
+    let _ = window_vibrancy::clear_mica(&window);
+    let _ = window_vibrancy::clear_tabbed(&window);
+    let _ = window_vibrancy::clear_acrylic(&window);
+
+    match config.variant.as_deref() {
+        Some("mica") => {
+            window_vibrancy::apply_mica(&window, config.dark).map_err(|e| e.to_string())
+        }
+        Some("tabbed") => {
+            window_vibrancy::apply_tabbed(&window, config.dark).map_err(|e| e.to_string())
+        }
+        _ => Ok(()), // variant 为 null/空 = 仅清除，关闭效果
+    }
 }
 
 // 保存至 Obsidian Vault（批次 7.1）：把当前 md 原文复制到用户配置的目标文件夹。
