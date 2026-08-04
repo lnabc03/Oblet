@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Oblet</title>
-    <!-- 启动遮罩：内联样式保证首帧即渲染（不等外部 CSS/JS bundle），
-         遮盖透明窗口在 Mica 生效前的白屏/透出异常；main.ts 在 boot 结束后淡出移除 -->
+    <!-- 启动过渡动画（原启动遮罩，设置项 transition_animation 可关）：
+         内联样式保证首帧即渲染（不等外部 CSS/JS bundle），
+         遮盖 boot 期间的加载过程；main.ts 在 boot 结束后淡出移除 -->
     <style>
       #ob-splash {
         position: fixed;

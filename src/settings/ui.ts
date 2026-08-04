@@ -98,6 +98,10 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="checkbox" id="mica-toggle">
           <span>Mica 材质</span>
         </label>
+        <label class="check-row">
+          <input type="checkbox" data-check="transition_animation" data-default="true">
+          <span>启动过渡动画</span>
+        </label>
       </div>
       <div class="settings-section">
         <h3>路径</h3>

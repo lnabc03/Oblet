@@ -33,6 +33,8 @@ export interface EditorSettings {
   new_note_dir?: string | null;
   /** 多窗口编辑（批次 7.3）：null/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口 */
   allow_multi_window?: boolean | null;
+  /** 启动过渡动画（原启动遮罩）：null/true = 开（默认）；false = 关。仅启动时由 main.ts 读取 */
+  transition_animation?: boolean | null;
 }
 
 export async function getSettings(): Promise<Settings> {
