@@ -37,3 +37,4 @@ scripts/
 CLAUDE.md
 Oblet-打磨*.md
 test-*-roundtrip.mjs
+test-fidelity-audit.mjs

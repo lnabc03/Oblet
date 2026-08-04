@@ -3,11 +3,15 @@
 //    序列化时原样写回 --- 围栏
 // 2. frontmatterSchema：yaml 节点映射为可编辑文本节点（code 模式，多行直接编辑）
 // 3. tuneSerialization：保存不侵入原文 —— hr 写 --- 不写 ***、列表符号用 -；
-//    自定义 text 处理器撤销三类破坏原文的过度转义：
+//    自定义 text 处理器撤销六类破坏原文的过度转义：
 //    \[! → [! （callout 标记，转义后 Obsidian 不再识别）
 //    \== → ==（行首高亮，转义后 == 变字面文本）
 //    \_ → _（词内下划线，按 CommonMark flanking 规则不可能构成强调时）
+//    \[\[ → [[（wikilink/embed，转义后 Obsidian 双链失效；]] 后跟 ( 时保留）
+//    \# → #（行首标签，# 后非空白非 # 不可能构成 ATX 标题）
+//    \& → &（仅当后文真构成实体引用时保留转义）
 //    其余转义（\*、\[x 等）在 Obsidian 中渲染等价，保持默认；
+//    link 处理器把 GFM literal autolink（裸 URL/www/email）还原裸写，不写 <url>；
 //    break 处理器把 Shift+Enter 硬换行写回普通换行，不写行尾 \
 import type { Ctx, MilkdownPlugin } from '@milkdown/ctx'
 import { InitReady, remarkStringifyOptionsCtx } from '@milkdown/core'
@@ -16,6 +20,7 @@ import { $nodeSchema, $remark, $view } from '@milkdown/utils'
 import type { EditorView, NodeView } from '@milkdown/prose/view'
 import type { Node as PMNode } from '@milkdown/prose/model'
 import type { Handle, Join } from 'mdast-util-to-markdown'
+import { defaultHandlers } from 'mdast-util-to-markdown'
 import remarkFrontmatter from 'remark-frontmatter'
 
 export const frontmatterRemark = $remark(
@@ -317,7 +322,31 @@ const unescapeIntrawordUnderscores = (value: string, before: string, after: stri
   return out
 }
 
-// text 处理器：默认转义后，撤销破坏原文语义的 \[!、\== 与词内 \_
+// wikilink/embed：safe() 把 [[ 转义成 \[\[，Obsidian 双链失效，撤销。
+// 护栏：匹配到 ]] 后紧跟 ( 时撤销会让重解析把文本切成 字面[ + 链接（如
+// 源文件里转义写的 [[a]]\(url\)），这种形态保留转义。
+const unescapeWikilinks = {
+  regex: /\\\[\\\[/g,
+  replacer: (match: string, offset: number, whole: string): string => {
+    const rest = whole.slice(offset + match.length)
+    const close = rest.indexOf(']]')
+    return close !== -1 && rest[close + 2] === '(' ? match : '[['
+  },
+}
+
+// 行首 \#：# 的转义只发生在行首（atBreak，防 ATX 标题）。# 后字符不是空白
+// 也不是 # 时（#标签）不可能构成标题——标题要求 # 序列后跟空白或行尾，撤销；
+// ##tag / # 在行尾（可能是空标题）保守保留。
+const unescapeLineStartHash = (match: string, next: string): string =>
+  next === '' || next === '#' || cmWhitespace.test(next) ? match : '#' + next
+
+// \& 收紧：safe() 见 & 后随字母/# 就转义（防实体引用被解码）。仅当后文
+// 真构成实体引用（&amp; / &#60; / &#x3C; 形态）时保留转义，否则撤销。
+const entityReferenceStart = /^(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]+);/
+const unescapeNonEntityAmp = (match: string, offset: number, whole: string): string =>
+  entityReferenceStart.test(whole.slice(offset + match.length)) ? match : '&'
+
+// text 处理器：默认转义后，撤销破坏原文语义的 \[!、\==、词内 \_、\[\[、行首 \#、非实体 \&
 const keepObsidianSyntax: Handle = (node, _parent, state, info) =>
   unescapeIntrawordUnderscores(
     state.safe((node as unknown as { value?: string }).value ?? '', info),
@@ -326,6 +355,9 @@ const keepObsidianSyntax: Handle = (node, _parent, state, info) =>
   )
     .replace(/\\\[(?=!)/g, '[')
     .replace(/\\=(?==)/g, '=')
+    .replace(unescapeWikilinks.regex, unescapeWikilinks.replacer)
+    .replace(/\\#(.|$)/g, unescapeLineStartHash)
+    .replace(/\\&/g, unescapeNonEntityAmp)
 
 // break 处理器：Shift+Enter 硬换行写回普通换行，不写行尾 \（Obsidian 风格）。
 // 往返稳定：重新解析时软换行进入 text 节点值，ProseMirror pre-wrap 下照常渲染换行，
@@ -377,17 +409,43 @@ export const taskListSpaceTrim = $remark(
 
 /** 在 config 阶段调用：收紧序列化输出，避免对未编辑内容做侵入性改写 */
 export function tuneSerialization(ctx: Ctx) {
-  ctx.update(remarkStringifyOptionsCtx, (prev) => ({
-    ...prev,
-    rule: '-' as const, // hr 写 ---（默认会写成 ***，毁掉 frontmatter 围栏）
-    bullet: '-' as const, // 无序列表符号用 -（对齐 Obsidian 习惯）
-    join: [...(prev.join ?? []), joinTightLists],
-    handlers: {
-      ...prev.handlers,
-      text: keepObsidianSyntax,
-      break: breakAsPlainNewline,
-    },
-  }))
+  ctx.update(remarkStringifyOptionsCtx, (prev) => {
+    // link 处理器：GFM literal autolink（裸 URL/www/email）还原裸写。
+    // 默认处理器会写成 <url> 或 [www.example.com](http://www.example.com) 形态，
+    // 污染源码；裸写重解析必还原为同一 link 节点，往返稳定。其余回落原处理器。
+    const linkFallback = ((prev.handlers as Record<string, Handle> | undefined)?.link ??
+      defaultHandlers.link) as Handle
+    const linkKeepBare: Handle = (node, parent, state, info) => {
+      const n = node as unknown as {
+        url?: string
+        title?: string | null
+        children?: Array<{ type: string; value?: string }>
+      }
+      const only = n.children?.length === 1 ? n.children[0] : undefined
+      const text = only?.type === 'text' ? only.value : undefined
+      if (
+        n.title == null &&
+        n.url != null &&
+        text != null &&
+        (text === n.url || 'http://' + text === n.url || 'mailto:' + text === n.url)
+      ) {
+        return text
+      }
+      return linkFallback(node, parent, state, info)
+    }
+    return {
+      ...prev,
+      rule: '-' as const, // hr 写 ---（默认会写成 ***，毁掉 frontmatter 围栏）
+      bullet: '-' as const, // 无序列表符号用 -（对齐 Obsidian 习惯）
+      join: [...(prev.join ?? []), joinTightLists],
+      handlers: {
+        ...prev.handlers,
+        text: keepObsidianSyntax,
+        break: breakAsPlainNewline,
+        link: linkKeepBare,
+      },
+    }
+  })
 }
 
 // Milkdown 的"空行保真"特性会把空段落序列化为 <br /> 注入文件——
