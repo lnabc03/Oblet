@@ -78,10 +78,20 @@ fn open_or_focus(app: &AppHandle, path: &str) {
         .inner_size(960.0, 720.0)
         // 透明窗口：毛玻璃（Mica/Acrylic）的前提；CSS 背景不透明时与之前视觉一致
         .transparent(true)
+        // 初始隐藏：透明窗口在 WebView2 就绪到首帧 paint 之间会白屏/透屏，
+        // 前端 splash 画好一帧后调 show() 揭窗（main.ts 双 rAF）
+        .visible(false)
         .build()
     {
-        Ok(_win) => {
+        Ok(win) => {
             app.state::<AppState>().register(&label, path);
+            // 兜底：前端加载异常永远不来 show 时，3s 后强制显示，避免幽灵进程
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                if !win.is_visible().unwrap_or(true) {
+                    let _ = win.show();
+                }
+            });
         }
         Err(e) => eprintln!("创建窗口失败: {e}"),
     }
@@ -227,8 +237,8 @@ pub fn run() {
             if let Some(path) = md_arg_from(&argv, &cwd) {
                 open_or_focus(app.handle(), &path);
             } else {
-                // 无参数启动：开一个空窗口
-                WebviewWindowBuilder::new(
+                // 无参数启动：开一个空窗口（同 open_or_focus：初始隐藏 + 3s 兜底）
+                let win = WebviewWindowBuilder::new(
                     app.handle(),
                     "main",
                     WebviewUrl::App("index.html".into()),
@@ -236,7 +246,14 @@ pub fn run() {
                 .title("Oblet")
                 .inner_size(960.0, 720.0)
                 .transparent(true)
+                .visible(false)
                 .build()?;
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+                    if !win.is_visible().unwrap_or(true) {
+                        let _ = win.show();
+                    }
+                });
             }
             Ok(())
         })

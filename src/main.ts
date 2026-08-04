@@ -4,8 +4,17 @@
 import "@milkdown/crepe/theme/common/style.css";
 import "./styles/obsidian-base.css";
 import "./styles/anuppuccin-custom.css";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { boot } from "./editor/setup";
 import { initKeymap } from "./commands";
+
+// 窗口初始隐藏（lib.rs visible(false)）：透明窗口从 WebView2 就绪到首帧 paint
+// 之间会白屏/透屏/异常渲染，等 splash 画上一帧后再揭窗。Rust 侧有 3s 兜底
+requestAnimationFrame(() =>
+  requestAnimationFrame(() => {
+    void getCurrentWindow().show();
+  })
+);
 
 // 4.5 当前块高亮：主题里 anp-current-line 的 CM5 选择器是死规则，
 // 实际显隐由这个类门控 .ob-active-block 样式。先默认加上（设置加载前的瞬时态），
