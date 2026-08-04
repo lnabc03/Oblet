@@ -85,6 +85,7 @@ fn open_or_focus(app: &AppHandle, path: &str) {
     {
         Ok(win) => {
             app.state::<AppState>().register(&label, path);
+            let _ = state::FIRST_WINDOW_BUILT_MS.set(state::epoch_ms());
             // 兜底：前端加载异常永远不来 show 时，3s 后强制显示，避免幽灵进程
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(3));
@@ -115,6 +116,8 @@ fn md_arg_from(argv: &[String], cwd: &str) -> Option<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 启动打点：尽量早地记 exe 入口时刻（epoch ms），供前端折算 WebView2 冷启动耗时
+    let _ = state::PROCESS_START_MS.set(state::epoch_ms());
     let builder = tauri::Builder::default();
     // 单实例仅 release 注册：锁按 AppID 不分 debug/release，常驻的 dev 实例持锁时，
     // zip 版 release 启动会被劫持转发到陈旧 dev 窗口——用户看到的永远是旧前端快照
@@ -132,6 +135,7 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_window_file,
+            commands::get_boot_marks,
             commands::set_window_file,
             commands::read_file,
             commands::write_file,
@@ -248,6 +252,7 @@ pub fn run() {
                 .transparent(true)
                 .visible(false)
                 .build()?;
+                let _ = state::FIRST_WINDOW_BUILT_MS.set(state::epoch_ms());
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(3));
                     if !win.is_visible().unwrap_or(true) {

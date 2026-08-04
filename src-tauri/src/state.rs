@@ -1,8 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use notify::RecommendedWatcher;
+
+/// 启动打点（性能专题 baseline）：exe 入口与首窗建成时刻（epoch ms，OnceLock 只记第一次）
+pub static PROCESS_START_MS: OnceLock<u64> = OnceLock::new();
+pub static FIRST_WINDOW_BUILT_MS: OnceLock<u64> = OnceLock::new();
+
+pub fn epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
 
 /// 全局应用状态
 #[derive(Default)]

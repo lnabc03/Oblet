@@ -19,6 +19,21 @@ pub struct FilePayload {
     pub readonly_reason: Option<String>,
 }
 
+/// 启动打点（性能专题 baseline）：exe 入口与首窗建成时刻（epoch ms）
+#[derive(Serialize)]
+pub struct BootMarks {
+    pub process_start: u64,
+    pub first_window_built: u64,
+}
+
+#[tauri::command]
+pub fn get_boot_marks() -> BootMarks {
+    BootMarks {
+        process_start: *crate::state::PROCESS_START_MS.get().unwrap_or(&0),
+        first_window_built: *crate::state::FIRST_WINDOW_BUILT_MS.get().unwrap_or(&0),
+    }
+}
+
 /// 窗口 tab 信息（批次 7.3 多文档单窗口）
 #[derive(Serialize, Clone)]
 pub struct TabsPayload {

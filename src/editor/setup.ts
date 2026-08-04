@@ -104,6 +104,19 @@ export async function boot() {
   const bootTiming: Record<string, number> = { bootStart: performance.now() };
   (window as unknown as Record<string, unknown>).__obletBootTiming = bootTiming;
 
+  // Rust 侧打点对齐：exe 入口/首窗建成是 epoch ms，用 performance.timeOrigin 折算——
+  // exe 入口 → 页面导航开始 = OS 加载 + 单实例检查 + WebView2 运行时初始化（冷启动黑盒）
+  void invoke<{ process_start: number; first_window_built: number }>("get_boot_marks")
+    .then((m) => {
+      if (m.process_start) {
+        bootTiming.webviewColdStart = Math.round(performance.timeOrigin - m.process_start);
+        if (m.first_window_built) {
+          bootTiming.windowBuiltAt = Number(m.first_window_built - m.process_start);
+        }
+      }
+    })
+    .catch(() => {});
+
   const app = document.getElementById("app")!;
   // 并行化：设置读取应用（typography）与窗口文件查询互不依赖，同时发 IPC
   const [, initialPayload] = await Promise.all([
