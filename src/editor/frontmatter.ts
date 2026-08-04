@@ -3,10 +3,11 @@
 //    序列化时原样写回 --- 围栏
 // 2. frontmatterSchema：yaml 节点映射为可编辑文本节点（code 模式，多行直接编辑）
 // 3. tuneSerialization：保存不侵入原文 —— hr 写 --- 不写 ***、列表符号用 -；
-//    自定义 text 处理器撤销两类破坏 Obsidian 语义的转义：
+//    自定义 text 处理器撤销三类破坏原文的过度转义：
 //    \[! → [! （callout 标记，转义后 Obsidian 不再识别）
 //    \== → ==（行首高亮，转义后 == 变字面文本）
-//    其余转义（\*、\_、\[x 等）在 Obsidian 中渲染等价，保持默认；
+//    \_ → _（词内下划线，按 CommonMark flanking 规则不可能构成强调时）
+//    其余转义（\*、\[x 等）在 Obsidian 中渲染等价，保持默认；
 //    break 处理器把 Shift+Enter 硬换行写回普通换行，不写行尾 \
 import type { Ctx, MilkdownPlugin } from '@milkdown/ctx'
 import { InitReady, remarkStringifyOptionsCtx } from '@milkdown/core'
@@ -266,10 +267,63 @@ export function insertFrontmatter(view: EditorView) {
   }, 0)
 }
 
-// text 处理器：默认转义后，撤销破坏 Obsidian 语义的 \[! 与 \==
+// CommonMark 的 Unicode 空白 / 标点定义（_ 强调定界符判定用；
+// 标点按规范取 P+S 两个大类，_ 本身属 Pc 也在其中）
+const cmWhitespace = /[\p{Zs}\t\n\f\r]/u
+const cmPunctuation = /[\p{P}\p{S}]/u
+
+// 下划线转义收紧：mdast-util-to-markdown 把文本中每个 _ 都无脑转义成 \_，
+// 但按 CommonMark 定界符规则，词内下划线（两侧都是普通字符，如 测试_测试 /
+// hello_world）左右 flanking 同时成立，既不能打开也不能闭合强调，转义纯属污染。
+// safe() 之后按 run 重新判定，撤销这类转义。两类情况保守保留：
+// 1. run 确实能打开或闭合强调（如 _temp_、行尾 结束_）
+// 2. 本行去掉转义后只剩 _ 与空白且 _ 满 3 个（___ / _ _ _ 会变成分隔线）
+const unescapeIntrawordUnderscores = (value: string, before: string, after: string): string => {
+  let out = ''
+  let i = 0
+  while (i < value.length) {
+    if (value[i] !== '\\' || value[i + 1] !== '_') {
+      out += value[i++]
+      continue
+    }
+    // safe() 把 run 内每个 _ 都转义为 \_，整串消费
+    let runLen = 0
+    while (value[i + runLen * 2] === '\\' && value[i + runLen * 2 + 1] === '_') runLen++
+    // run 两侧的实际字符；在节点边界时取 phrasing 上下文（单字符，行界视为空白）
+    const prev = out.length > 0 ? out[out.length - 1] : before
+    const next = i + runLen * 2 < value.length ? value[i + runLen * 2] : after
+    const isWs = (ch: string) => ch === '' || cmWhitespace.test(ch)
+    const isPunct = (ch: string) => ch !== '' && cmPunctuation.test(ch)
+    const leftFlanking = !isWs(next) && (!isPunct(next) || isWs(prev) || isPunct(prev))
+    const rightFlanking = !isWs(prev) && (!isPunct(prev) || isWs(next) || isPunct(next))
+    const canOpen = leftFlanking && (!rightFlanking || isPunct(prev))
+    const canClose = rightFlanking && (!leftFlanking || isPunct(next))
+    let keepEscape = canOpen || canClose
+    if (!keepEscape) {
+      // 分隔线风险判定：行界内只有 _ 与空白。行首位置落在节点边界时，
+      // before 为空白类字符无法证伪行首（可能是块标记前缀），保守视为行首
+      const lineBefore = out.slice(out.lastIndexOf('\n') + 1)
+      const rest = value.slice(i + runLen * 2)
+      const eol = rest.search(/[\r\n]/)
+      const lineAfter = eol === -1 ? rest : rest.slice(0, eol)
+      const atLineStart = out.includes('\n') || before === '' || cmWhitespace.test(before)
+      const line = (lineBefore + '_'.repeat(runLen) + lineAfter).replace(/\\_/g, '_')
+      const underscoreCount = line.split('_').length - 1
+      keepEscape = atLineStart && /^[ \t_]*$/.test(line) && underscoreCount >= 3
+    }
+    out += keepEscape ? '\\_'.repeat(runLen) : '_'.repeat(runLen)
+    i += runLen * 2
+  }
+  return out
+}
+
+// text 处理器：默认转义后，撤销破坏原文语义的 \[!、\== 与词内 \_
 const keepObsidianSyntax: Handle = (node, _parent, state, info) =>
-  state
-    .safe((node as unknown as { value?: string }).value ?? '', info)
+  unescapeIntrawordUnderscores(
+    state.safe((node as unknown as { value?: string }).value ?? '', info),
+    info.before,
+    info.after
+  )
     .replace(/\\\[(?=!)/g, '[')
     .replace(/\\=(?==)/g, '=')
 
