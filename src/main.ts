@@ -14,6 +14,19 @@ document.body.classList.add("anp-current-line");
 
 void initKeymap();
 
-boot().catch((e) => {
-  document.body.innerHTML = `<pre style="color:red;padding:2em">启动失败: ${e}</pre>`;
-});
+/** 启动遮罩淡出：先加 class 触发 CSS transition，transitionend 后移除节点（超时兜底） */
+const dismissSplash = () => {
+  const splash = document.getElementById("ob-splash");
+  if (!splash) return;
+  splash.classList.add("ob-splash-hide");
+  splash.addEventListener("transitionend", () => splash.remove(), { once: true });
+  window.setTimeout(() => splash.remove(), 400);
+};
+
+boot()
+  // 双 rAF：等编辑器内容真正画上一帧后再揭遮罩，避免露出半渲染状态
+  .then(() => requestAnimationFrame(() => requestAnimationFrame(dismissSplash)))
+  .catch((e) => {
+    dismissSplash();
+    document.body.innerHTML = `<pre style="color:red;padding:2em">启动失败: ${e}</pre>`;
+  });

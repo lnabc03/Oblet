@@ -4,9 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Oblet</title>
+    <!-- 启动遮罩：内联样式保证首帧即渲染（不等外部 CSS/JS bundle），
+         遮盖透明窗口在 Mica 生效前的白屏/透出异常；main.ts 在 boot 结束后淡出移除 -->
+    <style>
+      #ob-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #1e1e2e; /* ctp-mocha-old base，与主题底色一致 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.18s ease;
+      }
+      #ob-splash.ob-splash-hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #ob-splash img {
+        width: 96px;
+        height: 96px;
+        animation: ob-splash-breath 1.6s ease-in-out infinite;
+      }
+      @keyframes ob-splash-breath {
+        0%, 100% { opacity: 0.45; transform: scale(0.97); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #ob-splash img { animation: none; }
+      }
+      @media print {
+        #ob-splash { display: none !important; }
+      }
+    </style>
   </head>
   <!-- 固化深色单主题：theme-dark + AnuPpuccin Style Settings 定制类（原 oblet-theme.json） -->
   <body class="theme-dark ctp-rosepine-light ctp-mocha-old ctp-accent-light-flamingo ctp-accent-mauve anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">
+    <div id="ob-splash"><img src="./logo.png" alt="" /></div>
     <div id="app" class="app-container"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

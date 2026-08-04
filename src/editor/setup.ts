@@ -100,8 +100,17 @@ function joinResolve(dir: string, rel: string): string {
 }
 
 export async function boot() {
+  // 启动计时（性能专题 baseline）：相对 navigationStart 的毫秒数，dev 工具/冒烟脚本可读
+  const bootTiming: Record<string, number> = { bootStart: performance.now() };
+  (window as unknown as Record<string, unknown>).__obletBootTiming = bootTiming;
+
   const app = document.getElementById("app")!;
-  await initTypography();
+  // 并行化：设置读取应用（typography）与窗口文件查询互不依赖，同时发 IPC
+  const [, initialPayload] = await Promise.all([
+    initTypography(),
+    invoke<TabsPayload | null>("get_window_file"),
+  ]);
+  bootTiming.settingsAndPayloadReady = performance.now();
   void initSettingsUI(app);
 
   // 初始化 tab 模型与箭头 UI（无论是否有初始文件）
@@ -110,8 +119,6 @@ export async function boot() {
 
   // tabCallbacks 在编辑器创建后赋值；空状态路径中为 null
   let tabCallbacks: Parameters<typeof switchToTab>[3] | null = null;
-
-  const initialPayload = await invoke<TabsPayload | null>("get_window_file");
 
   // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
   await listen("add-tab", async (event: { payload: { path: string } }) => {
@@ -218,6 +225,7 @@ export async function boot() {
         notify(`打开失败：${err}`, "error");
       }
     });
+    bootTiming.emptyStateReady = performance.now();
     return;
   }
 
@@ -226,6 +234,7 @@ export async function boot() {
 
   let path = initialPayload.path;
   const payload = await invoke<FilePayload>("read_file", { path });
+  bootTiming.fileRead = performance.now();
 
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
    *  闭包读的是 let path，拖入换文件后 replaceAll 重渲染自动跟随新目录 */
@@ -493,6 +502,7 @@ export async function boot() {
   crepe.editor.config(tuneSerialization);
 
   await crepe.create();
+  bootTiming.crepeCreated = performance.now();
   if (payload.readonly) crepe.setReadonly(true);
   // Crepe.create 期间 Milkdown 内部可能产生修正事务（如 schema 规范化），
   // userEditTracker 的 appendTransaction 钩子会误判为"用户编辑"置 dirty=true。
@@ -570,6 +580,8 @@ export async function boot() {
   // 自动化验证钩子（repro-dist/repro-webview 专用）：合成键盘事件无法驱动 DOM 选区
   // （浏览器忽略非可信按键的默认行为），选区建立与序列化断言经此句柄进行
   (window as unknown as Record<string, unknown>).__oblet = {
+    /** 启动计时（性能专题 baseline） */
+    bootTiming,
     selectLastParagraph: () =>
       crepe.editor.action((ctx) => {
         const view = ctx.get(editorViewCtx);
