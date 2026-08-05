@@ -1,4 +1,5 @@
-# tag 触发（v*）：Windows 构建 → 绿色 zip → 上传到 GitHub Release
+# tag 触发（v*）：Windows 构建 → 绿色 zip + 单 exe → 上传到 GitHub Release
+# 缓存：sccache（Rust 编译单元级） + rust-cache（依赖 registry/target） + npm cache
 name: Release
 
 on:
@@ -13,6 +14,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v4
 
@@ -26,14 +30,18 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Rust cache
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Rust cache (registry + target)
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          cache-all-crates: true
 
       - run: npm ci
 
-      # 只产出绿色 exe（发行物是 zip；msi 安装包不做，跳过 bundling）
+      # 只产出绿色 exe（发行物是 zip + 单 exe；msi 安装包不做，跳过 bundling）
       - run: npm run tauri build -- --no-bundle
 
       # 组包 + 出口审计：干净暂存（exe + .github/ 下的 bat 源 + 现场收集的许可），
