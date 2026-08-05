@@ -3,11 +3,12 @@
 > 一个轻量、快速、基于 Obsidian 和 AnuPpuccin 深度定制的独立 Markdown 编辑器：双击任意位置的 .md 即可打开编辑，开箱即是打磨到位的 AnuPpuccin 深色外观。
 >
 > - 平台：Windows（第一版）
-> - 定位：GitHub 开源，MIT 许可
-> - 版本：v2 设计基线
+> - 定位：GitHub 开源，GPL-3.0 许可
+> - 版本：v2 设计基线（v0.3.0 实装验证）
 > - 修订：v1.1（2026-07-30 设计评审）——类名对齐改阅读视图体系、设置改窗口内浮层、图片收紧为绝对路径、换行符跟随原文件、时间盒聚焦 M1+M2 核心
 > - 修订：v1.2（2026-07-30 实装后）——编辑器改 Crepe 底座（数学/代码块/表格/工具栏成品化），主题兼容增加 --crepe-\* 变量桥接
 > - 修订：**v2.0（2026-07-30 定位调整）——放弃 Obsidian 主题兼容层。** Milkdown（ProseMirror）与基于 CodeMirror 6 的 Obsidian 主题体系架构性不合，逐一手动适配不现实。主题兼容层代码彻底删除，当前定制版 AnuPpuccin 深色主题固化为唯一默认主题（仅维护深色；浅色未来将单独定制一套，再加深浅切换）。后续迭代只做三件事：修复已知问题、打磨操作体验、保障性能，保持轻量快速定位。
+> - 修订：**v2.1（2026-08-05 v0.3.0 发布后）**——Tab 切换系统实装、CSP nonce 修复、过渡动画可选、启动打点、.md 图标、窗口初始隐藏；发布流程定型（zip 打包 + 审计 + GitHub Release）
 
 ---
 
@@ -16,7 +17,7 @@
 ```
 ┌─────────────────────────────────────────────┐
 │  Tauri Shell (Rust)                         │
-│  - 窗口管理（每文件一窗口）                  │
+│  - 窗口管理（单窗口多 Tab，可选多窗口）      │
 │  - 文件读写 / 自动保存落盘                   │
 │  - 外部文件变更监听（notify）                │
 │  - 配置存储 ./data/settings.json             │
@@ -53,26 +54,34 @@ oblet/
 ├─ src-tauri/            # Rust 侧
 │  ├─ src/
 │  │  ├─ main.rs
-│  │  ├─ lib.rs          # 窗口管理、单实例、文件监听
-│  │  ├─ commands.rs     # 文件 IO（读写、换行符、内容哈希）
+│  │  ├─ lib.rs          # 窗口管理、单实例、文件监听、Tab 生命周期
+│  │  ├─ commands.rs     # 文件 IO（读写、换行符、内容哈希）、Tab 命令
 │  │  ├─ settings.rs     # settings.json 读写
-│  │  └─ state.rs        # 窗口↔路径映射、哈希缓存
+│  │  └─ state.rs        # 窗口↔(路径列表, 活跃索引) 映射、哈希缓存
 │  └─ tauri.conf.json
 ├─ src/                  # 前端
-│  ├─ main.ts            # 入口（CSS 顺序敏感）
+│  ├─ main.ts            # 入口（CSS 顺序敏感、启动遮罩）
+│  ├─ commands.ts        # 快捷键命令注册表（统一入口 + 键位覆盖）
+│  ├─ notify.ts          # 统一 toast（三级）+ 自绘确认弹窗
 │  ├─ editor/
-│  │  ├─ setup.ts        # Crepe 实例装配 + 文件生命周期
-│  │  ├─ plugins.ts      # 编辑器内插件集
-│  │  └─ frontmatter.ts  # frontmatter 节点/属性栏 + 序列化保真层
+│  │  ├─ setup.ts        # Crepe 实例装配 + 文件生命周期 + Tab 集成
+│  │  ├─ tabs.ts         # Tab 切换系统（缓存 Map、箭头 UI、switchToTab）
+│  │  ├─ plugins.ts      # ==高亮== 与 callout 装饰器
+│  │  ├─ frontmatter.ts  # frontmatter 节点/属性栏 + 序列化保真层
+│  │  ├─ vault.ts        # 保存至 Obsidian（复制语义）
+│  │  ├─ contextmenu.ts  # 自绘右键菜单
+│  │  ├─ search.ts       # 检索浮条（Ctrl+F 装饰器高亮）
+│  │  └─ toolbar.ts      # 工具栏行为
 │  ├─ settings/
 │  │  ├─ typography.ts   # 排版覆盖 + 持久化 + 跨窗口广播
-│  │  └─ ui.ts           # 设置浮层（Ctrl+, 唤起）
+│  │  └─ ui.ts           # 设置浮层（Ctrl+/ 唤起）
 │  └─ styles/
-│     ├─ obsidian-base.css      # Ob 结构基座 + --ob-* 变量桥接
+│     ├─ obsidian-base.css      # Ob 结构基座 + --ob-* 变量桥接 + @media print
 │     └─ anuppuccin-custom.css  # 内置主题：AnuPpuccin 深色定制
-├─ scripts/
-│  └─ register-md.reg    # 可选：.md 默认打开方式注册脚本
-├─ data/                 # 运行时生成（绿色版数据目录）
+├─ public/
+│  └─ splash-early.js   # 过渡动画开关同步前置（首帧前执行）
+├─ .github/             # CI 打包/审计脚本（pack-zip.mjs, audit-zip.mjs）
+├─ data/                # 运行时生成（绿色版数据目录）
 └─ package.json
 ```
 
@@ -115,30 +124,53 @@ GPL-3.0 合规：AnuPpuccin 要求再分发时保留版权与许可声明、注�
 
 ## 7. 文件与保存
 
-- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 第一版弹提示并只读）→ 每文件一个窗口。实例内维护 路径→窗口 映射：**重复打开同一文件时聚焦已有窗口**，防止两个窗口自动保存互相覆盖丢内容。也支持把 .md 直接拖入窗口就地渲染。
-- **自动保存**：输入停止 1s 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。**换行符跟随原文件**：打开时探测 CRLF/LF，保存时 Rust 侧把 Milkdown 输出的 LF 转换回原样，避免 git 管理的笔记出现全文件换行 diff。内容与磁盘一致时不写回（未编辑零改动）。
+- **打开**：双击 .md → 系统以文件路径为参数启动（或唤醒）Oblet → Rust 侧读文件（UTF-8，自动探测 BOM；GBK 等非 UTF-8 弹提示并只读）。默认单窗口多 Tab 模式：重复打开同一文件聚焦已有 Tab；新文件追加到当前窗口并切换。设置中可开启"允许多窗口"恢复每文件一窗口。支持把 .md 拖入窗口就地渲染（追加 Tab）。
+- **Tab 切换**：单 Crepe 实例（replaceAll 方案），内容缓存于内存 Map，切回时免读盘。光标/滚动位置记忆与恢复（PM 原生 scrollIntoView）。Esc 关当前 Tab（单 Tab 退起始页）。窗口标题随 Tab 切换更新。
+- **自动保存**：输入停止 500ms 防抖 → Tauri command 原子写入（写临时文件 + rename）。`Ctrl+S` 立即保存。**换行符跟随原文件**：打开时探测 CRLF/LF，保存时 Rust 侧把 Milkdown 输出的 LF 转换回原样，避免 git 管理的笔记出现全文件换行 diff。内容与磁盘一致时不写回（未编辑零改动）。
 - **外部变更**：notify 监听文件；外部修改时若当前无未落盘内容则自动重载，有则弹提示（不做三方合并）。自身保存通过内容哈希过滤，不触发重载。
 - **本地图片**：v1 仅支持绝对路径图片（`![](绝对路径)`），asset 协议 scope 放开；按 md 所在目录解析相对路径留 v2。暂不支持粘贴图片落盘（v2 候选）。
 
 ## 8. 配置方案 `./data`
 
-运行时只保留排版设置：
+运行时设置（`./data/settings.json`，首次运行自动落盘完整默认形）：
 
 ```json
 {
   "version": 1,
   "editor": {
-    "auto_save": true,
-    "auto_save_delay_ms": 1000,
+    "auto_save": null,
     "text_font": null,
     "mono_font": null,
     "interface_font": null,
-    "base_font_size": null
+    "base_font_size": null,
+    "show_active_block": null,
+    "code_block_wrap": null,
+    "show_author": null,
+    "window_effect": null,
+    "keymap": null,
+    "vault_dir": null,
+    "new_note_dir": null,
+    "allow_multi_window": null,
+    "transition_animation": null
   }
 }
 ```
 
-排版变更通过 Tauri 事件向所有窗口广播，多窗口即时一致。`null` = 跟随主题。
+字段语义（`null` = 取默认行为）：
+- `auto_save`：自动保存开关（null/true = 开，false = 关），防抖 500ms 写死
+- `text_font`/`mono_font`/`interface_font`：排版字体覆盖（null = 硬默认：霞鹜臻楷 GB / JetBrainsMonoNL NF / 华文中宋）
+- `base_font_size`：基础字号（null = 17px）
+- `show_active_block`：光标所在块底色（null/true = 显示）
+- `code_block_wrap`：代码块软换行（null/false = 不换行）
+- `show_author`：起始页署名显示（null/true = 显示）
+- `window_effect`：窗口材质效果（null/"none" = 关，"mica" = Win11 Mica）
+- `keymap`：键位覆盖，命令 id → 组合串（null = 全部默认）
+- `vault_dir`：Obsidian Vault 目标目录（null = 未配置）
+- `new_note_dir`：新建笔记落盘目录（null = 桌面）
+- `allow_multi_window`：允许多窗口（null/false = 单窗口多 Tab；true = 每文件一窗口）
+- `transition_animation`：启动过渡动画（null/false = 关；true = 开）
+
+排版/键位变更通过 Tauri 事件向所有窗口广播，多窗口即时一致。
 
 ## 9. 分发
 
@@ -148,13 +180,13 @@ GPL-3.0 合规：AnuPpuccin 要求再分发时保留版权与许可声明、注�
 
 ## 10. 里程碑
 
-> 定位调整后不再设功能型里程碑。主线只有一条：**把现有体验打磨到可以发布**。以下按优先级排列，不设时间盒。
+> v0.3.0 已发布。后续不设功能型里程碑，主线只有一条：**持续打磨体验**。
 
-| 阶段               | 内容                                                                   | 出口标准                 |
-| ---------------- | -------------------------------------------------------------------- | -------------------- |
-| **P1 修复与打磨**（当前） | 修复已知问题；操作体验打磨（键位细节、属性栏交互、列表/表格编辑手感）；大文档性能检查                          | 日常自用无阻塞性问题，序列化回归测试全过 |
-| **P2 发布**        | 绿色打包、register-md.reg、README（含 AnuPpuccin attribution）、GitHub Actions | Release v0.1.0 发布    |
-| **P3 候选**（按需启）   | 单独定制浅色主题 + 深浅切换；相对路径图片；粘贴图片落盘；源码模式                                   | 逐项单独立项               |
+| 阶段 | 内容 | 出口标准 |
+| --- | --- | --- |
+| **P1 修复与打磨**（v0.1.0 \~ v0.3.0，已完成） | Tab 切换系统、CSP 代码块修复、过渡动画可选、启动打点、.md 图标、PDF 导出、保存至 Obsidian、序列化保真层 | 日常自用无阻塞，序列化回归全过，GitHub Release 发布 |
+| **P2 持续打磨**（当前） | 大文档性能、编辑手感、已知问题修复 | 按需迭代 |
+| **P3 候选**（按需启） | 浅色主题 + 深浅切换；相对路径图片；粘贴图片落盘；源码模式 | 逐项单独立项 |
 
 ## 11. 风险清单
 
@@ -172,7 +204,7 @@ GPL-3.0 合规：AnuPpuccin 要求再分发时保留版权与许可声明、注�
 - 不做库/文件树/双链/图谱/插件系统/同步
 - 不做移动端、macOS、Linux
 - 不做安装器（绿色版 + 可选 reg 脚本）
-- 不做 Markdown 导出（PDF/HTML）
-- 不做源码模式：仅所见即所得（Milkdown 无双模式），源码视图 v2 候选
+- 不做 HTML 导出
+- 不做源码模式：仅所见即所得（Milkdown 无双模式），源码视图 P3 候选
 - 不做相对路径图片解析：v1 仅绝对路径图片
 
