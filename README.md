@@ -7,7 +7,7 @@
 
 主题固化为 AnuPpuccin 深色定制版，视觉向 Obsidian 看齐；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
-![1.00](docs/screenshot.png)
+![1.00](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20260805201120517.png)
 
 ## 特性
 
