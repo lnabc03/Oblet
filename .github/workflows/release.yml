@@ -43,8 +43,17 @@ jobs:
           node .github/pack-zip.mjs
           node .github/audit-zip.mjs
 
+      # 同时发布单 exe（方便直接下载），以版本号重命名
+      - name: Copy standalone exe
+        shell: bash
+        run: |
+          VER=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8')).version")
+          cp src-tauri/target/release/oblet.exe "release/Oblet-${VER}-win-x64.exe"
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/Oblet-*-win-x64.zip
+          files: |
+            release/Oblet-*-win-x64.zip
+            release/Oblet-*-win-x64.exe
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -30,11 +30,8 @@ release/
 *.sw?
 
 # 本地开发资产（不入库，仅存在工作区）：
-# 参考素材（历史主题/测试文档）、开发脚本（验证管线/图标管线/截图）、
-# Claude Code 项目说明、打磨过程文档、序列化回归测试
+# 参考素材、开发脚本、文档、打磨记录、序列化回归测试、Claude Code 说明
 ref/
 scripts/
+docs/
 CLAUDE.md
-Oblet-打磨*.md
-test-*-roundtrip.mjs
-test-fidelity-audit.mjs

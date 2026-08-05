@@ -7,6 +7,23 @@ use state::{fnv1a, window_label_for, AppState};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
+/// 内嵌 .md 文件关联图标（打进 exe，首次启动释放到同级目录供 register-md.bat 使用）
+#[cfg(windows)]
+const MD_ICON_BYTES: &[u8] = include_bytes!("../icons/md.ico");
+
+/// 首次启动时将内嵌的 md.ico 释放到 exe 同级目录
+fn ensure_md_icon() {
+    #[cfg(windows)]
+    {
+        let Ok(exe) = std::env::current_exe() else { return };
+        let Some(dir) = exe.parent() else { return };
+        let dest = dir.join("md.ico");
+        if !dest.exists() {
+            let _ = std::fs::write(&dest, MD_ICON_BYTES);
+        }
+    }
+}
+
 /// 从 exe 同级 data/settings.json 读取 allow_multi_window 设置
 fn read_allow_multi_window() -> bool {
     let exe = std::env::current_exe().ok();
@@ -165,6 +182,9 @@ pub fn run() {
             settings::save_settings,
         ])
         .setup(|app| {
+            // 首次启动释放内嵌的 .md 文件关联图标
+            ensure_md_icon();
+
             // 文件监听器：外部变更（如 Obsidian 保存）→ 通知对应窗口重载
             let handle = app.handle().clone();
             match notify::recommended_watcher(

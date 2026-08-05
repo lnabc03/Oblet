@@ -7,7 +7,7 @@
 
 主题固化为 AnuPpuccin 深色定制版，视觉向 Obsidian 看齐；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
-![Oblet 编辑界面：AnuPpuccin 深色主题、笔记属性栏、callout、代码高亮](docs/screenshot.png)
+![1.00](docs/screenshot.png)
 
 ## 特性
 
@@ -50,23 +50,23 @@ npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 
 ## 快捷键
 
-| 快捷键         | 功能                         |
-| ----------- | -------------------------- |
-| Alt+Left    | 上一个标签页                     |
-| Alt+Right   | 下一个标签页                     |
-| Ctrl+S      | 立即保存                       |
-| Alt+P       | 窗口置顶                       |
-| Ctrl+O      | 保存至 Obsidian                |
-| Ctrl+F      | 检索 / 替换                    |
-| Ctrl+/      | 设置                         |
-| Ctrl+B      | 加粗                         |
-| Ctrl+I      | 斜体                         |
-| Ctrl+\`     | 行内代码                       |
-| Ctrl+H      | 高亮                         |
-| Alt+A       | Callout 包裹 / 回退            |
-| Alt+1 ~ 6   | 一至六级标题（再按一次切回正文）           |
+| 快捷键        | 功能               |
+| ---------- | ---------------- |
+| Alt+Left   | 上一个标签页           |
+| Alt+Right  | 下一个标签页           |
+| Ctrl+S     | 立即保存             |
+| Alt+P      | 窗口置顶             |
+| Ctrl+O     | 保存至 Obsidian     |
+| Ctrl+F     | 检索 / 替换          |
+| Ctrl+/     | 设置               |
+| Ctrl+B     | 加粗               |
+| Ctrl+I     | 斜体               |
+| Ctrl+\`    | 行内代码             |
+| Ctrl+H     | 高亮               |
+| Alt+A      | Callout 包裹 / 回退  |
+| Alt+1 \~ 6 | 一至六级标题（再按一次切回正文） |
 
-除标题键位（固定 Alt+1~6）外，以上组合均可在设置中自定义：点击组合键后按新键位，Esc 取消，双击恢复默认。
+除标题键位（固定 Alt+1\~6）外，以上组合均可在设置中自定义：点击组合键后按新键位，Esc 取消，双击恢复默认。
 
 ## 许可与致谢
 

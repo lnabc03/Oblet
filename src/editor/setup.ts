@@ -25,7 +25,7 @@ import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { confirmDialog, notify, promptDialog } from "../notify";
 import { registerCommand } from "../commands";
-import logoUrl from "../assets/logo.png";
+const logoUrl = "/logo.png";
 import {
   disableEmptyLineBr,
   frontmatterRemark,
