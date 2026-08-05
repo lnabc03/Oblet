@@ -20,6 +20,7 @@ rmSync(stageRoot, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 
 copyFileSync(exe, join(stage, "oblet.exe"));
+copyFileSync(join(root, "README.md"), join(stage, "README.md"));
 // bat 的受控源在 .github/（release/Oblet/ 副本只是运行时镜像，且 release/ 不入库）
 for (const bat of ["register-md.bat", "unregister-md.bat"])
   copyFileSync(join(root, ".github", bat), join(stage, bat));
