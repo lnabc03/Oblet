@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Oblet</title>
-    <!-- 启动过渡动画（原启动遮罩，设置项 transition_animation 可关）：
+    <!-- 启动过渡动画（原启动遮罩，设置项 transition_animation，默认关）：
          内联样式保证首帧即渲染（不等外部 CSS/JS bundle），
          遮盖 boot 期间的加载过程；main.ts 在 boot 结束后淡出移除 -->
     <style>
@@ -37,7 +37,11 @@
       @media print {
         #ob-splash { display: none !important; }
       }
+      /* 过渡动画关闭态：splash-early.js 首帧前挂类，彻底不渲染
+         （reload 时窗口已可见，等 main.ts 异步摘除会闪一帧） */
+      html.ob-no-splash #ob-splash { display: none !important; }
     </style>
+    <script src="./splash-early.js"></script>
   </head>
   <!-- 固化深色单主题：theme-dark + AnuPpuccin Style Settings 定制类（原 oblet-theme.json） -->
   <body class="theme-dark ctp-rosepine-light ctp-mocha-old ctp-accent-light-flamingo ctp-accent-mauve anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">

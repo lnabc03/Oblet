@@ -44,6 +44,9 @@ pub struct EditorSetting {
     // 允许多窗口（批次 7.3）：None/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口
     #[serde(default)]
     pub allow_multi_window: Option<bool>,
+    // 启动过渡动画：None/false = 关（默认）；true = 开。仅启动时由前端 main.ts 读取
+    #[serde(default)]
+    pub transition_animation: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

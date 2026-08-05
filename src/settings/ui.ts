@@ -88,7 +88,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>界面</h3>
         <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
-          <span>显示版本与署名</span>
+          <span>版本与署名</span>
         </label>
         <label class="check-row">
           <input type="checkbox" data-check="allow_multi_window">
@@ -99,8 +99,8 @@ export async function initSettingsUI(container: HTMLElement) {
           <span>Mica 材质</span>
         </label>
         <label class="check-row">
-          <input type="checkbox" data-check="transition_animation" data-default="true">
-          <span>启动过渡动画</span>
+          <input type="checkbox" data-check="transition_animation">
+          <span>过渡动画</span>
         </label>
       </div>
       <div class="settings-section">
@@ -255,6 +255,13 @@ export async function initSettingsUI(container: HTMLElement) {
         const patch: Record<string, boolean | null> = {};
         patch[input.dataset.check!] = input.checked === def ? null : input.checked;
         await switchTypography(patch);
+        // 过渡动画：即时镜像 localStorage——本会话内的 reload（Esc/追加 tab）
+        // 由 splash-early.js 读它决定首帧显隐，不等下次启动收敛
+        if (input.dataset.check === "transition_animation") {
+          try {
+            localStorage.setItem("oblet.transition_animation", String(input.checked));
+          } catch { /* 忽略 */ }
+        }
       });
     });
 

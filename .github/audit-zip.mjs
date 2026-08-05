@@ -38,6 +38,12 @@ check(
   "bat 脚本齐全",
   ["register-md.bat", "unregister-md.bat"].every((f) => existsSync(join(tmp, f)))
 );
+// .md 文件关联图标随包发行（register-md.bat 的 DefaultIcon 依赖）
+check(
+  "md.ico 随包且与受控源一致",
+  existsSync(join(tmp, "md.ico")) &&
+    md5(join(tmp, "md.ico")) === md5(join(root, "src-tauri", "icons", "md.ico"))
+);
 // 绿色包不得夹带本机个人设置——曾因 release/Oblet/data 残留把私人字体/键位
 // 覆盖/auto_save=false 打进 zip；data/ 由运行时自建，打包不带（查整个目录，
 // 不限 settings.json 单文件；现由 pack-zip.mjs 干净暂存根治）

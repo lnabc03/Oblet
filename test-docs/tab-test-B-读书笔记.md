@@ -15,14 +15,14 @@ Intel 处理器系列俗称 **x86**，经历了长期的进化：
 
 ### 3.2 数据格式
 
-| C 类型    | Intel 助记 | 字节 |
-| --------- | ---------- | ---- |
-| `char`    | `b` (byte) | 1    |
-| `short`   | `w` (word) | 2    |
-| `int`     | `l` (long) | 4    |
-| `long`    | `q` (quad) | 8    |
-| `float`   | `s` (single) | 4  |
-| `double`  | `l` (long)   | 8  |
+| C 类型     | Intel 助记     | 字节 |
+| -------- | ------------ | -- |
+| `char`   | `b` (byte)   | 1  |
+| `short`  | `w` (word)   | 2  |
+| `int`    | `l` (long)   | 4  |
+| `long`   | `q` (quad)   | 8  |
+| `float`  | `s` (single) | 4  |
+| `double` | `l` (long)   | 8  |
 
 ### 3.3 操作数指示符
 
@@ -46,3 +46,4 @@ exchange:
 
 > [!tip] 记忆技巧
 > `movq` 中的 **q** 表示 quad word（8 字节）。还有一个重要的细节：**立即数**不能作为目标操作数。
+

@@ -20,6 +20,8 @@ rmSync(stageRoot, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 
 copyFileSync(exe, join(stage, "oblet.exe"));
+// .md 文件关联图标（register-md.bat 的 DefaultIcon 指向它，与软件本体图标区分）
+copyFileSync(join(root, "src-tauri", "icons", "md.ico"), join(stage, "md.ico"));
 // bat 的受控源在 .github/（release/Oblet/ 副本只是运行时镜像，且 release/ 不入库）
 for (const bat of ["register-md.bat", "unregister-md.bat"])
   copyFileSync(join(root, ".github", bat), join(stage, bat));

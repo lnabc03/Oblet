@@ -5,6 +5,8 @@ rem 本脚本自动定位同目录下的 oblet.exe，无需手动改路径；移动文件夹后重新运行一次
 
 setlocal
 set "EXE=%~dp0oblet.exe"
+set "ICO=%~dp0md.ico"
+if not exist "%ICO%" set "ICO=%EXE%"
 
 if not exist "%EXE%" (
     echo [错误] 未找到 %EXE%
@@ -15,7 +17,8 @@ if not exist "%EXE%" (
 
 rem 1. ProgID：Oblet 的 .md 文件类型
 reg add "HKCU\Software\Classes\Oblet.md" /ve /d "Markdown 文件" /f >nul
-reg add "HKCU\Software\Classes\Oblet.md\DefaultIcon" /ve /d "\"%EXE%\",0" /f >nul
+reg add "HKCU\Software\Classes\Oblet.md\DefaultIcon" /ve /d "\"%ICO%\",0" /f >nul
+reg add "HKCU\Software\Classes\Applications\oblet.exe\DefaultIcon" /ve /d "\"%ICO%\",0" /f >nul
 reg add "HKCU\Software\Classes\Oblet.md\shell\open\command" /ve /d "\"%EXE%\" \"%%1\"" /f >nul
 
 rem 2. .md 的打开方式列表中加入 Oblet.md

@@ -30,19 +30,30 @@ fn read_allow_multi_window() -> bool {
 /// 批次 7.3：allow_multi_window=false（默认）时追加到前台窗口的 tab 列表
 fn open_or_focus(app: &AppHandle, path: &str) {
     let label = window_label_for(path);
-    if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.unminimize();
-        let _ = win.set_focus();
-        return;
-    }
-
-    // 拖入换过文件的窗口 label 与路径哈希不再对应，按登记路径再查一次
-    if let Some(existing) = app.state::<AppState>().label_for_path(path) {
-        if let Some(win) = app.get_webview_window(&existing) {
+    // label 命中 ≠ 文件仍开着：Esc 退起始页后窗口保留建窗时的 label 但登记已清，
+    // 只聚焦会停在起始页。登记仍在 → 聚焦去重；登记已清 → 通知该窗口重开
+    if app.state::<AppState>().label_for_path(path).is_some() {
+        if let Some(win) = app.get_webview_window(&label) {
             let _ = win.unminimize();
             let _ = win.set_focus();
             return;
         }
+
+        // 拖入换过文件的窗口 label 与路径哈希不再对应，按登记路径再查一次
+        if let Some(existing) = app.state::<AppState>().label_for_path(path) {
+            if let Some(win) = app.get_webview_window(&existing) {
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+                return;
+            }
+        }
+    } else if let Some(win) = app.get_webview_window(&label) {
+        // 窗口是当初为这个文件建的（label 哈希相同）但已退起始页/换了内容：
+        // 聚焦并让它重新打开（定向 emit，多窗口模式下不能广播到所有窗口）
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+        let _ = win.emit("add-tab", serde_json::json!({ "path": path }));
+        return;
     }
 
     // 多窗口=关（默认）→ 加到前台窗口的 tab 列表中

@@ -11,17 +11,27 @@ import { initKeymap } from "./commands";
 
 // 窗口初始隐藏（lib.rs visible(false)）：透明窗口从 WebView2 就绪到首帧 paint
 // 之间会白屏/透屏/异常渲染，等首帧画好后再揭窗。Rust 侧有 3s 兜底。
-// 过渡动画关闭时（设置项 transition_animation）：窗口尚隐藏，摘除 splash 不可见，
-// 用户看到的是素底加载页而非 logo 动画
+// 过渡动画默认关（设置项 transition_animation，显式 true 才开）：
+// 关闭时窗口尚隐藏，摘除 splash 不可见，用户看到的是素底加载页而非 logo 动画
 void (async () => {
-  let splashOn = true;
+  let splashOn = false;
   try {
     const s = await invoke<{ editor?: { transition_animation?: boolean | null } }>(
       "get_settings"
     );
-    splashOn = s.editor?.transition_animation !== false;
-  } catch { /* 读取失败按默认开 */ }
-  if (!splashOn) document.getElementById("ob-splash")?.remove();
+    splashOn = s.editor?.transition_animation === true;
+  } catch { /* 读取失败按默认关 */ }
+  // 镜像生效值给 splash-early.js：reload（Esc/追加 tab）时窗口已可见，
+  // 它靠 localStorage 在首帧前隐藏 splash，避免闪一帧动画
+  try {
+    localStorage.setItem("oblet.transition_animation", String(splashOn));
+  } catch { /* 忽略 */ }
+  if (splashOn) {
+    // localStorage 滞后于设置时 splash-early 误藏了节点，摘类恢复
+    document.documentElement.classList.remove("ob-no-splash");
+  } else {
+    document.getElementById("ob-splash")?.remove();
+  }
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
       void getCurrentWindow().show();

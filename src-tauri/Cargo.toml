@@ -1,6 +1,6 @@
 [package]
 name = "oblet"
-version = "0.2.0"
+version = "0.3.0"
 description = "A lightweight standalone Markdown editor, Obsidian-theme compatible"
 authors = ["lnabc03"]
 edition = "2021"
