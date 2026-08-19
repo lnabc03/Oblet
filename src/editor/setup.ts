@@ -7,7 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll, callCommand, $prose } from "@milkdown/utils";
-import { editorViewCtx } from "@milkdown/core";
+import { editorViewCtx, serializerCtx } from "@milkdown/core";
 import {
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
@@ -519,10 +519,33 @@ export async function boot() {
   await crepe.create();
   bootTiming.crepeCreated = performance.now();
   if (payload.readonly) crepe.setReadonly(true);
+  // 末尾空段落不落地：trailing 插件为"文末可点击"在列表/表格/代码块结尾后
+  // 自动补一个空段落，序列化会多出 EOF 空行——既污染原文，又击穿 flushSave
+  // "内容与磁盘一致不写回"的防线（仅打开就更新 mtime）。在序列化出口统一剥除：
+  // 解析侧本就不为尾部空行生成节点，剥除后往返字节级稳定；编辑中用户回车
+  // 产生的末尾空段落同型处理（markdown 语义折叠多余空行，视觉无差）。
+  crepe.editor.action((ctx) => {
+    ctx.update(serializerCtx, (prev) => (doc) => {
+      let md = prev(doc);
+      let n = 0;
+      for (let i = doc.childCount - 1; i >= 0; i--) {
+        const c = doc.child(i);
+        if (c.type.name === "paragraph" && c.content.size === 0) n++;
+        else break;
+      }
+      while (n > 0 && md.endsWith("\n\n")) {
+        md = md.slice(0, -1);
+        n--;
+      }
+      return md;
+    });
+  });
   // Crepe.create 期间 Milkdown 内部可能产生修正事务（如 schema 规范化），
   // userEditTracker 的 appendTransaction 钩子会误判为"用户编辑"置 dirty=true。
-  // 创建完毕后重置，后续只有真实编辑才标脏
+  // 创建完毕后重置，后续只有真实编辑才标脏；一并清掉已排上的自动保存定时器，
+  // 否则它会带着 create 期的瞬态内容在 500ms 后误触发一次落盘
   dirty = false;
+  window.clearTimeout(saveTimer);
   await invoke("watch_file", { path });
 
   // 格式化快捷键（十轮 #4）：经命令注册表统一派发（捕获阶段拦截 + preventDefault，

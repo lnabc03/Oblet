@@ -42,8 +42,13 @@ export const frontmatterSchema = $nodeSchema('frontmatter', () => ({
     match: ({ type }) => type === 'yaml',
     runner: (state, node, type) => {
       const value = (node as unknown as { value?: string }).value
+      // micromark 的 frontmatter value 是原文切片，CRLF 文件的 \r 会保留下来
+      //（正文行尾则被统一归一为 \n）。不归一会三连炸：parseFmRows 的 .* 不吃 \r
+      // 导致键值行全降级 fm-raw 单列；input value 归一化吃 \r 让 commit 误判有改动
+      // 而触发假保存；getMarkdown 混排 \r\n 击穿"与磁盘一致不写回"防线。
+      // 文档内统一 LF，落盘时由 Rust 侧按原文件换行符还原 CRLF。
       state.openNode(type)
-      if (value) state.addText(value)
+      if (value) state.addText(value.replace(/\r\n?/g, '\n'))
       state.closeNode()
     },
   },
@@ -63,8 +68,10 @@ interface FmRow {
   value: string
 }
 
+// 防御性剥离 \r：正常路径文档内已无 \r（parseMarkdown 归一化），
+// 但粘贴等路径仍可能带入；.* 不吃 \r，带 \r 的行会失配降级 fm-raw
 const parseFmRows = (text: string): FmRow[] =>
-  text.split('\n').map((line) => {
+  text.replace(/\r\n?/g, '\n').split('\n').map((line) => {
     const m = /^([^:#\s][^:]*):\s?(.*)$/.exec(line)
     return m ? { key: (m[1] as string).trim(), value: m[2] as string } : { key: null, value: line }
   })
