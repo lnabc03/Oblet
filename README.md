@@ -7,7 +7,7 @@
 
 主题固化为 AnuPpuccin 深色定制版，视觉向 Obsidian 看齐；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
-![1.00](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20260805201120517.png)
+![Oblet 界面：属性栏、悬浮目录、Callout 与代码高亮](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20260819194806515.png)
 
 ## 特性
 
@@ -18,6 +18,7 @@
 - **Callout**：`> [!note]` 等 13 类 Obsidian 风格提示块（别名兼容、带图标），右键菜单一键创建 / 切换 / 回退
 - **高亮**：`==文本==` 语法，渲染时隐藏标记
 - **检索与替换**：Ctrl+F 全文档高亮、循环跳转、逐个 / 全部替换
+- **悬浮目录**：右侧常驻浮层——收起态为进度球（单击回顶 / 再点回光标行）与层级指示条，悬停展开 H1–H4 标题面板，点击跳转，当前位置跟随光标高亮；可在设置中关闭
 - **自动保存**：默认开启（500ms 防抖，可在设置中关闭）+ Ctrl+S；原子写入（临时文件 + rename），换行符跟随原文件
 - **外部变更监听**：文件被外部修改时自动重载（有未保存内容则提示，绝不静默覆盖）
 - **只读保护**：非 UTF-8 文件以只读方式打开，绝不乱码写回
@@ -72,6 +73,7 @@ npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 
 - Oblet 源码：[GPL-3.0 License](LICENSE)（Copyright © 2026 弋鹓 | lnabc03）——因包含 GPL-3.0 许可的 AnuPpuccin 衍生样式，整体按 GPL-3.0 发布
 - 编辑器主题基于 **[AnuPpuccin](https://github.com/AnubisNekhet/AnuPpuccin)**（GPL-3.0）深度定制，感谢作者 AnubisNekhet——如果你喜欢这个主题，可以[请作者喝杯咖啡](https://www.buymeacoffee.com/anubisnekhet)
+- 悬浮目录外观参考自 Obsidian 插件 **[Next TOC](https://github.com/Raven-Pensieve/obsidian-next-toc)**（GPL-3.0），感谢作者 RavenHogWarts
 - 构建于 [Milkdown](https://milkdown.dev/) / [Crepe](https://github.com/Milkdown/crepe)、[CodeMirror](https://codemirror.net/)、[KaTeX](https://katex.org/)、[Tauri](https://tauri.app/) 之上
 - 发行包 `licenses/` 目录内含全部第三方许可文本
 
