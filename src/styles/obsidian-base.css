@@ -133,7 +133,9 @@ body.ob-vibrancy .search-bar,
 body.ob-vibrancy .settings-panel,
 body.ob-vibrancy .toast,
 body.ob-vibrancy .ob-confirm,
-body.ob-vibrancy .context-menu {
+body.ob-vibrancy .context-menu,
+body.ob-vibrancy .ob-toc-panel,
+body.ob-vibrancy .ob-toc-progress {
   background: rgba(var(--ctp-base, 30, 30, 46), 0.8);
   backdrop-filter: blur(1px) saturate(2);
   -webkit-backdrop-filter: blur(1px) saturate(2);
@@ -1027,7 +1029,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* 工具区不上纸：置顶/设置按钮、检索浮条、设置浮层、右键菜单、toast、确认弹窗、tab 箭头 */
+  /* 工具区不上纸：置顶/设置按钮、检索浮条、设置浮层、右键菜单、toast、确认弹窗、tab 箭头、悬浮 TOC */
   .pin-btn,
   .settings-btn,
   .tab-arrow-left,
@@ -1036,6 +1038,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   .settings-overlay,
   .context-menu,
   .ob-confirm-overlay,
+  .ob-toc,
   .toast {
     display: none !important;
   }

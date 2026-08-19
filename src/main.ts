@@ -4,6 +4,7 @@
 import "@milkdown/crepe/theme/common/style.css";
 import "./styles/obsidian-base.css";
 import "./styles/anuppuccin-custom.css";
+import "./styles/toc.css"; // 悬浮 TOC（主题变量就绪后加载）
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { boot } from "./editor/setup";

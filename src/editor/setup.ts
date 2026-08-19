@@ -20,6 +20,7 @@ import { currentEditorSettings, initTypography } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
+import { tocPlugin } from "./toc";
 import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
@@ -507,6 +508,7 @@ export async function boot() {
       .use(taskListSpaceTrim.plugin)
       .use(userEditTracker)
       .use(searchPlugin)
+      .use(tocPlugin)
       .use(contextMenuPlugin)
       .use(disableEmptyLineBr)
   );
@@ -633,6 +635,20 @@ export async function boot() {
       activeIndex: () => tabsModel.activeIndex,
       activePath: () => tabsModel.activePath,
       paths: () => tabsModel.paths,
+    },
+    /** 悬浮 TOC 验证钩子（读插件 DOM，不触内部状态） */
+    toc: {
+      count: () => document.querySelectorAll(".ob-toc-item").length,
+      items: () =>
+        Array.from(document.querySelectorAll<HTMLElement>(".ob-toc-item")).map((el) => ({
+          text: el.querySelector(".ob-toc-item-text")?.textContent ?? "",
+          depth: el.dataset.actualDepth,
+          active: el.dataset.active === "true",
+        })),
+      activeIndex: () => {
+        const el = document.querySelector<HTMLElement>('.ob-toc-item[data-active="true"]');
+        return el ? Number(el.dataset.index) : -1;
+      },
     },
   };
 

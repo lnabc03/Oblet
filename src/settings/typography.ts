@@ -35,6 +35,8 @@ export interface EditorSettings {
   allow_multi_window?: boolean | null;
   /** 过渡动画（原启动遮罩）：null/false = 关（默认）；true = 开。仅启动时由 main.ts 读取 */
   transition_animation?: boolean | null;
+  /** 悬浮 TOC：null/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控） */
+  toc?: boolean | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -90,6 +92,8 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-code-wrap", e.code_block_wrap === true);
   // 起始页版本与署名显示开关（默认显示，显式 false 才隐藏）
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
+  // 悬浮 TOC 开关（默认显示，显式 false 才隐藏；CSS 门控，TOC 插件零接线）
+  document.body.classList.toggle("ob-toc-hidden", e.toc === false);
   // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路
   const effect =
     e.window_effect && e.window_effect !== "none" ? e.window_effect : null;

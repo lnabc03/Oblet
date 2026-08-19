@@ -47,6 +47,9 @@ pub struct EditorSetting {
     // 启动过渡动画：None/false = 关（默认）；true = 开。仅启动时由前端 main.ts 读取
     #[serde(default)]
     pub transition_animation: Option<bool>,
+    // 悬浮 TOC：None/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控）
+    #[serde(default)]
+    pub toc: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]

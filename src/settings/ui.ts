@@ -83,6 +83,10 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="checkbox" data-check="code_block_wrap">
           <span>代码自动换行</span>
         </label>
+        <label class="check-row">
+          <input type="checkbox" data-check="toc" data-default="true">
+          <span>悬浮目录</span>
+        </label>
       </div>
       <div class="settings-section">
         <h3>界面</h3>

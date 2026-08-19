@@ -1,0 +1,238 @@
+/* ============================================================
+   悬浮 TOC（外观移植 obsidian-next-toc，GPL-3.0 同源）
+   收起态：进度球 + bar 指示条；.ob-toc-expanded 时切换为展开面板
+   变量一律走 --ob-* 桥；圆角/阴影按项目字面量惯例（search-bar 同款）
+   ============================================================ */
+
+.ob-toc {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%); /* 始终垂直居中，不随窗口高度漂移 */
+  right: 40px; /* tab 箭头占右缘 4-36px（z10），TOC 固定预留（z30） */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  font-family: var(--font-interface, var(--ob-font));
+}
+
+/* hover 区：指示条 + 展开面板（进度球在区外，悬停不触发展开） */
+.ob-toc-hoverzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* 0 个标题：整体隐藏；设置开关：body 类门控（applyTypography 维护，跨窗口广播） */
+.ob-toc.ob-toc-empty,
+body.ob-toc-hidden .ob-toc {
+  display: none !important;
+}
+
+/* ---------------- 进度球（单击回顶 / 双击回光标） ---------------- */
+
+.ob-toc-progress {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--ob-bg-alt);
+  border: 1px solid var(--ob-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ob-toc-progress svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* 进度从 12 点方向起算 */
+}
+
+.ob-toc-progress-trail {
+  fill: none;
+  stroke: var(--ob-border);
+  stroke-width: 8;
+}
+
+.ob-toc-progress-path {
+  fill: none;
+  stroke: var(--ob-accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 289.03; /* 2πr, r=46 */
+  stroke-dashoffset: 289.03;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.ob-toc-progress-text {
+  fill: var(--ob-text);
+  font-size: 24px;
+  text-anchor: middle;
+  transform: rotate(90deg); /* 抵消 svg 旋转，文字保持水平 */
+  transform-origin: 50px 50px;
+}
+
+/* ---------------- bar 指示条（宽度编码层级） ---------------- */
+
+.ob-toc-indicators {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-height: 70dvh;
+  overflow: hidden;
+}
+
+.ob-toc-indicator {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  margin: 2px 0;
+}
+
+.ob-toc-indicator[data-actual-depth="0"] { width: 2.25rem; }
+.ob-toc-indicator[data-actual-depth="1"] { width: 1.75rem; }
+.ob-toc-indicator[data-actual-depth="2"] { width: 1.25rem; }
+.ob-toc-indicator[data-actual-depth="3"] { width: 1rem; }
+
+.ob-toc-indicator > span {
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--ob-border);
+  transition: background-color 0.2s ease;
+}
+
+.ob-toc-indicator[data-active="true"] > span {
+  background: var(--ob-accent);
+}
+
+/* ---------------- 展开面板（进出场动画照搬 next-toc） ---------------- */
+
+.ob-toc-panel {
+  position: absolute;
+  top: 50%; /* 以 hover 区中点为锚（≈窗口中点），面板居中展开：
+               max-height 75dvh 居中后上下最多各延 37.5dvh，永不超出视口 */
+  right: 0;
+  width: 200px;
+  max-height: 75dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: color-mix(in srgb, var(--ob-bg-alt) 92%, transparent);
+  border: 1px solid var(--ob-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(-50%) translateX(20px) scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.2, 0, 0, 1),
+    display 0.2s allow-discrete;
+}
+
+/* 收起态：从布局移除，display 借 allow-discrete 参与过渡 */
+.ob-toc:not(.ob-toc-expanded) .ob-toc-panel {
+  display: none;
+}
+
+.ob-toc-expanded .ob-toc-panel {
+  opacity: 1;
+  transform: translateY(-50%) translateX(8px);
+  pointer-events: auto;
+}
+
+/* 进场起始态：从右缘滑入淡入（不支持的 WebView 自动降级为瞬时显隐） */
+@starting-style {
+  .ob-toc-expanded .ob-toc-panel {
+    opacity: 0;
+    transform: translateY(-50%) translateX(20px) scale(0.98);
+  }
+}
+
+/* 展开时藏起进度球与指示条（同一占位，视觉切换） */
+.ob-toc-expanded .ob-toc-progress,
+.ob-toc-expanded .ob-toc-indicators {
+  visibility: hidden;
+}
+
+/* 顶部进度条（sticky 吸顶） */
+.ob-toc-panel-progress {
+  position: sticky;
+  top: 0;
+  height: 2px;
+  z-index: 1;
+  background: var(--ob-border);
+  border-radius: 8px 8px 0 0;
+}
+
+.ob-toc-panel-progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--ob-accent) 0%, var(--ob-accent-soft) 100%);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------------- 标题列表项 ---------------- */
+
+.ob-toc-items {
+  padding: 4px 6px;
+}
+
+.ob-toc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ob-text);
+  cursor: pointer;
+  min-height: 1.75rem;
+  margin: 3px 0;
+  padding: 3px 8px;
+  border-radius: 5px;
+  transition: all 0.2s ease;
+}
+
+.ob-toc-item[data-actual-depth="0"] { padding-left: 0.875rem; font-weight: 600; }
+.ob-toc-item[data-actual-depth="1"] { padding-left: 1.875rem; }
+.ob-toc-item[data-actual-depth="2"] { padding-left: 2.875rem; }
+.ob-toc-item[data-actual-depth="3"] { padding-left: 3.875rem; }
+
+.ob-toc-item:hover {
+  background: color-mix(in srgb, var(--ob-text) 10%, transparent);
+  transform: translateX(5px);
+}
+
+.ob-toc-item[data-active="true"] {
+  color: var(--ob-accent);
+}
+
+.ob-toc-item[data-active="true"] .ob-toc-item-level {
+  background: var(--ob-accent);
+  color: var(--ob-bg);
+}
+
+.ob-toc-item-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-align: left;
+  /* 目录文本跟随正文字体（覆盖容器的界面字体） */
+  font-family: var(--font-text, var(--ob-font));
+}
+
+/* H 徽标 */
+.ob-toc-item-level {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ob-text-mut);
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ob-text) 10%, transparent);
+}
