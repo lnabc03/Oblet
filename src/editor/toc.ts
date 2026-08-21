@@ -1,5 +1,6 @@
 // 悬浮 TOC（外观移植 obsidian-next-toc，vanilla TS + ProseMirror 重写，GPL-3.0 同源）
-// 收起态：进度球 + bar 指示条；hover 500ms 展开面板，移开 300ms 缓冲关闭
+// 收起态：进度球 + bar 指示条；hover 300ms 面板从 bar 左缘 clip-path 抽屉式展开（不覆盖 bar/进度球），
+// 移开 300ms 缓冲关闭。bar 与面板行一一对齐（同 26px 行距），悬停双向联动高亮，两侧均可点击跳转。
 // 数据驱动：docChanged 事务重扫标题（切 tab 的 replaceAll 自然触发，无需 tab 钩子）；
 // active 判定光标优先——selection 所在标题区间高亮，滚动不追
 import { $prose } from "@milkdown/utils";
@@ -13,7 +14,7 @@ interface TocHeading {
 }
 
 const MAX_LEVEL = 4; // 仅解析 H1-H4
-const EXPAND_DELAY = 500; // hover 展开延迟
+const EXPAND_DELAY = 300; // hover 展开延迟
 const COLLAPSE_DELAY = 300; // 移开关闭缓冲（重进取消）
 
 /** 收集 H1-H4 标题（textContent 天然纯文本，行内标记不进串） */
@@ -45,12 +46,11 @@ export const tocPlugin = $prose(
       view(v) {
         const container = document.createElement("div");
         container.className = "ob-toc ob-toc-empty";
-        // hover 区（指示条 + 展开面板）与进度球分离：进度球悬停不触发展开，只有单击回顶
+        // hover 区（指示条 + 抽屉面板）与进度球分离：进度球悬停不触发展开，只有单击回顶
         container.innerHTML = `
           <div class="ob-toc-hoverzone">
             <div class="ob-toc-indicators"></div>
             <div class="ob-toc-panel">
-              <div class="ob-toc-panel-progress"><div class="ob-toc-panel-progress-fill"></div></div>
               <div class="ob-toc-items"></div>
             </div>
           </div>
@@ -70,7 +70,6 @@ export const tocPlugin = $prose(
         const progressEl = container.querySelector<HTMLElement>(".ob-toc-progress")!;
         const progressPath = container.querySelector<SVGCircleElement>(".ob-toc-progress-path")!;
         const progressText = container.querySelector<SVGTextElement>(".ob-toc-progress-text")!;
-        const panelFill = container.querySelector<HTMLElement>(".ob-toc-panel-progress-fill")!;
 
         // 滚动容器：.ProseMirror 向上找 .markdown-rendered（obsidian-base.css 的滚动容器）
         const scrollEl = v.dom.closest(".markdown-rendered") as HTMLElement | null;
@@ -84,7 +83,7 @@ export const tocPlugin = $prose(
         let expandTimer: number | undefined;
         let collapseTimer: number | undefined;
 
-        // ---- hover 时序：500ms 展开 / 300ms 缓冲关闭（仅 hover 区触发，进度球除外） ----
+        // ---- hover 时序：300ms 展开 / 300ms 缓冲关闭（仅 hover 区触发，进度球除外） ----
         hoverzoneEl.addEventListener("mouseenter", () => {
           window.clearTimeout(collapseTimer);
           if (expanded) return;
@@ -129,7 +128,6 @@ export const tocPlugin = $prose(
           const pct = range > 0 ? Math.min(100, Math.max(0, (scrollEl.scrollTop / range) * 100)) : 100;
           progressText.textContent = `${Math.round(pct)}%`;
           progressPath.style.strokeDashoffset = String(CIRCLE_LEN * (1 - pct / 100));
-          panelFill.style.width = `${pct}%`;
         };
         scrollEl?.addEventListener(
           "scroll",
@@ -181,14 +179,21 @@ export const tocPlugin = $prose(
             item.className = "ob-toc-item";
             item.dataset.index = String(i);
             item.dataset.actualDepth = String(depth);
+            if (h.text) item.title = h.text; // 省略号时 tooltip 看全文
             const text = document.createElement("span");
             text.className = "ob-toc-item-text";
             text.textContent = h.text || "（空标题）";
-            const badge = document.createElement("span");
-            badge.className = "ob-toc-item-level";
-            badge.textContent = `H${h.level}`;
-            item.append(text, badge);
+            item.appendChild(text);
+
+            // 悬停双向联动：任一侧悬停，对应行同步高亮；两侧均可点击跳转
+            const link = (a: HTMLElement, b: HTMLElement) => {
+              a.addEventListener("mouseenter", () => { b.dataset.hover = "true"; });
+              a.addEventListener("mouseleave", () => { b.dataset.hover = "false"; });
+            };
+            link(item, bar);
+            link(bar, item);
             item.addEventListener("click", () => jumpTo(i));
+            bar.addEventListener("click", () => jumpTo(i));
             itemsEl.appendChild(item);
           });
           container.classList.toggle("ob-toc-empty", headings.length === 0);
