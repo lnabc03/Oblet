@@ -58,10 +58,15 @@ jobs:
           VER=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8')).version")
           cp src-tauri/target/release/oblet.exe "release/Oblet-${VER}-win-x64.exe"
 
+      # 从 CHANGELOG.md 提取当前版本变更说明，作为 Release 正文（不再手动补 changelog）
+      - name: Extract release notes
+        run: node .github/extract-release-notes.mjs
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release/Oblet-*-win-x64.zip
             release/Oblet-*-win-x64.exe
+          body_path: release/release-notes.md
           token: ${{ secrets.GITHUB_TOKEN }}
