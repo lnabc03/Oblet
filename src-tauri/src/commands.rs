@@ -34,6 +34,12 @@ pub fn get_boot_marks() -> BootMarks {
     }
 }
 
+/// 取回并清空首实例启动时的 --new 目标目录（右键「新建 Markdown 文档」）
+#[tauri::command]
+pub fn take_pending_new_dir(state: State<AppState>) -> Option<String> {
+    state.pending_new_dir.lock().unwrap().take()
+}
+
 /// 窗口 tab 信息（批次 7.3 多文档单窗口）
 #[derive(Serialize, Clone)]
 pub struct TabsPayload {

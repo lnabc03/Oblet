@@ -26,6 +26,8 @@ pub struct AppState {
     pub watched: Mutex<HashMap<String, HashSet<PathBuf>>>,
     /// 归一化路径 → 最近一次读到/写入的内容哈希（自写事件过滤 + 重复事件去重）
     pub last_hash: Mutex<HashMap<String, u64>>,
+    /// 右键「新建 Markdown 文档」首实例启动时的目标目录（--new %V），前端 boot 后取走
+    pub pending_new_dir: Mutex<Option<String>>,
 }
 
 impl AppState {

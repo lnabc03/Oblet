@@ -134,6 +134,50 @@ export async function boot() {
   // tabCallbacks 在编辑器创建后赋值；空状态路径中为 null
   let tabCallbacks: Parameters<typeof switchToTab>[3] | null = null;
 
+  // 新建 Markdown 笔记统一入口（起始页按钮 + 右键「新建 Markdown 文档」shell 命令共用）。
+  // dir 非空 = 右键传入的目标目录（%V）；为空 = 走设置 new_note_dir → 桌面兜底。
+  async function createNoteIn(dir: string) {
+    const name = await promptDialog("新建 Markdown 笔记", "输入文件名（不含 .md）", "创建");
+    if (!name) return;
+    // 净化：去非法字符、确保以 .md 结尾
+    const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
+    if (!clean) { notify("文件名不能为空", "warn"); return; }
+    const fileName = clean.endsWith(".md") ? clean : `${clean}.md`;
+    // 目标目录：右键传入目录优先 → 设置 new_note_dir（经规整管线）→ 桌面兜底
+    let targetDir = dir ? sanitizePathInput(dir) : "";
+    if (!targetDir) {
+      const raw = currentEditorSettings().new_note_dir?.trim();
+      targetDir = raw ? sanitizePathInput(raw) : "";
+    }
+    if (!targetDir) targetDir = await invoke<string>("get_desktop_dir").catch(() => "");
+    if (!targetDir) { notify("无法确定新建目录，请到 设置 → 路径 填写", "warn"); return; }
+
+    const doCreate = (overwrite: boolean) =>
+      invoke<string>("create_note", { dir: targetDir, fileName, overwrite });
+    let dest: string;
+    try {
+      dest = await doCreate(false);
+    } catch (e) {
+      if (String(e) !== "EXISTS") { notify(`创建失败：${e}`, "error"); return; }
+      const ok = await confirmDialog(`目标已存在同名文件：\n${targetDir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
+      if (!ok) return;
+      try {
+        dest = await doCreate(true);
+      } catch (e2) { notify(`创建失败：${e2}`, "error"); return; }
+    }
+
+    // 打开：起始页（无编辑器）→ 登记后 reload 走编辑态；编辑态 → 追加 tab 并切换
+    if (!tabCallbacks) {
+      await invoke<TabsPayload>("add_tab", { path: dest }).catch((e) => notify(`打开失败：${e}`, "error"));
+      location.reload();
+      return;
+    }
+    const result = await invoke<TabsPayload>("add_tab", { path: dest }).catch(() => null);
+    if (!result) { notify("打开失败", "error"); return; }
+    tabArrows.show(result.tabs.length >= 2);
+    await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
+  }
+
   // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
   await listen("add-tab", async (event: { payload: { path: string } }) => {
     const { path: newPath } = event.payload;
@@ -170,6 +214,11 @@ export async function boot() {
     }
   });
 
+  // ---- new-note-at 事件监听（右键「新建 Markdown 文档」转发到运行中的实例） ----
+  await listen("new-note-at", (event: { payload: string }) => {
+    if (event.payload) void createNoteIn(event.payload);
+  });
+
   if (!initialPayload) {
     // 重置窗口标题（Esc 退回起始页后避免残留旧文件名）
     await getCurrentWindow().setTitle("Oblet").catch(() => {});
@@ -190,42 +239,15 @@ export async function boot() {
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
-    // "新建 Markdown 笔记"按钮：弹出文件名输入框 → 创建 → 打开
+    // "新建 Markdown 笔记"按钮 → 走统一入口（默认目录：设置 new_note_dir → 桌面）
     empty.querySelector(".empty-new-note")?.addEventListener("click", async () => {
-      const name = await promptDialog("新建 Markdown 笔记", "输入文件名（不含 .md）", "创建");
-      if (!name) return;
-      // 净化：去非法字符、确保以 .md 结尾
-      const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
-      if (!clean) { notify("文件名不能为空", "warn"); return; }
-      const fileName = clean.endsWith(".md") ? clean : `${clean}.md`;
-      // 目标目录：设置值优先（经规整管线，与 vault_dir 同款容错）→ 桌面兜底
-      const cfg = currentEditorSettings();
-      const raw = cfg.new_note_dir?.trim();
-      const dir = raw ? sanitizePathInput(raw) || await invoke<string>("get_desktop_dir").catch(() => "") : await invoke<string>("get_desktop_dir").catch(() => "");
-      if (!dir) { notify("无法确定新建目录，请到 设置 → 路径 填写", "warn"); return; }
-      try {
-        const dest = await invoke<string>("create_note", { dir, fileName, overwrite: false });
-        const result = await invoke<TabsPayload>("add_tab", { path: dest });
-        tabsModel.sync(result.tabs, result.active_index);
-        // 新建笔记从起始页进入编辑态：需要初始化编辑器
-        location.reload();
-      } catch (e) {
-        if (String(e) === "EXISTS") {
-          const ok = await confirmDialog(`目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
-          if (!ok) return;
-          try {
-            const dest = await invoke<string>("create_note", { dir, fileName, overwrite: true });
-            const result = await invoke<TabsPayload>("add_tab", { path: dest });
-            tabsModel.sync(result.tabs, result.active_index);
-            location.reload();
-          } catch (e2) {
-            notify(`创建失败：${e2}`, "error");
-          }
-        } else {
-          notify(`创建失败：${e}`, "error");
-        }
-      }
+      await createNoteIn("");
     });
+
+    // 右键「新建 Markdown 文档」首实例：启动带 --new 目标目录时，直接弹命名框
+    const pendingDir = await invoke<string | null>("take_pending_new_dir").catch(() => null);
+    if (pendingDir) void createNoteIn(pendingDir);
+
     // 空窗口拖入 .md
     await getCurrentWindow().onDragDropEvent(async (e) => {
       if (e.payload.type !== "drop") return;

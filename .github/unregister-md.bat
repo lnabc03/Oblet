@@ -5,11 +5,12 @@ setlocal
 
 reg delete "HKCU\Software\Classes\Oblet.md" /f >nul 2>&1
 reg delete "HKCU\Software\Classes\.md\OpenWithProgids" /v "Oblet.md" /f >nul 2>&1
+reg delete "HKCU\Software\Classes\Directory\Background\shell\Oblet.newmd" /f >nul 2>&1
 reg delete "HKCU\Software\Oblet" /f >nul 2>&1
 reg delete "HKCU\Software\RegisteredApplications" /v "Oblet" /f >nul 2>&1
 
 echo.
-echo [完成] Oblet 的 .md 文件关联已移除。
+echo [完成] Oblet 的 .md 文件关联与右键「新建」菜单已移除。
 echo 若此前已将 Oblet 设为默认应用，请在其他编辑器上重新选择默认打开方式。
 echo.
 pause

@@ -30,9 +30,16 @@ reg add "HKCU\Software\Oblet\Capabilities" /v "ApplicationDescription" /d "Light
 reg add "HKCU\Software\Oblet\Capabilities\FileAssociations" /v ".md" /d "Oblet.md" /f >nul
 reg add "HKCU\Software\RegisteredApplications" /v "Oblet" /d "Software\Oblet\Capabilities" /f >nul
 
+rem 4. 顶层右键菜单：文件夹空白处右键 →「新建 Markdown 文档」→ 启动 Oblet 命名并创建打开
+reg add "HKCU\Software\Classes\Directory\Background\shell\Oblet.newmd" /ve /d "新建 Markdown 文档" /f >nul
+reg add "HKCU\Software\Classes\Directory\Background\shell\Oblet.newmd" /v "Icon" /d "\"%ICO%\",0" /f >nul
+reg add "HKCU\Software\Classes\Directory\Background\shell\Oblet.newmd\command" /ve /d "\"%EXE%\" --new \"%%V\"" /f >nul
+
 echo.
-echo [完成] Oblet 已注册到 .md 的打开方式列表。
+echo [完成] Oblet 已注册到 .md 的打开方式列表与右键「新建」菜单。
 echo 还差一步（Windows 规定默认应用必须由用户手动选择）：
 echo   在任意 .md 文件上右键 → 打开方式 → 选择其他应用 → 选中 Oblet → 勾选「始终」。
+echo.
+echo 右键新建：文件夹空白处右键 →「新建 Markdown 文档」命名创建并打开。
 echo.
 pause

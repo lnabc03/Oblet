@@ -142,6 +142,20 @@ fn md_arg_from(argv: &[String], cwd: &str) -> Option<String> {
     })
 }
 
+/// 从命令行参数提取 --new 后的目标目录（右键「新建 Markdown 文档」经 %V 传入）
+fn new_dir_arg_from(argv: &[String]) -> Option<String> {
+    let mut args = argv.iter().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--new" {
+            return args.next().map(|d| d.trim_matches('"').to_string());
+        }
+        if let Some(rest) = arg.strip_prefix("--new=") {
+            return Some(rest.trim_matches('"').to_string());
+        }
+    }
+    None
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // 启动打点：尽量早地记 exe 入口时刻（epoch ms），供前端折算 WebView2 冷启动耗时
@@ -155,6 +169,22 @@ pub fn run() {
         // 第二实例启动：唤醒已有窗口或新开窗口
         if let Some(path) = md_arg_from(&argv, &cwd) {
             open_or_focus(app, &path);
+        } else if let Some(dir) = new_dir_arg_from(&argv) {
+            // 右键「新建 Markdown 文档」：通知前台窗口弹命名框（定向 emit 避免多窗口重复弹）
+            let target = app
+                .webview_windows()
+                .into_iter()
+                .find(|(_, w)| w.is_focused().unwrap_or(false))
+                .or_else(|| {
+                    app.webview_windows()
+                        .into_iter()
+                        .find(|(_, w)| w.is_visible().unwrap_or(false))
+                });
+            if let Some((_label, win)) = target {
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+                let _ = win.emit("new-note-at", dir);
+            }
         } else if let Some(win) = app.get_webview_window("main") {
             let _ = win.set_focus();
         }
@@ -173,6 +203,7 @@ pub fn run() {
             commands::export_to_vault,
             commands::create_note,
             commands::get_desktop_dir,
+            commands::take_pending_new_dir,
             commands::clear_window_file,
             commands::open_url,
             commands::add_tab,
@@ -272,6 +303,10 @@ pub fn run() {
             if let Some(path) = md_arg_from(&argv, &cwd) {
                 open_or_focus(app.handle(), &path);
             } else {
+                // 右键「新建 Markdown 文档」首实例：记录目标目录，前端 boot 后读取弹命名框
+                if let Some(dir) = new_dir_arg_from(&argv) {
+                    *app.state::<AppState>().pending_new_dir.lock().unwrap() = Some(dir);
+                }
                 // 无参数启动：开一个空窗口（同 open_or_focus：初始隐藏 + 3s 兜底）
                 let win = WebviewWindowBuilder::new(
                     app.handle(),

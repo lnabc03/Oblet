@@ -261,7 +261,6 @@ body.ob-vibrancy .search-bar input {
   border-radius: 8px;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
-  border-left: 3px solid var(--ob-toast-warn, #d8a248);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
   color: var(--ob-text);
   font-family: var(--font-interface, var(--ob-font));
