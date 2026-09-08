@@ -91,6 +91,14 @@ export async function initSettingsUI(container: HTMLElement) {
       <div class="settings-section">
         <h3>界面</h3>
         <label class="check-row">
+          <span>主题模式</span>
+          <select id="theme-mode-select">
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+            <option value="system">跟随系统</option>
+          </select>
+        </label>
+        <label class="check-row">
           <input type="checkbox" data-check="show_author" data-default="true">
           <span>版本与署名</span>
         </label>
@@ -239,6 +247,9 @@ export async function initSettingsUI(container: HTMLElement) {
     // Mica 开关：window_effect === "mica"
     overlay.querySelector<HTMLInputElement>("#mica-toggle")!.checked =
       ed.window_effect === "mica";
+    // 主题模式：null = 深色（默认）
+    overlay.querySelector<HTMLSelectElement>("#theme-mode-select")!.value =
+      (ed.theme_mode as string | null) ?? "dark";
     renderKeymapList();
   }
 
@@ -248,6 +259,17 @@ export async function initSettingsUI(container: HTMLElement) {
     .addEventListener("change", async (e) => {
       const on = (e.target as HTMLInputElement).checked;
       await switchTypography({ window_effect: on ? "mica" : null });
+    });
+
+  // 主题模式（多主题一期）：三选，默认深色写回 null（文件自说明）；
+  // 保存即广播，各窗口即时换肤（Mica dark 参数随 applyTypography 重放）
+  overlay
+    .querySelector<HTMLSelectElement>("#theme-mode-select")!
+    .addEventListener("change", async (e) => {
+      const v = (e.target as HTMLSelectElement).value;
+      await switchTypography({
+        theme_mode: v === "dark" ? null : (v as "light" | "system"),
+      });
     });
 
   // 复选框：change 即保存应用；取值为默认值时写回 null（跟随默认，文件自说明）

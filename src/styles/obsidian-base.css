@@ -93,6 +93,17 @@ body {
   --text-selection: rgba(123, 108, 217, 0.35);
 }
 
+/* 浅色模式 fallback（多主题一期）：与上方桥接定义的浅色假设值对齐 */
+:where(body.theme-light) {
+  --background-primary: #ffffff;
+  --background-secondary: #f5f6f8;
+  --text-normal: #222222;
+  --text-muted: #888888;
+  --text-faint: #aaaaaa;
+  --background-modifier-border: #e0e0e0;
+  --text-selection: rgba(123, 108, 217, 0.25);
+}
+
 html,
 body {
   margin: 0;
@@ -1117,6 +1128,10 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .check-row input {
   accent-color: var(--ob-accent);
+}
+/* 主题模式三选行：select 右对齐（多主题一期） */
+.check-row select {
+  margin-left: auto;
 }
 
 /* Frontmatter（笔记属性）：键值对渲染为紧凑表格，值可直接编辑；

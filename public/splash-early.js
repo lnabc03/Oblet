@@ -10,3 +10,13 @@ try {
 } catch (e) {
   /* localStorage 不可用时按显示处理，主链路不受影响 */
 }
+
+// 主题镜像（多主题一期）：applyTheme 把解析后的 dark/light 镜像进 localStorage，
+// 这里在首帧前挂到 <html>，驱动 index.html 内联的 splash 双色样式防闪
+try {
+  if (localStorage.getItem("oblet.theme") === "light") {
+    document.documentElement.classList.add("ob-theme-light");
+  }
+} catch (e) {
+  /* 同上：按深色处理 */
+}

@@ -9,6 +9,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { boot } from "./editor/setup";
 import { initKeymap } from "./commands";
+import { applyThemeFromMirror } from "./settings/theme-classes";
+
+// 主题首帧防闪（多主题一期）：deferred 模块在首个 paint 前执行，
+// 同步从 localStorage 镜像 swap body 类——覆盖 reload（Esc/追加 tab）时
+// 窗口已可见、等不到 boot 内异步 applyTypography 的场景
+applyThemeFromMirror();
 
 // 窗口初始隐藏（lib.rs visible(false)）：透明窗口从 WebView2 就绪到首帧 paint
 // 之间会白屏/透屏/异常渲染，等首帧画好后再揭窗。Rust 侧有 3s 兜底。

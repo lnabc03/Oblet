@@ -16,7 +16,12 @@ import {
 } from "@milkdown/preset-commonmark";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { languages } from "@codemirror/language-data";
-import { currentEditorSettings, initTypography } from "../settings/typography";
+import {
+  currentEditorSettings,
+  initTypography,
+  resolveTheme,
+  switchTypography,
+} from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
@@ -660,6 +665,9 @@ export async function boot() {
         view.focus();
       }),
     getMarkdown: () => crepe.getMarkdown(),
+    /** 主题切换冒烟（多主题一期）：走正式保存+广播链路 */
+    testSetTheme: (mode: "dark" | "light" | "system" | null) =>
+      switchTypography({ theme_mode: mode }),
     /** 重置文档（验证脚本用）：多段测试同窗口连续跑时避免状态污染 */
     reset: (content: string) =>
       crepe.editor.action(replaceAll(content)),
@@ -762,7 +770,12 @@ export async function boot() {
         window.removeEventListener("afterprint", restore);
         if (micaOn) {
           document.body.classList.add("ob-vibrancy");
-          void invoke("set_window_effect", { effect: "mica" }).catch(() => {});
+          // dark 参数跟随当前主题（多主题一期），否则浅色下打印恢复后 Mica 变深色
+          const dark =
+            resolveTheme(currentEditorSettings().theme_mode) === "dark";
+          void invoke("set_window_effect", { effect: "mica", dark }).catch(
+            () => {}
+          );
         }
       };
       let timer = 0;

@@ -1,8 +1,12 @@
-// 排版设置：字体/字号覆盖 + 持久化 + 跨窗口广播
-// （主题已固化为 AnuPpuccin 深色单主题，这里只剩排版覆盖）
+// 排版设置：字体/字号覆盖 + 主题模式（多主题一期）+ 持久化 + 跨窗口广播
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { setKeymapOverrides } from "../commands";
+import {
+  swapThemeClasses,
+  type ResolvedTheme,
+  type ThemeMode,
+} from "./theme-classes";
 
 export interface Settings {
   version: number | null;
@@ -37,6 +41,8 @@ export interface EditorSettings {
   transition_animation?: boolean | null;
   /** 悬浮 TOC：null/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控） */
   toc?: boolean | null;
+  /** 主题模式（多主题一期）：null/"dark" = 深色（默认）；"light" = 浅色；"system" = 跟随系统 */
+  theme_mode?: ThemeMode | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -63,9 +69,29 @@ const TYPO_DEFAULTS = {
   base_font_size: 17,
 };
 
+/** 解析主题模式：null/dark → dark；light → light；system → 跟系统（代码库首处 matchMedia） */
+export function resolveTheme(mode: ThemeMode | null | undefined): ResolvedTheme {
+  if (mode === "light") return "light";
+  if (mode === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+  return "dark";
+}
+
+/** 应用主题模式：swap body 类集 + 写 localStorage 镜像（splash-early/main.ts 防闪），返回解析值 */
+export function applyTheme(mode: ThemeMode | null | undefined): ResolvedTheme {
+  const resolved = resolveTheme(mode);
+  swapThemeClasses(resolved);
+  return resolved;
+}
+
 /** 应用排版覆盖：body + #app 双内联（用户 > 硬默认 > 主题兜底），对齐 Ob 语义 */
 export function applyTypography(e: EditorSettings) {
   current = e;
+  // 主题先行：解析值还要喂给 Mica 的 dark 参数
+  const theme = applyTheme(e.theme_mode);
   const targets = [document.body, document.getElementById("app")].filter(
     (t): t is HTMLElement => t !== null
   );
@@ -98,7 +124,9 @@ export function applyTypography(e: EditorSettings) {
   const effect =
     e.window_effect && e.window_effect !== "none" ? e.window_effect : null;
   document.body.classList.toggle("ob-vibrancy", effect !== null);
-  void invoke("set_window_effect", { effect }).catch(() => {});
+  void invoke("set_window_effect", { effect, dark: theme === "dark" }).catch(
+    () => {}
+  );
 }
 
 /** 保存排版设置并广播到所有窗口 */
@@ -129,6 +157,13 @@ export async function initTypography(): Promise<void> {
     setKeymapOverrides(fresh.editor.keymap);
     applyTypography(fresh.editor);
   });
+
+  // system 模式跟随：系统明暗切换时重应用主题（含 Mica dark 参数重放）
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => {
+      if (current.theme_mode === "system") applyTypography(current);
+    });
 
   const s = await getSettings();
   setKeymapOverrides(s.editor.keymap);

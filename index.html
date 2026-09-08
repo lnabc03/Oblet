@@ -12,11 +12,16 @@
         position: fixed;
         inset: 0;
         z-index: 9999;
-        background: #1e1e2e; /* ctp-mocha-old base，与主题底色一致 */
+        background: #1e1e2e; /* ctp-mocha-old base，与深色主题底色一致 */
         display: flex;
         align-items: center;
         justify-content: center;
         transition: opacity 0.18s ease;
+      }
+      /* 浅色主题（多主题一期）：splash-early.js 首帧前按 localStorage 镜像挂类，
+         base 取自 anuppuccin-custom.css 的 ctp-rosepine-light flavor（238,230,221） */
+      html.ob-theme-light #ob-splash {
+        background: #eee6dd;
       }
       #ob-splash.ob-splash-hide {
         opacity: 0;
@@ -43,8 +48,9 @@
     </style>
     <script src="./splash-early.js"></script>
   </head>
-  <!-- 固化深色单主题：theme-dark + AnuPpuccin Style Settings 定制类（原 oblet-theme.json） -->
-  <body class="theme-dark ctp-rosepine-light ctp-mocha-old ctp-accent-light-flamingo ctp-accent-mauve anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">
+  <!-- 主题类（多主题一期）：默认深色作无 JS 兜底，运行时装配权在 JS
+       （theme-classes.ts 按设置 swap theme-*/ctp-flavor/ctp-accent 三类；anp-* 定制类明暗共用常驻） -->
+  <body class="theme-dark ctp-mocha-old ctp-accent-mauve anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">
     <div id="ob-splash"><img src="./logo.png" alt="" /></div>
     <div id="app" class="app-container"></div>
     <script type="module" src="/src/main.ts"></script>
