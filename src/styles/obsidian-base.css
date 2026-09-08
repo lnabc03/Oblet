@@ -1,73 +1,43 @@
-/* Oblet 基座样式：Ob 结构 + CSS 变量桥接
- * 所有视觉值一律走 --ob-* 变量；变量取值自 AnuPpuccin 定制主题
- * （anuppuccin-custom.css 静态打包，深色单主题），未定义时用这里的 fallback 值。 */
+/* Oblet 基座样式：Ob 结构 + --ob-* 消费侧定义
+ * 多主题一期 1D 起：--ob-* 变量值由主题文件（theme-anuppuccin.css）以字面值直供，
+ * 不再 var() 引用 Ob 语义变量（桥接层已废弃）。base 只保留与主题无关的部分：
+ * 排版变量桥（--font-* 来自 typography.ts 内联覆盖）、--crepe-* 静态映射、
+ * 阴影/diff/toast 变量、:where() 零优先级兜底。 */
 
-/* 桥接定义在 body 和 .app-container 上：Ob 主题的变量定义在 body / body.theme-dark
- * 等层级，AnuPpuccin 的部分变量（如 --h1-color）定义在后代 .app-container 上；
- * var() 在使用点解析，桥接层需要覆盖这两个层级才能都命中 */
 body,
 .app-container {
-  --ob-bg: var(--background-primary, #ffffff);
-  --ob-bg-alt: var(--background-secondary, #f5f6f8);
-  --ob-text: var(--text-normal, #222222);
-  --ob-text-mut: var(--text-muted, #888888);
-  --ob-text-faint: var(--text-faint, #aaaaaa);
-  --ob-accent: var(--interactive-accent, #7b6cd9);
-  --ob-accent-soft: rgba(var(--ctp-mauve, 150, 110, 220), 0.35);
-  --ob-link: var(--link-color, var(--text-accent, var(--interactive-accent, #7b6cd9)));
+  /* 排版变量桥：--font-* 由 applyTypography 内联写入（body+#app 双写） */
   --ob-font: var(--font-text, var(--font-interface, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif));
   --ob-font-mono: var(--font-monospace, Consolas, "Cascadia Mono", monospace);
   --ob-font-size: var(--font-text-size, 16px);
-  --ob-h1: var(--h1-color, var(--text-normal, #222222));
-  --ob-h2: var(--h2-color, var(--text-normal, #222222));
-  --ob-h3: var(--h3-color, var(--text-normal, #222222));
-  --ob-h4: var(--h4-color, var(--text-normal, #222222));
-  --ob-h5: var(--h5-color, var(--text-normal, #222222));
-  --ob-h6: var(--h6-color, var(--text-normal, #222222));
-  --ob-h1-size: var(--h1-size, 1.8em);
-  --ob-h2-size: var(--h2-size, 1.6em);
-  --ob-h3-size: var(--h3-size, 1.4em);
-  --ob-h4-size: var(--h4-size, 1.25em);
-  --ob-h5-size: var(--h5-size, 1.1em);
-  --ob-h6-size: var(--h6-size, 1em);
-  --ob-quote-bg: var(--quote-background-color, transparent);
-  --ob-quote-border: var(--blockquote-border-color, var(--interactive-accent, #7b6cd9));
-  --ob-code-bg: var(--code-background, var(--background-secondary, #f5f6f8));
-  --ob-code-text: var(--code-normal, var(--text-normal, #222222));
-  --ob-border: var(--background-modifier-border, #e0e0e0);
-  --ob-selection: var(--text-selection, rgba(123, 108, 217, 0.25));
-  --ob-list-marker: var(--list-marker-color, var(--text-muted, #888888));
-  --ob-bold: var(--bold-color, var(--text-normal, #222222));
-  --ob-italic: var(--italic-color, var(--text-normal, #222222));
-  --ob-strikethrough: var(--strikethrough-color, var(--text-muted, #888888));
 
-  /* Crepe 组件变量 → Ob 桥接：工具栏/代码块/表格/斜杠菜单等组件随主题换肤 */
+  /* Crepe 组件变量 ← --ob-* 静态映射（与主题无关的 Crepe 消费适配层，保留） */
   --crepe-color-background: var(--ob-bg);
   --crepe-color-on-background: var(--ob-text);
   --crepe-color-surface: var(--ob-bg-alt);
-  --crepe-color-surface-low: var(--background-primary-alt, var(--ob-bg-alt));
+  --crepe-color-surface-low: var(--ob-bg-low);
   --crepe-color-on-surface: var(--ob-text);
   --crepe-color-on-surface-variant: var(--ob-text-mut);
   --crepe-color-on-secondary: var(--ob-text-mut);
   --crepe-color-outline: var(--ob-border);
   --crepe-color-primary: var(--ob-accent);
   --crepe-color-secondary: var(--ob-selection);
-  --crepe-color-hover: var(--background-modifier-hover, var(--ob-bg-alt));
+  --crepe-color-hover: var(--ob-hover);
   --crepe-color-selected: var(--ob-selection);
   --crepe-color-inverse: var(--ob-text);
   --crepe-color-on-inverse: var(--ob-bg);
   --crepe-color-inline-code: var(--ob-code-text);
   --crepe-color-inline-area: var(--ob-code-bg);
-  /* diff 色接主题调色板（多主题一期：深浅自动跟随；fallback 为 GitHub 深色配色） */
-  --crepe-color-diff-added: rgb(var(--ctp-green, 46, 160, 67));
-  --crepe-color-diff-added-bg: rgba(var(--ctp-green, 46, 160, 67), 0.15);
-  --crepe-color-diff-added-text: rgb(var(--ctp-green, 46, 160, 67));
-  --crepe-color-diff-removed: rgb(var(--ctp-red, 248, 81, 73));
-  --crepe-color-diff-removed-bg: rgba(var(--ctp-red, 248, 81, 73), 0.15);
-  --crepe-color-diff-removed-text: rgb(var(--ctp-red, 248, 81, 73));
-  /* 编辑区文字=正文字体；标题=主题 --h1-font（AnuPpuccin 定义为界面字体），回退正文字体 */
+  /* diff 色（多主题一期：字面值随主题文件走；fallback 为 GitHub 深色配色） */
+  --crepe-color-diff-added: var(--ob-diff-added, #2ea043);
+  --crepe-color-diff-added-bg: var(--ob-diff-added-bg, rgba(46, 160, 67, 0.15));
+  --crepe-color-diff-added-text: var(--ob-diff-added, #2ea043);
+  --crepe-color-diff-removed: var(--ob-diff-removed, #f85149);
+  --crepe-color-diff-removed-bg: var(--ob-diff-removed-bg, rgba(248, 81, 73, 0.15));
+  --crepe-color-diff-removed-text: var(--ob-diff-removed, #f85149);
+  /* 编辑区文字=正文字体；标题=界面字体（AnuPpuccin 惯例），回退正文字体 */
   --crepe-font-default: var(--ob-font);
-  --crepe-font-title: var(--h1-font, var(--ob-font));
+  --crepe-font-title: var(--font-interface, var(--ob-font));
   --crepe-font-code: var(--ob-font-mono);
   /* 浮层投影（toast/检索条/右键菜单/确认弹窗/TOC 同一语言）：
      深色下需要更重的投影才"浮"得起来；浅色由 body.theme-light 覆写调轻 */
@@ -75,9 +45,6 @@ body,
   --ob-shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
   --crepe-shadow-1: var(--ob-shadow-1);
   --crepe-shadow-2: var(--ob-shadow-2);
-  /* toast 警示色：接主题调色板（fallback 为原硬编码值） */
-  --ob-toast-warn: rgb(var(--ctp-yellow, 216, 162, 72));
-  --ob-toast-error: rgb(var(--ctp-red, 216, 72, 72));
 }
 
 /* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
@@ -85,30 +52,6 @@ body {
   --anp-cursor: pointer;
   --anp-depth-tab-opacity: 0.6;
   --anp-file-label-align: 0;
-}
-
-/* 暗色模式 fallback（主题未定义变量时的兜底）
- * 必须用 :where() 保持零优先级：AnuPpuccin 等主题用 .theme-dark 单类选择器
- * 定义变量，body.theme-dark 的 (0,1,1) 优先级会压过它，导致深色 flavor 失效 */
-:where(body.theme-dark) {
-  --background-primary: #1e1e1e;
-  --background-secondary: #252525;
-  --text-normal: #dcddde;
-  --text-muted: #999;
-  --text-faint: #666;
-  --background-modifier-border: #333;
-  --text-selection: rgba(123, 108, 217, 0.35);
-}
-
-/* 浅色模式 fallback（多主题一期）：与上方桥接定义的浅色假设值对齐 */
-:where(body.theme-light) {
-  --background-primary: #ffffff;
-  --background-secondary: #f5f6f8;
-  --text-normal: #222222;
-  --text-muted: #888888;
-  --text-faint: #aaaaaa;
-  --background-modifier-border: #e0e0e0;
-  --text-selection: rgba(123, 108, 217, 0.25);
 }
 
 /* 浅色模式：浮层投影调轻（深色的重投影在浅色下显脏）。
