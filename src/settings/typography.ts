@@ -27,7 +27,7 @@ export interface EditorSettings {
   code_block_wrap?: boolean | null;
   /** 起始页署名显示（null/true = 显示） */
   show_author?: boolean | null;
-  /** 窗口材质效果：null/"none" = 关；"mica" */
+  /** 窗口材质效果：⚠️ 2026-09 暂停使用（上游 #183 在 25H2 失效），字段保留待复活，前端不应用 */
   window_effect?: string | null;
   /** 键位覆盖（4.4）：命令 id → 组合串；null = 全部默认 */
   keymap?: Record<string, string> | null;
@@ -90,8 +90,11 @@ export function applyTheme(mode: ThemeMode | null | undefined): ResolvedTheme {
 /** 应用排版覆盖：body + #app 双内联（用户 > 硬默认 > 主题兜底），对齐 Ob 语义 */
 export function applyTypography(e: EditorSettings) {
   current = e;
-  // 主题先行：解析值还要喂给 Mica 的 dark 参数
-  const theme = applyTheme(e.theme_mode);
+  // 主题应用（Mica 已暂时下架——上游 window-vibrancy#183 在 Win11 24H2/25H2 失效，
+  // 待上游修复后复活：此处需恢复 ob-vibrancy 类切换 + set_window_effect 带 dark 参数）
+  applyTheme(e.theme_mode);
+  // 防御：旧会话若残留 vibrancy 类，摘掉
+  document.body.classList.remove("ob-vibrancy");
   const targets = [document.body, document.getElementById("app")].filter(
     (t): t is HTMLElement => t !== null
   );
@@ -120,13 +123,6 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
   // 悬浮 TOC 开关（默认显示，显式 false 才隐藏；CSS 门控，TOC 插件零接线）
   document.body.classList.toggle("ob-toc-hidden", e.toc === false);
-  // 窗口材质效果（4.1 毛玻璃）：默认关；开启时 body 类驱动 CSS 透明链路
-  const effect =
-    e.window_effect && e.window_effect !== "none" ? e.window_effect : null;
-  document.body.classList.toggle("ob-vibrancy", effect !== null);
-  void invoke("set_window_effect", { effect, dark: theme === "dark" }).catch(
-    () => {}
-  );
 }
 
 /** 保存排版设置并广播到所有窗口 */

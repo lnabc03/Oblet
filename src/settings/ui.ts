@@ -107,10 +107,6 @@ export async function initSettingsUI(container: HTMLElement) {
           <span>多窗口编辑</span>
         </label>
         <label class="check-row">
-          <input type="checkbox" id="mica-toggle">
-          <span>Mica 材质</span>
-        </label>
-        <label class="check-row">
           <input type="checkbox" data-check="transition_animation">
           <span>过渡动画</span>
         </label>
@@ -244,22 +240,11 @@ export async function initSettingsUI(container: HTMLElement) {
         const v = ed[input.dataset.check!];
         input.checked = v == null ? def : v === true;
       });
-    // Mica 开关：window_effect === "mica"
-    overlay.querySelector<HTMLInputElement>("#mica-toggle")!.checked =
-      ed.window_effect === "mica";
     // 主题模式：null = 深色（默认）
     overlay.querySelector<HTMLSelectElement>("#theme-mode-select")!.value =
       (ed.theme_mode as string | null) ?? "dark";
     renderKeymapList();
   }
-
-  // Mica 开关（十一轮：Acrylic 已删，窗口效果收敛为 Mica 开关）
-  overlay
-    .querySelector<HTMLInputElement>("#mica-toggle")!
-    .addEventListener("change", async (e) => {
-      const on = (e.target as HTMLInputElement).checked;
-      await switchTypography({ window_effect: on ? "mica" : null });
-    });
 
   // 主题模式（多主题一期）：三选，默认深色写回 null（文件自说明）；
   // 保存即广播，各窗口即时换肤（Mica dark 参数随 applyTypography 重放）

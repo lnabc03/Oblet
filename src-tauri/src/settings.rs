@@ -29,6 +29,8 @@ pub struct EditorSetting {
     #[serde(default)]
     pub show_author: Option<bool>,
     // 窗口材质效果：None/"none" = 关；"mica"（Win11）。Acrylic 已按十一轮终审删除
+    // ⚠️ Mica 功能 2026-09 暂时下架：上游 window-vibrancy#183，Win11 24H2/25H2 上
+    // DWM 系统级失效（退化为纯色底），前端已停止应用，字段保留待复活
     #[serde(default)]
     pub window_effect: Option<String>,
     // 键位覆盖（4.4）：命令 id → 组合串（"Ctrl+Shift+F" 形）；None = 全部默认

@@ -19,7 +19,6 @@ import { languages } from "@codemirror/language-data";
 import {
   currentEditorSettings,
   initTypography,
-  resolveTheme,
   switchTypography,
 } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
@@ -761,32 +760,10 @@ export async function boot() {
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
     vault: () => void exportToVault(path, crepe.getMarkdown()),
-    // 7.2 导出 PDF：Mica 开着先临时关（预览所见即所得），afterprint 恢复（超时双保险）
+    // 7.2 导出 PDF（Mica 已暂时下架——上游 #183 在 25H2 失效；
+    // 复活时需恢复：打印前摘 ob-vibrancy + set_window_effect(null)，afterprint 带 dark 参数恢复）
     print: () => {
-      const effect = currentEditorSettings().window_effect;
-      const micaOn = effect === "mica";
-      const restore = () => {
-        window.clearTimeout(timer);
-        window.removeEventListener("afterprint", restore);
-        if (micaOn) {
-          document.body.classList.add("ob-vibrancy");
-          // dark 参数跟随当前主题（多主题一期），否则浅色下打印恢复后 Mica 变深色
-          const dark =
-            resolveTheme(currentEditorSettings().theme_mode) === "dark";
-          void invoke("set_window_effect", { effect: "mica", dark }).catch(
-            () => {}
-          );
-        }
-      };
-      let timer = 0;
-      if (micaOn) {
-        document.body.classList.remove("ob-vibrancy");
-        void invoke("set_window_effect", { effect: null }).catch(() => {});
-        window.addEventListener("afterprint", restore);
-        timer = window.setTimeout(restore, 30_000); // 双保险：事件丢失也不会永久关 Mica
-      }
-      // 等一帧让实色背景先渲染，再弹系统打印窗
-      requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+      window.print();
     },
   });
 
