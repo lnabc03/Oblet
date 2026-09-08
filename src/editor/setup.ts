@@ -30,6 +30,7 @@ import { tocPlugin } from "./toc";
 import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
+import { obletCmTheme } from "./cm-theme";
 import { confirmDialog, notify, promptDialog } from "../notify";
 import { registerCommand } from "../commands";
 const logoUrl = "/logo.png";
@@ -477,6 +478,9 @@ export async function boot() {
         // 语言列表：Crepe 不传 languages 时会以空数组覆盖组件默认配置，
         // 导致语言选择弹出空白——显式传入 language-data 全量预设（高亮按需懒加载）
         languages,
+        // 多主题一期 1C：覆盖默认 oneDark——全 CSS 变量驱动（--ctp-*），
+        // 深浅切换零重配置自动跟随（见 cm-theme.ts）
+        theme: obletCmTheme,
       },
       // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
       // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table
