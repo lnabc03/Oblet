@@ -19,8 +19,10 @@ import { languages } from "@codemirror/language-data";
 import {
   currentEditorSettings,
   initTypography,
+  resolveTheme,
   switchTypography,
 } from "../settings/typography";
+import { applyThemeClasses } from "../settings/theme-classes";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
@@ -760,10 +762,25 @@ export async function boot() {
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
     vault: () => void exportToVault(path, crepe.getMarkdown()),
-    // 7.2 导出 PDF（Mica 已暂时下架——上游 #183 在 25H2 失效；
-    // 复活时需恢复：打印前摘 ob-vibrancy + set_window_effect(null)，afterprint 带 dark 参数恢复）
+    // 7.2 导出 PDF：打印强制浅色（深底色上纸费墨且难读）——临时 swap 主题类
+    // 利用 1A 的类切换机制，afterprint 恢复（30s 超时双保险），不写 localStorage 镜像
+    //（Mica 已暂时下架——上游 #183；复活时需恢复打印前的材质临时摘除）
     print: () => {
-      window.print();
+      const current = resolveTheme(currentEditorSettings().theme_mode);
+      if (current === "light") {
+        window.print();
+        return;
+      }
+      applyThemeClasses("light");
+      const restore = () => {
+        window.clearTimeout(timer);
+        window.removeEventListener("afterprint", restore);
+        applyThemeClasses(current);
+      };
+      window.addEventListener("afterprint", restore);
+      const timer = window.setTimeout(restore, 30_000);
+      // 等一帧让浅色渲染落地，再弹系统打印窗
+      requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
     },
   });
 

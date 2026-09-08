@@ -20,10 +20,15 @@ export const ALL_THEME_CLASSES: string[] = [
 /** localStorage 镜像键：splash-early.js / main.ts 首帧前同步读它防闪 */
 export const THEME_MIRROR_KEY = "oblet.theme";
 
-/** 解析后的主题写入 body 类集 + localStorage 镜像，返回解析值 */
-export function swapThemeClasses(resolved: ResolvedTheme): void {
+/** 仅 swap body 类集（不写镜像）——打印临时切浅色等瞬态场景用 */
+export function applyThemeClasses(resolved: ResolvedTheme): void {
   document.body.classList.remove(...ALL_THEME_CLASSES);
   document.body.classList.add(...THEME_CLASSES[resolved]);
+}
+
+/** 解析后的主题写入 body 类集 + localStorage 镜像，返回解析值 */
+export function swapThemeClasses(resolved: ResolvedTheme): void {
+  applyThemeClasses(resolved);
   try {
     localStorage.setItem(THEME_MIRROR_KEY, resolved);
   } catch {

@@ -58,19 +58,26 @@ body,
   --crepe-color-on-inverse: var(--ob-bg);
   --crepe-color-inline-code: var(--ob-code-text);
   --crepe-color-inline-area: var(--ob-code-bg);
-  --crepe-color-diff-added: #2ea043;
-  --crepe-color-diff-added-bg: rgba(46, 160, 67, 0.15);
-  --crepe-color-diff-added-text: #2ea043;
-  --crepe-color-diff-removed: #f85149;
-  --crepe-color-diff-removed-bg: rgba(248, 81, 73, 0.15);
-  --crepe-color-diff-removed-text: #f85149;
+  /* diff 色接主题调色板（多主题一期：深浅自动跟随；fallback 为 GitHub 深色配色） */
+  --crepe-color-diff-added: rgb(var(--ctp-green, 46, 160, 67));
+  --crepe-color-diff-added-bg: rgba(var(--ctp-green, 46, 160, 67), 0.15);
+  --crepe-color-diff-added-text: rgb(var(--ctp-green, 46, 160, 67));
+  --crepe-color-diff-removed: rgb(var(--ctp-red, 248, 81, 73));
+  --crepe-color-diff-removed-bg: rgba(var(--ctp-red, 248, 81, 73), 0.15);
+  --crepe-color-diff-removed-text: rgb(var(--ctp-red, 248, 81, 73));
   /* 编辑区文字=正文字体；标题=主题 --h1-font（AnuPpuccin 定义为界面字体），回退正文字体 */
   --crepe-font-default: var(--ob-font);
   --crepe-font-title: var(--h1-font, var(--ob-font));
   --crepe-font-code: var(--ob-font-mono);
-  /* 深色下浮层需要更重的投影才"浮"得起来——与 toast/检索条/右键菜单同一语言 */
-  --crepe-shadow-1: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --crepe-shadow-2: 0 8px 28px rgba(0, 0, 0, 0.45);
+  /* 浮层投影（toast/检索条/右键菜单/确认弹窗/TOC 同一语言）：
+     深色下需要更重的投影才"浮"得起来；浅色由 body.theme-light 覆写调轻 */
+  --ob-shadow-1: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --ob-shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --crepe-shadow-1: var(--ob-shadow-1);
+  --crepe-shadow-2: var(--ob-shadow-2);
+  /* toast 警示色：接主题调色板（fallback 为原硬编码值） */
+  --ob-toast-warn: rgb(var(--ctp-yellow, 216, 162, 72));
+  --ob-toast-error: rgb(var(--ctp-red, 216, 72, 72));
 }
 
 /* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
@@ -102,6 +109,13 @@ body {
   --text-faint: #aaaaaa;
   --background-modifier-border: #e0e0e0;
   --text-selection: rgba(123, 108, 217, 0.25);
+}
+
+/* 浅色模式：浮层投影调轻（深色的重投影在浅色下显脏）。
+   用 body.theme-light（0,1,1）压过上方 body 桥接块（0,0,1） */
+body.theme-light {
+  --ob-shadow-1: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --ob-shadow-2: 0 8px 30px rgba(0, 0, 0, 0.16);
 }
 
 html,
@@ -234,7 +248,7 @@ body.ob-vibrancy .search-bar input {
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
   border-left-width: 3px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ob-shadow-1);
   color: var(--ob-text);
   font-family: var(--font-interface, var(--ob-font));
   font-size: 0.85em;
@@ -242,8 +256,8 @@ body.ob-vibrancy .search-bar input {
   animation: toast-in 0.25s ease-out;
 }
 .toast-info { border-left-color: var(--ob-accent); }
-.toast-warn { border-left-color: var(--ob-toast-warn, #d8a248); }
-.toast-error { border-left-color: var(--ob-toast-error, #d84848); }
+.toast-warn { border-left-color: var(--ob-toast-warn); }
+.toast-error { border-left-color: var(--ob-toast-error); }
 .toast-out {
   animation: toast-out 0.2s ease-in forwards;
 }
@@ -272,7 +286,7 @@ body.ob-vibrancy .search-bar input {
   border-radius: 8px;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--ob-shadow-2);
   color: var(--ob-text);
   font-family: var(--font-interface, var(--ob-font));
   font-size: 0.9em;
@@ -688,7 +702,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ob-shadow-1);
   font-family: var(--font-interface, var(--ob-font));
   font-size: 0.85em;
 }
@@ -790,7 +804,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ob-shadow-1);
   font-family: var(--font-interface, var(--ob-font));
   font-size: 0.85em;
 }
@@ -1029,8 +1043,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 
 /* ==================== 打印（批次 7.2 导出为 PDF） ====================
- * window.print() 走系统对话框；Mica 由 setup.ts 临时关闭（预览所见即所得），
- * 这里的实色背景是 Mica 关闭失败的第二道兜底。前景配色全保留。 */
+ * window.print() 走系统对话框；深色主题下 setup.ts 先把 body 类临时 swap
+ * 成浅色（打印强制浅色，afterprint 恢复），这里的 var(--ob-bg) 随之解析为白底。 */
 @media print {
   html,
   body {

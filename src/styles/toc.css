@@ -42,7 +42,7 @@ body.ob-toc-hidden .ob-toc {
   border-radius: 50%;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ob-shadow-1);
   cursor: pointer;
   user-select: none;
 }
@@ -130,7 +130,7 @@ body.ob-toc-hidden .ob-toc {
   background: color-mix(in srgb, var(--ob-bg-alt) 92%, transparent);
   border: 1px solid var(--ob-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ob-shadow-1);
   opacity: 0;
   clip-path: inset(0 0 0 100%); /* 收起：从左裁掉 100%，即只剩右缘 */
   pointer-events: none;
