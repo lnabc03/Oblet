@@ -42,7 +42,6 @@ body.ob-toc-hidden .ob-toc {
   border-radius: 50%;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
-  box-shadow: var(--ob-shadow-1);
   cursor: pointer;
   user-select: none;
 }
@@ -130,7 +129,7 @@ body.ob-toc-hidden .ob-toc {
   background: color-mix(in srgb, var(--ob-bg-alt) 92%, transparent);
   border: 1px solid var(--ob-border);
   border-radius: 8px;
-  box-shadow: var(--ob-shadow-1);
+  /* 不挂 box-shadow：clip-path 揭示会把投影裁成同尺寸方框影（观感 bug） */
   opacity: 0;
   clip-path: inset(0 0 0 100%); /* 收起：从左裁掉 100%，即只剩右缘 */
   pointer-events: none;
