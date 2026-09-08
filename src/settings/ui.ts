@@ -1,7 +1,9 @@
 // 设置浮层：排版/编辑器/界面覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
+  currentEditorSettings,
   getSettings,
+  resolveTheme,
   setKeybinding,
   switchTypography,
 } from "./typography";
@@ -38,6 +40,20 @@ export async function initSettingsUI(container: HTMLElement) {
     title: "窗口置顶",
     defaultCombo: "Alt+P",
     run: togglePin,
+  });
+
+  // Ctrl+T 深浅切换：按当前**解析后**的主题取反并显式落盘（system 模式下同样生效，
+  // 切换后脱离跟随；想恢复跟随在设置面板选回）
+  registerCommand({
+    id: "toggle-theme",
+    title: "切换深色/浅色",
+    defaultCombo: "Ctrl+T",
+    run: () => {
+      const resolved = resolveTheme(currentEditorSettings().theme_mode);
+      void switchTypography({
+        theme_mode: resolved === "dark" ? "light" : "dark",
+      });
+    },
   });
 
   // 设置按钮（右上角浮动）

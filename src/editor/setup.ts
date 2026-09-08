@@ -628,6 +628,25 @@ export async function boot() {
         );
     },
   });
+  // 选中当前行：PM 的"行"= 光标所在文本块内容（软换行的视觉行不可寻址）；
+  // 选区跨块时覆盖首尾块的全部内容。只读也允许（纯选区操作不改文档）
+  registerCommand({
+    id: "select-line",
+    title: "选中当前行",
+    defaultCombo: "Ctrl+D",
+    run: () => {
+      crepe.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const { $from, $to } = view.state.selection;
+        view.dispatch(
+          view.state.tr.setSelection(
+            TextSelection.create(view.state.doc, $from.start(), $to.end())
+          )
+        );
+        view.focus();
+      });
+    },
+  });
   for (let level = 1; level <= 6; level++) {
     registerCommand({
       id: `heading-${level}`,
