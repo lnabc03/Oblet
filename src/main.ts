@@ -1,9 +1,14 @@
 // Oblet 入口 —— 编辑器装配见 editor/setup.ts
 // CSS 顺序敏感：Crepe 样式最先，obsidian-base.css 在其后压制 Crepe reset 的 px 钉值，
-// 蒸馏主题最后（--ob-* 字面值直供，桥接层已废弃）
+// 蒸馏主题（全部带 body.ob-t-<id> 门控，共存互不泄漏）随后，toc.css 最后
 import "@milkdown/crepe/theme/common/style.css";
 import "./styles/obsidian-base.css";
 import "./styles/theme-anuppuccin.css";
+import "./styles/theme-atom.css";
+import "./styles/theme-github.css";
+import "./styles/theme-minimal.css";
+import "./styles/theme-nord.css";
+import "./styles/theme-things.css";
 import "./styles/toc.css"; // 悬浮 TOC（主题变量就绪后加载）
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";

@@ -1,0 +1,190 @@
+
+/*
+  Atom theme for Obsidian, by kognise — MIT License
+  https://github.com/kognise/obsidian-atom
+*/
+/*
+  
+  Oblet 原生主题：Atom（深/浅双模）
+  本文件由 scripts/theme-distill.mjs 从 ref/themes/atom.css 蒸馏生成：
+  死规则（Obsidian 外壳/不支持特性）已按运行时探测剔除，变量经传递闭包剪枝，
+  --ob-* 已求值为字面值（桥接层废弃）。全部规则带 body.ob-t-atom 门控前缀，
+  多主题共存互不泄漏。改配色请改本文件，或改 scripts/themes.config.mjs 后重跑。
+
+*/
+body.ob-t-atom.theme-dark, body.ob-t-atom.theme-dark .app-container {  --ob-bg: #272b34;
+  --ob-bg-alt: #20242b;
+  --ob-text: #dcddde;
+  --ob-text-mut: #888;
+  --ob-text-faint: rgb(81, 86, 99);
+  --ob-accent: #61afef;
+  --ob-accent-soft: color-mix(in srgb, #61afef 30%, transparent);
+  --ob-link: #61afef;
+  --ob-h1: #dcddde;
+  --ob-h2: #dcddde;
+  --ob-h3: #dcddde;
+  --ob-h4: #dcddde;
+  --ob-h5: #dcddde;
+  --ob-h6: #dcddde;
+  --ob-h1-size: 1.8em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.4em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.1em;
+  --ob-h6-size: 1em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: #61afef;
+  --ob-code-bg: #20242b;
+  --ob-code-text: #dcddde;
+  --ob-border: #424958;
+  --ob-selection: rgba(0, 122, 255, 0.2);
+  --ob-list-marker: #888;
+  --ob-bold: #dcddde;
+  --ob-italic: #dcddde;
+  --ob-strikethrough: #888;
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e16d76;
+  --ob-bg-low: #20242b;
+  --ob-hover: hsla(219, calc(56% - 35%), 55%, 0.06);
+  --ob-hl-text: #dcddde;
+  --ob-hl-keyword: #c678dd;
+  --ob-hl-string: #98c379;
+  --ob-hl-number: #d19a66;
+  --ob-hl-comment: #5C6370;
+  --ob-hl-function: #61afef;
+  --ob-hl-property: #56b6c2;
+  --ob-hl-type: #e5c07b;
+  --ob-hl-operator: #56b6c2;
+  --ob-hl-punctuation: #abb2bf;
+  --ob-hl-tag: #e06c75;
+  --ob-hl-attr: #d19a66;
+  --ob-hl-regexp: #56b6c2;
+  --ob-hl-link: #61afef;
+  --ob-hl-inserted: #98c379;
+  --ob-hl-deleted: #e06c75;
+  --ob-hl-changed: #e5c07b;
+  --ob-hl-invalid: #e06c75;
+  --ob-hl-heading: #61afef;
+}
+body.ob-t-atom.theme-light, body.ob-t-atom.theme-light .app-container {  --ob-bg: #fafafa;
+  --ob-bg-alt: #eaeaeb;
+  --ob-text: #383a42;
+  --ob-text-mut: #8e8e90;
+  --ob-text-faint: #999999;
+  --ob-accent: #1592ff;
+  --ob-accent-soft: color-mix(in srgb, #1592ff 30%, transparent);
+  --ob-link: #1592ff;
+  --ob-h1: #383a42;
+  --ob-h2: #383a42;
+  --ob-h3: #383a42;
+  --ob-h4: #383a42;
+  --ob-h5: #383a42;
+  --ob-h6: #383a42;
+  --ob-h1-size: 1.8em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.4em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.1em;
+  --ob-h6-size: 1em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: #1592ff;
+  --ob-code-bg: #eaeaeb;
+  --ob-code-text: #383a42;
+  --ob-border: #dbdbdc;
+  --ob-selection: rgba(0, 122, 255, 0.15);
+  --ob-list-marker: #8e8e90;
+  --ob-bold: #383a42;
+  --ob-italic: #383a42;
+  --ob-strikethrough: #8e8e90;
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e75545;
+  --ob-bg-low: #eaeaeb;
+  --ob-hover: var(--background-modifier-hover, var(--ob-bg-alt));
+  --ob-hl-text: #383a42;
+  --ob-hl-keyword: #a625a4;
+  --ob-hl-string: #4ea24c;
+  --ob-hl-number: #986800;
+  --ob-hl-comment: #383a42;
+  --ob-hl-function: #3d74f6;
+  --ob-hl-property: #0084bc;
+  --ob-hl-type: #e35649;
+  --ob-hl-operator: #0084bc;
+  --ob-hl-punctuation: #383a42;
+  --ob-hl-tag: #e75545;
+  --ob-hl-attr: #986800;
+  --ob-hl-regexp: #0084bc;
+  --ob-hl-link: #3d74f6;
+  --ob-hl-inserted: #4ea24c;
+  --ob-hl-deleted: #e75545;
+  --ob-hl-changed: #e35649;
+  --ob-hl-invalid: #e75545;
+  --ob-hl-heading: #3d74f6;
+}
+body.ob-t-atom.theme-dark {--accent-h: 219;--accent-s: 56%;--accent-l: 55%;--background-primary: #272b34;--background-primary-alt: #20242b;--background-secondary: #20242b;--background-modifier-border: #424958;--text-accent: #61afef;--text-normal: #dcddde;--text-muted: #888;--text-faint: rgb(81, 86, 99);--text-error: #e16d76;--text-highlight-bg: rgba(255, 255, 0, 0.4);--text-selection: rgba(0, 122, 255, 0.2);--gray-1: #5C6370;--gray-2: #abb2bf;--red: #e06c75;--orange: #d19a66;--green: #98c379;--aqua: #56b6c2;--purple: #c678dd;--blue: #61afef;--yellow: #e5c07b;--background-modifier-hover: hsla(var(--accent-h), calc(var(--accent-s) - 35%), var(--accent-l), 0.06);
+}
+
+body.ob-t-atom.theme-light {--accent-h: 230;--accent-s: 83%;--accent-l: 64%;--background-primary: #fafafa;--background-primary-alt: #eaeaeb;--background-secondary: #eaeaeb;--background-modifier-border: #dbdbdc;--text-accent: #1592ff;--text-normal: #383a42;--text-muted: #8e8e90;--text-faint: #999999;--text-error: #e75545;--text-highlight-bg: rgba(255, 255, 0, 0.4);--text-selection: rgba(0, 122, 255, 0.15);--gray-1: #383a42;--gray-2: #383a42;--red: #e75545;--green: #4ea24c;--blue: #3d74f6;--purple: #a625a4;--aqua: #0084bc;--yellow: #e35649;--orange: #986800;
+}
+
+body.ob-t-atom.theme-dark, body.ob-t-atom.theme-light {--embed-padding: 0 0 0 var(--size-4-4);
+}
+body.ob-t-atom .markdown-rendered blockquote {
+  padding: var(--embed-padding);
+}
+
+body.ob-t-atom.theme-light :not(pre)>code,
+body.ob-t-atom.theme-light pre {
+  background: var(--background-primary);
+  box-shadow: inset 0 0 0 1px var(--background-primary-alt);
+  border-radius: 4px;
+}
+
+body.ob-t-atom .cm-sizer > .inline-title {
+  margin-bottom: 20px;
+}
+
+body.ob-t-atom .token.comment, body.ob-t-atom .token.prolog, body.ob-t-atom .token.doctype, body.ob-t-atom .token.cdata, body.ob-t-atom .HyperMD-codeblock .cm-comment {
+  color: var(--gray-1) !important;
+}
+
+body.ob-t-atom .token.punctuation,
+body.ob-t-atom .HyperMD-codeblock .cm-hmd-codeblock,
+body.ob-t-atom .HyperMD-codeblock .cm-bracket {
+  color: var(--gray-2) !important;
+}
+
+body.ob-t-atom .token.selector, body.ob-t-atom .token.tag, body.ob-t-atom .HyperMD-codeblock .cm-tag, body.ob-t-atom .HyperMD-codeblock .cm-property, body.ob-t-atom .HyperMD-codeblock .cm-meta, body.ob-t-atom .HyperMD-codeblock .cm-qualifier, body.ob-t-atom .HyperMD-codeblock .cm-header, body.ob-t-atom .HyperMD-codeblock .cm-quote, body.ob-t-atom .HyperMD-codeblock .cm-hr, body.ob-t-atom .HyperMD-codeblock .cm-link {
+  color: var(--red) !important;
+}
+
+body.ob-t-atom .token.property, body.ob-t-atom .token.boolean, body.ob-t-atom .token.number, body.ob-t-atom .token.constant, body.ob-t-atom .token.symbol, body.ob-t-atom .token.attr-name, body.ob-t-atom .token.deleted, body.ob-t-atom .HyperMD-codeblock .cm-number, body.ob-t-atom .HyperMD-codeblock .cm-atom, body.ob-t-atom .HyperMD-codeblock .cm-attribute {
+  color: var(--orange) !important;
+}
+
+body.ob-t-atom .token.string, body.ob-t-atom .token.char, body.ob-t-atom .token.attr-value, body.ob-t-atom .token.builtin, body.ob-t-atom .token.inserted, body.ob-t-atom .HyperMD-codeblock .cm-string, body.ob-t-atom .HyperMD-codeblock .cm-builtin {
+  color: var(--green) !important;
+}
+
+body.ob-t-atom .token.operator, body.ob-t-atom .token.entity, body.ob-t-atom .token.url, body.ob-t-atom .language-css .token.string, body.ob-t-atom .style .token.string, body.ob-t-atom .HyperMD-codeblock .cm-string-2, body.ob-t-atom .HyperMD-codeblock .cm-operator {
+  color: var(--aqua) !important;
+}
+
+body.ob-t-atom .token.atrule, body.ob-t-atom .token.keyword, body.ob-t-atom .HyperMD-codeblock .cm-keyword {
+  color: var(--purple) !important;
+}
+
+body.ob-t-atom .token.function, body.ob-t-atom .token.macro.property, body.ob-t-atom .HyperMD-codeblock .cm-def, body.ob-t-atom .HyperMD-codeblock .cm-variable {
+  color: var(--blue) !important;
+}
+
+body.ob-t-atom .token.class-name,
+body.ob-t-atom .HyperMD-codeblock .cm-variable-2,
+body.ob-t-atom .HyperMD-codeblock .cm-variable-3 {
+  color: var(--yellow) !important;
+}
+
+@media print {
+  body.ob-t-atom code[class*='language-'] {
+    white-space: pre-wrap !important;
+  }
+}

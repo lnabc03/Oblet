@@ -23,6 +23,17 @@
       html.ob-theme-light #ob-splash {
         background: #eee6dd;
       }
+      /* 二期：各主题 splash 底色（= 蒸馏产物的 --ob-bg；与 theme-classes.ts 的 splash 同步） */
+      html.ob-t-atom #ob-splash { background: #272b34; }
+      html.ob-t-atom.ob-theme-light #ob-splash { background: #fafafa; }
+      html.ob-t-github #ob-splash { background: #0d1117; }
+      html.ob-t-github.ob-theme-light #ob-splash { background: #ffffff; }
+      html.ob-t-minimal #ob-splash { background: #262626; }
+      html.ob-t-minimal.ob-theme-light #ob-splash { background: #ffffff; }
+      html.ob-t-nord #ob-splash { background: #2e3440; }
+      html.ob-t-nord.ob-theme-light #ob-splash { background: #ffffff; }
+      html.ob-t-things #ob-splash { background: #1c2127; }
+      html.ob-t-things.ob-theme-light #ob-splash { background: #ffffff; }
       #ob-splash.ob-splash-hide {
         opacity: 0;
         pointer-events: none;
@@ -48,9 +59,11 @@
     </style>
     <script src="./splash-early.js"></script>
   </head>
-  <!-- 主题类（多主题一期）：默认深色作无 JS 兜底，运行时装配权在 JS
-       （theme-classes.ts 按设置 swap theme-*/ctp-flavor/ctp-accent 三类；anp-* 定制类明暗共用常驻） -->
-  <body class="theme-dark ctp-mocha-old ctp-accent-mauve anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">
+  <!-- 主题类：默认 AnuPpuccin 深色作无 JS 兜底，运行时装配权在 JS
+       （theme-classes.ts 注册表按设置 swap theme-*/ctp-flavor/ctp-accent/ob-t-* 类；
+       anp-* 定制类是 AnuPpuccin 专属但常驻——其他主题下因主题文件的 ob-t-anuppuccin
+       门控前缀不匹配而自动失效） -->
+  <body class="theme-dark ctp-mocha-old ctp-accent-mauve ob-t-anuppuccin anp-current-line anp-callout-sleek anp-codeblock-edit-nowrap anp-color-transition-toggle anp-button-metadata-toggle anp-print anp-header-color-toggle anp-decoration-toggle anp-canvas-dark-bg anp-custom-vault-toggle anp-file-icons anp-simple-rainbow-title-toggle anp-simple-rainbow-collapse-icon-toggle anp-simple-rainbow-indentation-toggle anp-simple-rainbow-icon-toggle anp-rainbow-subfolder-color-toggle anp-disable-newtab-align anp-highlight-blue anp-simple-rainbow-color-toggle anp-mini-tab-toggle anp-h1-red anp-h2-peach anp-h3-green anp-h4-teal anp-h5-lavender anp-h6-mauve anp-bold-red anp-italic-green">
     <div id="ob-splash"><img src="./logo.png" alt="" /></div>
     <div id="app" class="app-container"></div>
     <script type="module" src="/src/main.ts"></script>

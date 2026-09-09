@@ -1,0 +1,149 @@
+
+/*
+  GitHub Theme for Obsidian, by @krios2146 — MIT License
+  https://github.com/krios2146/obsidian-github
+*/
+/*
+  
+  Oblet 原生主题：GitHub Theme（深/浅双模）
+  本文件由 scripts/theme-distill.mjs 从 ref/themes/github.css 蒸馏生成：
+  死规则（Obsidian 外壳/不支持特性）已按运行时探测剔除，变量经传递闭包剪枝，
+  --ob-* 已求值为字面值（桥接层废弃）。全部规则带 body.ob-t-github 门控前缀，
+  多主题共存互不泄漏。改配色请改本文件，或改 scripts/themes.config.mjs 后重跑。
+
+*/
+body.ob-t-github.theme-dark, body.ob-t-github.theme-dark .app-container {  --ob-bg: #0d1117;
+  --ob-bg-alt: #161b22;
+  --ob-text: #c9d1d9;
+  --ob-text-mut: #8b949e;
+  --ob-text-faint: #6e7681;
+  --ob-accent: hsl(212, 100%, calc(67% - 3.8%));
+  --ob-accent-soft: color-mix(in srgb, hsl(212, 100%, calc(67% - 3.8%)) 30%, transparent);
+  --ob-link: hsl(212, 100%, 67%);
+  --ob-h1: #7ee787;
+  --ob-h2: #7ee787;
+  --ob-h3: #7ee787;
+  --ob-h4: #7ee787;
+  --ob-h5: #7ee787;
+  --ob-h6: #7ee787;
+  --ob-h1-size: 2em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.37em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.12em;
+  --ob-h6-size: 1.12em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: var(--blockquote-border-color, hsl(212, 100%, calc(67% - 3.8%)));
+  --ob-code-bg: #161b22;
+  --ob-code-text: #8b949e;
+  --ob-border: #30363d;
+  --ob-selection: hsla(212, 100%, 67%, 0.4);
+  --ob-list-marker: #c9d1d9;
+  --ob-bold: inherit;
+  --ob-italic: inherit;
+  --ob-strikethrough: #8b949e;
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #F47067;
+  --ob-bg-low: #161b22;
+  --ob-hover: rgba(177, 186, 196, 0.12);
+  --ob-hl-text: #c9d1d9;
+  --ob-hl-keyword: #F47067;
+  --ob-hl-string: #A5D6FF;
+  --ob-hl-number: #6CB6FF;
+  --ob-hl-comment: #999;
+  --ob-hl-function: #D2A8FF;
+  --ob-hl-property: #A5D6FF;
+  --ob-hl-type: #FFA657;
+  --ob-hl-operator: #F47067;
+  --ob-hl-punctuation: #6e7681;
+  --ob-hl-tag: #7ee787;
+  --ob-hl-attr: #FFA657;
+  --ob-hl-regexp: #f778ba;
+  --ob-hl-link: #6CB6FF;
+  --ob-hl-inserted: #7ee787;
+  --ob-hl-deleted: #F47067;
+  --ob-hl-changed: #d29922;
+  --ob-hl-invalid: #F47067;
+  --ob-hl-heading: #D2A8FF;
+}
+body.ob-t-github.theme-light, body.ob-t-github.theme-light .app-container {  --ob-bg: #ffffff;
+  --ob-bg-alt: #f6f8fa;
+  --ob-text: #24292f;
+  --ob-text-mut: #57606a;
+  --ob-text-faint: #6e7781;
+  --ob-accent: hsl(212, 92%, calc(45% + 2.5%));
+  --ob-accent-soft: color-mix(in srgb, hsl(212, 92%, calc(45% + 2.5%)) 30%, transparent);
+  --ob-link: hsl(212, 92%, 45%);
+  --ob-h1: #24292f;
+  --ob-h2: #24292f;
+  --ob-h3: #24292f;
+  --ob-h4: #24292f;
+  --ob-h5: #24292f;
+  --ob-h6: #24292f;
+  --ob-h1-size: 2em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.37em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.12em;
+  --ob-h6-size: 1.12em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: var(--blockquote-border-color, hsl(212, 92%, calc(45% + 2.5%)));
+  --ob-code-bg: #f6f8fa;
+  --ob-code-text: #57606a;
+  --ob-border: #d0d7de;
+  --ob-selection: hsla(212, 92%, 45%, 0.2);
+  --ob-list-marker: #24292f;
+  --ob-bold: inherit;
+  --ob-italic: inherit;
+  --ob-strikethrough: #57606a;
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #cf222e;
+  --ob-bg-low: #f6f8fa;
+  --ob-hover: rgba(208, 215, 222, 0.32);
+  --ob-hl-text: #24292f;
+  --ob-hl-keyword: #cf222e;
+  --ob-hl-string: #2db7b5;
+  --ob-hl-number: #086DDD;
+  --ob-hl-comment: #707070;
+  --ob-hl-function: #876be0;
+  --ob-hl-property: #2db7b5;
+  --ob-hl-type: #d96c00;
+  --ob-hl-operator: #cf222e;
+  --ob-hl-punctuation: #6e7781;
+  --ob-hl-tag: #0cb54f;
+  --ob-hl-attr: #d96c00;
+  --ob-hl-regexp: #C32B74;
+  --ob-hl-link: #086DDD;
+  --ob-hl-inserted: #0cb54f;
+  --ob-hl-deleted: #cf222e;
+  --ob-hl-changed: #BD8E37;
+  --ob-hl-invalid: #cf222e;
+  --ob-hl-heading: #876be0;
+}
+body.ob-t-github {--blockquote-border-color: var(--interactive-accent);--bold-color: inherit;--code-background: var(--background-primary-alt);--code-normal: var(--text-muted);--h1-color: var(--h1-color-theme);--h2-color: var(--h2-color-theme);--h3-color: var(--h3-color-theme);--h4-color: var(--h4-color-theme);--h5-color: var(--h5-color-theme);--h6-color: var(--h6-color-theme);--h1-size: 2em;--h2-size: 1.6em;--h3-size: 1.37em;--h4-size: 1.25em;--h5-size: 1.12em;--h6-size: 1.12em;--italic-color: inherit;--link-color: var(--text-accent);--list-marker-color: var(--text-normal);--size-2-3: 6px;--size-4-3: 12px;--accent-h: var(--accent-h-theme);--accent-s: var(--accent-s-theme);--accent-l: var(--accent-l-theme);--background-primary: var(--color-base-00);--background-primary-alt: var(--color-base-10);--background-secondary: var(--color-base-20);--background-modifier-hover: rgba(var(--rgb-hover), var(--background-modifier-hover-alpha));--background-modifier-border: var(--color-base-30);--text-normal: var(--color-base-100);--text-muted: var(--color-base-70);--text-faint: var(--color-base-50);--text-error: var(--color-red);--text-selection: hsla(var(--color-accent-hsl), 0.2);--text-highlight-bg: rgba(255, 208, 0, 0.4);--text-accent: var(--color-accent);--interactive-accent-hsl: var(--color-accent-hsl);--interactive-accent: var(--color-accent-1);
+}
+
+body.ob-t-github.theme-dark {color-scheme: dark;--rgb-hover: 177, 186, 196;--color-red: #F47067;--color-green: #7ee787;--color-orange: #FFA657;--color-yellow: #d29922;--color-cyan: #A5D6FF;--color-blue: #6CB6FF;--color-purple: #D2A8FF;--color-pink: #f778ba;--color-base-00: #0d1117;--color-base-10: #161b22;--color-base-20: #161b22;--color-base-30: #30363d;--color-base-50: #6e7681;--color-base-60: #999;--color-base-70: #8b949e;--color-base-100: #c9d1d9;--accent-h-theme: 212;--accent-s-theme: 100%;--accent-l-theme: 67%;--color-accent-hsl: var(--accent-h), var(--accent-s), var(--accent-l);--color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));--color-accent-1: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 3.8%));--text-highlight-bg: rgba(255, 208, 0, 0.4);--text-selection: hsla(var(--interactive-accent-hsl), 0.4);--inline-code-background: #6e768166;--h1-color-theme: var(--color-green);--h2-color-theme: var(--color-green);--h3-color-theme: var(--color-green);--h4-color-theme: var(--color-green);--h5-color-theme: var(--color-green);--h6-color-theme: var(--color-green);--background-modifier-hover-alpha: 0.12;
+}
+
+body.ob-t-github.theme-light {color-scheme: light;--rgb-hover: 208, 215, 222;--color-red: #cf222e;--color-green: #0cb54f;--color-orange: #d96c00;--color-yellow: #BD8E37;--color-cyan: #2db7b5;--color-blue: #086DDD;--color-purple: #876be0;--color-pink: #C32B74;--color-base-00: #ffffff;--color-base-10: #f6f8fa;--color-base-20: #f6f8fa;--color-base-30: #d0d7de;--color-base-50: #6e7781;--color-base-60: #707070;--color-base-70: #57606a;--color-base-100: #24292f;--accent-h-theme: 212;--accent-s-theme: 92%;--accent-l-theme: 45%;--color-accent-hsl: var(--accent-h), var(--accent-s), var(--accent-l);--color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));--color-accent-1: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) + 2.5%));--text-highlight-bg: rgba(255, 208, 0, 0.4);--inline-code-background: #aeb8c133;--h1-color-theme: var(--text-normal);--h2-color-theme: var(--text-normal);--h3-color-theme: var(--text-normal);--h4-color-theme: var(--text-normal);--h5-color-theme: var(--text-normal);--h6-color-theme: var(--text-normal);--background-modifier-hover-alpha: 0.32;
+}
+body.ob-t-github .markdown-rendered td, 
+body.ob-t-github .markdown-rendered th {
+    padding: var(--size-2-3) var(--size-4-3);
+} 
+body.ob-t-github .markdown-rendered th {
+    text-align: center;
+}
+body.ob-t-github .markdown-rendered tbody tr:nth-child(2n) {
+    background-color: var(--background-secondary);
+}
+body.ob-t-github button {
+    transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+body.ob-t-github .markdown-rendered :not(pre) > code {
+    background-color: var(--inline-code-background);
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    color: var(--text-normal);
+}

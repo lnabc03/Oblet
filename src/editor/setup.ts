@@ -692,6 +692,9 @@ export async function boot() {
     /** 主题切换冒烟（多主题一期）：走正式保存+广播链路 */
     testSetTheme: (mode: "dark" | "light" | "system" | null) =>
       switchTypography({ theme_mode: mode }),
+    /** 主题身份切换冒烟（多主题二期）：走正式保存+广播链路 */
+    testSetThemeId: (id: string | null) =>
+      switchTypography({ theme_id: id }),
     /** 重置文档（验证脚本用）：多段测试同窗口连续跑时避免状态污染 */
     reset: (content: string) =>
       crepe.editor.action(replaceAll(content)),
@@ -789,16 +792,17 @@ export async function boot() {
     // 利用 1A 的类切换机制，afterprint 恢复（30s 超时双保险），不写 localStorage 镜像
     //（Mica 已暂时下架——上游 #183；复活时需恢复打印前的材质临时摘除）
     print: () => {
+      const themeId = currentEditorSettings().theme_id;
       const current = resolveTheme(currentEditorSettings().theme_mode);
       if (current === "light") {
         window.print();
         return;
       }
-      applyThemeClasses("light");
+      applyThemeClasses(themeId, "light");
       const restore = () => {
         window.clearTimeout(timer);
         window.removeEventListener("afterprint", restore);
-        applyThemeClasses(current);
+        applyThemeClasses(themeId, current);
       };
       window.addEventListener("afterprint", restore);
       const timer = window.setTimeout(restore, 30_000);

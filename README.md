@@ -5,7 +5,7 @@
 
 轻量、快速的独立 Markdown 编辑器（Windows）。双击任意 `.md` 文件即开即编辑，支持单窗口多标签页（Alt+Left/Right 切换），不需要库（vault）、不需要登录、不收集任何数据。
 
-主题固化为 AnuPpuccin 深色定制版，视觉向 Obsidian 看齐；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
+内置 6 款白名单复刻主题（AnuPpuccin / Minimal / Things / GitHub / Atom / Nord），每款均支持深色/浅色/跟随系统（设置或 Ctrl+T 切换）；第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
 ![Oblet 界面：属性栏、悬浮目录、Callout 与代码高亮](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20260822163201077.png)
 
@@ -73,7 +73,13 @@ npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 ## 许可与致谢
 
 - Oblet 源码：[GPL-3.0 License](LICENSE)（Copyright © 2026 弋鹓 | lnabc03）——因包含 GPL-3.0 许可的 AnuPpuccin 衍生样式，整体按 GPL-3.0 发布
-- 编辑器主题基于 **[AnuPpuccin](https://github.com/AnubisNekhet/AnuPpuccin)**（GPL-3.0）深度定制，感谢作者 AnubisNekhet——如果你喜欢这个主题，可以[请作者喝杯咖啡](https://www.buymeacoffee.com/anubisnekhet)
+- 内置主题（白名单复刻，均保留版权头/出处声明）：
+  - **[AnuPpuccin](https://github.com/AnubisNekhet/AnuPpuccin)**（GPL-3.0，默认主题）深度定制，感谢作者 AnubisNekhet——如果你喜欢这个主题，可以[请作者喝杯咖啡](https://www.buymeacoffee.com/anubisnekhet)
+  - **[Minimal](https://github.com/kepano/obsidian-minimal)**（MIT），作者 Steph Ango (@kepano)
+  - **[Things](https://github.com/colineckert/obsidian-things)**（MIT），作者 @colineckert
+  - **[GitHub Theme](https://github.com/krios2146/obsidian-github)**（MIT），作者 @krios2146
+  - **[Atom](https://github.com/kognise/obsidian-atom)**（MIT），作者 kognise
+  - **[Obsidian Nord](https://github.com/insanum/obsidian_nord)**（MIT），作者 insanum
 - 悬浮目录外观参考自 Obsidian 插件 **[Next TOC](https://github.com/Raven-Pensieve/obsidian-next-toc)**（GPL-3.0），感谢作者 RavenHogWarts
 - 构建于 [Milkdown](https://milkdown.dev/) / [Crepe](https://github.com/Milkdown/crepe)、[CodeMirror](https://codemirror.net/)、[KaTeX](https://katex.org/)、[Tauri](https://tauri.app/) 之上
 - 发行包 `licenses/` 目录内含全部第三方许可文本

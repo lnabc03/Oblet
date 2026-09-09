@@ -1,4 +1,4 @@
-// 设置浮层：排版/编辑器/界面覆盖（主题已固化为 AnuPpuccin 深色单主题，不再可选）
+// 设置浮层：排版/编辑器/界面覆盖（主题 = 白名单注册表选择 × 深/浅/跟随系统模式）
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   currentEditorSettings,
@@ -7,6 +7,7 @@ import {
   setKeybinding,
   switchTypography,
 } from "./typography";
+import { resolveThemeId, THEMES } from "./theme-classes";
 import {
   comboOf,
   effectiveCombo,
@@ -106,6 +107,10 @@ export async function initSettingsUI(container: HTMLElement) {
       </div>
       <div class="settings-section">
         <h3>界面</h3>
+        <label class="check-row">
+          <span>主题</span>
+          <select id="theme-id-select"></select>
+        </label>
         <label class="check-row">
           <span>主题模式</span>
           <select id="theme-mode-select">
@@ -256,11 +261,27 @@ export async function initSettingsUI(container: HTMLElement) {
         const v = ed[input.dataset.check!];
         input.checked = v == null ? def : v === true;
       });
+    // 主题：null = AnuPpuccin（默认）
+    overlay.querySelector<HTMLSelectElement>("#theme-id-select")!.value =
+      resolveThemeId(ed.theme_id as string | null).id;
     // 主题模式：null = 深色（默认）
     overlay.querySelector<HTMLSelectElement>("#theme-mode-select")!.value =
       (ed.theme_mode as string | null) ?? "dark";
     renderKeymapList();
   }
+
+  // 主题选择（多主题二期）：选项由注册表生成；保存即广播，各窗口即时换肤
+  const themeIdSelect = overlay.querySelector<HTMLSelectElement>("#theme-id-select")!;
+  for (const t of THEMES) {
+    const opt = document.createElement("option");
+    opt.value = t.id;
+    opt.textContent = t.name;
+    themeIdSelect.appendChild(opt);
+  }
+  themeIdSelect.addEventListener("change", async (e) => {
+    const v = (e.target as HTMLSelectElement).value;
+    await switchTypography({ theme_id: v === "anuppuccin" ? null : v });
+  });
 
   // 主题模式（多主题一期）：三选，默认深色写回 null（文件自说明）；
   // 保存即广播，各窗口即时换肤（Mica dark 参数随 applyTypography 重放）

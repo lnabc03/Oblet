@@ -43,6 +43,8 @@ export interface EditorSettings {
   toc?: boolean | null;
   /** 主题模式（多主题一期）：null/"dark" = 深色（默认）；"light" = 浅色；"system" = 跟随系统 */
   theme_mode?: ThemeMode | null;
+  /** 主题身份（多主题二期）：null/"anuppuccin" = AnuPpuccin（默认）；其余见 theme-classes.ts 注册表 */
+  theme_id?: string | null;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -80,10 +82,13 @@ export function resolveTheme(mode: ThemeMode | null | undefined): ResolvedTheme 
   return "dark";
 }
 
-/** 应用主题模式：swap body 类集 + 写 localStorage 镜像（splash-early/main.ts 防闪），返回解析值 */
-export function applyTheme(mode: ThemeMode | null | undefined): ResolvedTheme {
+/** 应用主题：swap body 类集（主题身份 × 明暗模式）+ 写 localStorage 镜像（splash-early/main.ts 防闪），返回解析值 */
+export function applyTheme(
+  mode: ThemeMode | null | undefined,
+  themeId?: string | null
+): ResolvedTheme {
   const resolved = resolveTheme(mode);
-  swapThemeClasses(resolved);
+  swapThemeClasses(themeId ?? null, resolved);
   return resolved;
 }
 
@@ -92,7 +97,7 @@ export function applyTypography(e: EditorSettings) {
   current = e;
   // 主题应用（Mica 已暂时下架——上游 window-vibrancy#183 在 Win11 24H2/25H2 失效，
   // 待上游修复后复活：此处需恢复 ob-vibrancy 类切换 + set_window_effect 带 dark 参数）
-  applyTheme(e.theme_mode);
+  applyTheme(e.theme_mode, e.theme_id);
   // 防御：旧会话若残留 vibrancy 类，摘掉
   document.body.classList.remove("ob-vibrancy");
   const targets = [document.body, document.getElementById("app")].filter(

@@ -1,0 +1,429 @@
+
+/*───────────────────────────────────────────────────────
+THINGS
+Version 2.2.4
+Created by @colineckert
+
+Readme:
+https://github.com/colineckert/obsidian-things
+
+Support my work:
+https://www.buymeacoffee.com/colineckert
+──────────────────────────────────────────────────────*/
+/*
+  Oblet 原生主题：Things（深/浅双模）
+  本文件由 scripts/theme-distill.mjs 从 ref/themes/things.css 蒸馏生成：
+  死规则（Obsidian 外壳/不支持特性）已按运行时探测剔除，变量经传递闭包剪枝，
+  --ob-* 已求值为字面值（桥接层废弃）。全部规则带 body.ob-t-things 门控前缀，
+  多主题共存互不泄漏。改配色请改本文件，或改 scripts/themes.config.mjs 后重跑。
+*/
+body.ob-t-things.theme-dark, body.ob-t-things.theme-dark .app-container {  --ob-bg: #1c2127;
+  --ob-bg-alt: #181c20;
+  --ob-text: #dadada;
+  --ob-text-mut: hsl(212, 15%, calc(13% + 65%));
+  --ob-text-faint: hsl(212, 15%, calc(13% + 30%));
+  --ob-accent: hsl(215, 75%, 60%);
+  --ob-accent-soft: color-mix(in srgb, hsl(215, 75%, 70%) 30%, transparent);
+  --ob-link: hsl(215, 75%, 70%);
+  --ob-h1: #dcddde;
+  --ob-h2: #dcddde;
+  --ob-h3: #2e80f2;
+  --ob-h4: #e5b567;
+  --ob-h5: #e83e3e;
+  --ob-h6: hsl(212, 15%, calc(13% + 65%));
+  --ob-h1-size: 1.7rem;
+  --ob-h2-size: 1.5rem;
+  --ob-h3-size: 1.2rem;
+  --ob-h4-size: 1.1rem;
+  --ob-h5-size: 1rem;
+  --ob-h6-size: 0.9rem;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: #3eb4bf;
+  --ob-code-bg: #282c34;
+  --ob-code-text: #dadada;
+  --ob-border: #333;
+  --ob-selection: rgba(2, 122, 255, 0.25);
+  --ob-list-marker: hsl(212, 15%, calc(13% + 65%));
+  --ob-bold: #ff82b2;
+  --ob-italic: #ff82b2;
+  --ob-strikethrough: hsl(212, 15%, calc(13% + 65%));
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e5534b;
+  --ob-bg-low: var(--ob-bg-alt);
+  --ob-hover: var(--background-modifier-hover, var(--ob-bg-alt));
+  --ob-hl-text: #dcddde;
+  --ob-hl-keyword: #9e86c8;
+  --ob-hl-string: #3eb4bf;
+  --ob-hl-number: #e87d3e;
+  --ob-hl-comment: hsl(212, 15%, calc(13% + 30%));
+  --ob-hl-function: #2e80f2;
+  --ob-hl-property: #2e80f2;
+  --ob-hl-type: #e5b567;
+  --ob-hl-operator: #ff82b2;
+  --ob-hl-punctuation: hsl(212, 15%, calc(13% + 65%));
+  --ob-hl-tag: #e83e3e;
+  --ob-hl-attr: #e87d3e;
+  --ob-hl-regexp: #ff82b2;
+  --ob-hl-link: #2e80f2;
+  --ob-hl-inserted: #3eb4bf;
+  --ob-hl-deleted: #e83e3e;
+  --ob-hl-changed: #e5b567;
+  --ob-hl-invalid: #e83e3e;
+  --ob-hl-heading: #2e80f2;
+}
+body.ob-t-things.theme-light, body.ob-t-things.theme-light .app-container {  --ob-bg: #ffffff;
+  --ob-bg-alt: #f6f7f8;
+  --ob-text: #222222;
+  --ob-text-mut: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 60%)
+  );
+  --ob-text-faint: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 30%)
+  );
+  --ob-accent: hsl(215, 75%, 60%);
+  --ob-accent-soft: color-mix(in srgb, hsl(215, 75%, 60%) 30%, transparent);
+  --ob-link: hsl(215, 75%, 60%);
+  --ob-h1: #222222;
+  --ob-h2: #222222;
+  --ob-h3: #2e80f2;
+  --ob-h4: #e5b567;
+  --ob-h5: #e83e3e;
+  --ob-h6: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 60%)
+  );
+  --ob-h1-size: 1.7rem;
+  --ob-h2-size: 1.5rem;
+  --ob-h3-size: 1.2rem;
+  --ob-h4-size: 1.1rem;
+  --ob-h5-size: 1rem;
+  --ob-h6-size: 0.9rem;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: #3eb4bf;
+  --ob-code-bg: #f6f7f8;
+  --ob-code-text: #222222;
+  --ob-border: #e0e0e0;
+  --ob-selection: rgba(8, 109, 221, 0.25);
+  --ob-list-marker: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 60%)
+  );
+  --ob-bold: #ff82b2;
+  --ob-italic: #ff82b2;
+  --ob-strikethrough: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 60%)
+  );
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e5534b;
+  --ob-bg-low: var(--ob-bg-alt);
+  --ob-hover: #e2e5e9;
+  --ob-hl-text: #222222;
+  --ob-hl-keyword: #9e86c8;
+  --ob-hl-string: #3eb4bf;
+  --ob-hl-number: #e87d3e;
+  --ob-hl-comment: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 30%)
+  );
+  --ob-hl-function: #2e80f2;
+  --ob-hl-property: #2e80f2;
+  --ob-hl-type: #e5b567;
+  --ob-hl-operator: #ff82b2;
+  --ob-hl-punctuation: hsl(
+    212,
+    calc(15% - 5%),
+    calc(97% - 60%)
+  );
+  --ob-hl-tag: #e83e3e;
+  --ob-hl-attr: #e87d3e;
+  --ob-hl-regexp: #ff82b2;
+  --ob-hl-link: #2e80f2;
+  --ob-hl-inserted: #3eb4bf;
+  --ob-hl-deleted: #e83e3e;
+  --ob-hl-changed: #e5b567;
+  --ob-hl-invalid: #e83e3e;
+  --ob-hl-heading: #2e80f2;
+}
+body.ob-t-things {--base-h: 212;--base-s: 15%;--base-d: 13%;--base-l: 97%;--accent-h: 215;--accent-s: 75%;--accent-d: 70%;--accent-l: 60%;--blue: #2e80f2;--pink: #ff82b2;--green: #3eb4bf;--yellow: #e5b567;--orange: #e87d3e;--red: #e83e3e;--purple: #9e86c8;--h1-color: var(--text-normal);--h2-color: var(--text-normal);--h3-color: var(--blue);--h4-color: var(--yellow);--h5-color: var(--red);--h6-color: var(--text-muted);--strong-color: var(--pink);--em-color: var(--pink);--quote-color: var(--green);--highlight-background-color-underline: hsl(50deg 100% 50% / 100%) !important;--highlight-background-color--active: hsl(50deg 100% 50% / 20%) !important;--font-text-theme:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Ubuntu,
+    sans-serif;--h1-size: 1.7rem;--h2-size: 1.5rem;--h3-size: 1.2rem;--h4-size: 1.1rem;--h5-size: 1rem;--h6-size: 0.9rem;--code-background-l: #eceef1;--code-background-d: #303540;
+}
+
+body.ob-t-things.theme-light {color-scheme: light;--color-base-00: #ffffff;--color-base-10: #f6f7f8;--color-base-20: #f6f7f8;--color-base-30: #ebedf0;--color-base-100: #222222;--color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));--background-modifier-hover: #e2e5e9;--text-highlight-bg-l: rgba(255, 208, 0, 0.4);--text-highlight-bg: var(--text-highlight-bg-l);--text-muted: hsl(
+    var(--base-h),
+    calc(var(--base-s) - 5%),
+    calc(var(--base-l) - 60%)
+  );--text-faint: hsl(
+    var(--base-h),
+    calc(var(--base-s) - 5%),
+    calc(var(--base-l) - 30%)
+  );--text-formatted: hsl(
+    var(--base-h),
+    calc(var(--base-s) - 5%),
+    calc(var(--base-l) - 35%)
+  );--text-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));--atom-gray-1: #383a42;--atom-gray-2: #383a42;--atom-red: #e75545;--atom-green: #4ea24c;--atom-blue: #3d74f6;--atom-purple: #a625a4;--atom-aqua: #0084bc;--atom-yellow: #e35649;--atom-orange: #986800;
+}
+
+body.ob-t-things.theme-dark {color-scheme: dark;--color-base-00: #1c2127;--color-base-10: #282c34;--color-base-20: #181c20;--color-base-30: #35393e;--color-base-100: #dadada;--color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));--text-highlight-bg-d: rgba(255, 208, 0, 0.4);--text-highlight-bg: var(--text-highlight-bg-d);--text-muted: hsl(var(--base-h), var(--base-s), calc(var(--base-d) + 65%));--text-faint: hsl(var(--base-h), var(--base-s), calc(var(--base-d) + 30%));--text-formatted: hsl(
+    var(--base-h),
+    var(--base-s),
+    calc(var(--base-d) + 50%)
+  );--text-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-d));--atom-gray-1: #5c6370;--atom-gray-2: #abb2bf;--atom-red: #e06c75;--atom-orange: #d19a66;--atom-green: #98c379;--atom-aqua: #56b6c2;--atom-purple: #c678dd;--atom-blue: #61afef;--atom-yellow: #e5c07b;
+}
+body.ob-t-things .markdown-preview-view h2,
+body.ob-t-things .markdown-rendered h2 {
+  border-bottom: 2px solid var(--background-modifier-border);
+  width: 100%;
+  padding-bottom: 2px;
+  margin-bottom: 8px !important;
+}
+body.ob-t-things .HyperMD-header.HyperMD-header-2.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.h2-no-underline .HyperMD-header.HyperMD-header-2.cm-line {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+body.ob-t-things.h1-small-caps h1,
+body.ob-t-things.h1-small-caps .HyperMD-header.HyperMD-header-1.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h2-small-caps h2,
+body.ob-t-things.h2-small-caps .HyperMD-header.HyperMD-header-2.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h3-small-caps h3,
+body.ob-t-things.h3-small-caps .HyperMD-header.HyperMD-header-3.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h4-small-caps h4,
+body.ob-t-things.h4-small-caps .HyperMD-header.HyperMD-header-4.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h5-small-caps h5,
+body.ob-t-things.h5-small-caps .HyperMD-header.HyperMD-header-5.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h6-small-caps h6,
+body.ob-t-things.h6-small-caps .HyperMD-header.HyperMD-header-6.cm-line {
+  font-variant-caps: small-caps;
+}
+body.ob-t-things.h1-underline .HyperMD-header.HyperMD-header-1.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.h3-underline .HyperMD-header.HyperMD-header-3.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.h4-underline .HyperMD-header.HyperMD-header-4.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.h5-underline .HyperMD-header.HyperMD-header-5.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.h6-underline .HyperMD-header.HyperMD-header-6.cm-line {
+  border-bottom: 2px solid var(--background-modifier-border);
+  padding-bottom: 2px;
+}
+body.ob-t-things.heading-underline-color.h1-underline h1,
+body.ob-t-things.heading-underline-color.h1-underline
+  .HyperMD-header.HyperMD-header-1.cm-line {
+  border-bottom-color: var(--h1-color);
+}
+body.ob-t-things.heading-underline-color:not(.h2-no-underline) .markdown-preview-view h2,
+body.ob-t-things.heading-underline-color:not(.h2-no-underline) .markdown-rendered h2,
+body.ob-t-things.heading-underline-color:not(.h2-no-underline)
+  .HyperMD-header.HyperMD-header-2.cm-line {
+  border-bottom-color: var(--h2-color);
+}
+body.ob-t-things.heading-underline-color.h3-underline h3,
+body.ob-t-things.heading-underline-color.h3-underline
+  .HyperMD-header.HyperMD-header-3.cm-line {
+  border-bottom-color: var(--h3-color);
+}
+body.ob-t-things.heading-underline-color.h4-underline h4,
+body.ob-t-things.heading-underline-color.h4-underline
+  .HyperMD-header.HyperMD-header-4.cm-line {
+  border-bottom-color: var(--h4-color);
+}
+body.ob-t-things.heading-underline-color.h5-underline h5,
+body.ob-t-things.heading-underline-color.h5-underline
+  .HyperMD-header.HyperMD-header-5.cm-line {
+  border-bottom-color: var(--h5-color);
+}
+body.ob-t-things.heading-underline-color.h6-underline h6,
+body.ob-t-things.heading-underline-color.h6-underline
+  .HyperMD-header.HyperMD-header-6.cm-line {
+  border-bottom-color: var(--h6-color);
+}
+body.ob-t-things .markdown-source-view.mod-cm6.is-live-preview .cm-hashtag.cm-meta,
+body.ob-t-things .markdown-source-view.mod-cm5 .cm-hashtag.cm-meta {
+  font-family: var(--font-text-theme);
+}
+body.ob-t-things:not(.default-font-color) .markdown-preview-view blockquote,
+body.ob-t-things:not(.default-font-color) span.cm-quote.cm-quote-1 {
+  font-style: italic;
+  color: var(--quote-color);
+}
+body.ob-t-things:not(.default-font-color) strong,
+body.ob-t-things:not(.default-font-color) span:not(.cm-highlight).cm-strong {
+  color: var(--strong-color);
+}
+body.ob-t-things:not(.default-font-color) em,
+body.ob-t-things:not(.default-font-color) span:not(.cm-highlight).cm-em {
+  color: var(--em-color);
+}
+body.ob-t-things.fancy-highlight span.cm-highlight,
+body.ob-t-things.fancy-highlight .markdown-preview-view mark,
+body.ob-t-things.fancy-highlight .markdown-rendered mark,
+body.ob-t-things.fancy-highlight span.search-result-file-matched-text {
+  background-image: linear-gradient(
+    0deg,
+    var(--highlight-background-color-underline) 0%,
+    var(--highlight-background-color-underline) 2px,
+    var(--highlight-background-color--active) 2px,
+    var(--highlight-background-color--active) 100%
+  ) !important;
+  background-color: var(--highlight-text-color--active) !important;
+}
+body.ob-t-things .cm-formatting-strong,
+body.ob-t-things .cm-formatting-em,
+body.ob-t-things .cm-formatting.cm-formatting-quote {
+  color: var(--text-formatted) !important;
+  font-weight: var(--normal-weight);
+  letter-spacing: -0.02em;
+}
+body.ob-t-things.active-line .cm-active:not(.HyperMD-header, .HyperMD-codeblock)::before, body.ob-t-things.active-line .cm-active.HyperMD-quote::before {
+  content: '';
+  height: 100%;
+  position: absolute;
+  left: -1.125em;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 10px 0 0 10px;
+  opacity: 0.85;
+}
+body.ob-t-things.theme-light .markdown-rendered code:not(pre code),
+body.ob-t-things.theme-light .markdown-preview-view code:not(pre code) {
+  background-color: var(--code-background-l);
+}
+body.ob-t-things.theme-dark .markdown-rendered code:not(pre code),
+body.ob-t-things.theme-dark .markdown-preview-view code:not(pre code) {
+  background-color: var(--code-background-d);
+}
+body.ob-t-things.theme-light .cm-s-obsidian span.cm-inline-code {
+  background-color: var(--code-background-l);
+}
+body.ob-t-things.theme-dark .cm-s-obsidian span.cm-inline-code {
+  background-color: var(--code-background-d);
+}
+
+body.ob-t-things.fancy-code
+  .HyperMD-codeblock.HyperMD-codeblock-bg.cm-line:not(
+    .HyperMD-codeblock-begin,
+    .HyperMD-codeblock-end
+  ) {
+  padding-left: 2.8em;
+}
+
+body.ob-t-things.fancy-code .cm-line.HyperMD-codeblock .code-block-flair {
+  font-size: calc(var(--code-size) * 0.9);
+  color: var(--text-muted);
+  padding: 0 1px;
+  top: 0;
+}
+body.ob-t-things.theme-light .token.comment .theme-light .cm-comment {
+  color: #ababab;
+}
+body.ob-t-things.theme-dark .token.comment,
+body.ob-t-things.theme-dark .cm-comment:not(.cm-hashtag),
+body.ob-t-things .token.prolog,
+body.ob-t-things .token.doctype,
+body.ob-t-things .token.cdata {
+  color: var(--atom-gray-1);
+}
+body.ob-t-things .token.punctuation,
+body.ob-t-things .token.plain-text,
+body.ob-t-things .token.dom.variable,
+body.ob-t-things .cm-hmd-codeblock.cm-bracket {
+  color: var(--atom-gray-2);
+}
+body.ob-t-things code[class*='language-'],
+body.ob-t-things .token.selector,
+body.ob-t-things .cm-tag,
+body.ob-t-things .token.dom.variable,
+body.ob-t-things .token.tag,
+body.ob-t-things .cm-def,
+body.ob-t-things .token.parameter,
+body.ob-t-things .cm-property,
+body.ob-t-things .cm-qualifier {
+  color: var(--atom-red);
+}
+body.ob-t-things .token.class-name,
+body.ob-t-things .token.maybe-class-name,
+body.ob-t-things .token.property-access,
+body.ob-t-things .token.constant,
+body.ob-t-things .token.builtin,
+body.ob-t-things .cm-variable-2,
+body.ob-t-things .cm-type,
+body.ob-t-things .cm-atom,
+body.ob-t-things code .cm-tag {
+  color: var(--atom-yellow);
+}
+body.ob-t-things .token.property,
+body.ob-t-things .token.boolean,
+body.ob-t-things .token.number,
+body.ob-t-things .token.symbol,
+body.ob-t-things .token.attr-name,
+body.ob-t-things .token.deleted,
+body.ob-t-things .cm-attribute,
+body.ob-t-things .cm-number,
+body.ob-t-things .cm-property.cm-string {
+  color: var(--atom-orange);
+}
+body.ob-t-things .token.string,
+body.ob-t-things .token.char,
+body.ob-t-things .token.attr-value,
+body.ob-t-things .token.inserted,
+body.ob-t-things .cm-hmd-codeblock.cm-string,
+body.ob-t-things .cm-hmd-codeblock.cm-string-2 {
+  color: var(--atom-green);
+}
+body.ob-t-things .token.operator,
+body.ob-t-things .cm-operator,
+body.ob-t-things .token.entity,
+body.ob-t-things .token.url,
+body.ob-t-things .language-css .token.string,
+body.ob-t-things .style .token.string {
+  color: var(--atom-aqua);
+}
+body.ob-t-things .token.atrule,
+body.ob-t-things .token.keyword,
+body.ob-t-things .cm-keyword {
+  color: var(--atom-purple);
+}
+body.ob-t-things .cm-variable,
+body.ob-t-things .token.function,
+body.ob-t-things .token.method,
+body.ob-t-things .token.macro.property {
+  color: var(--atom-blue);
+}
+@media print {
+  body.ob-t-things.theme-dark {
+    --highlight-mix-blend-mode: darken;
+    --color-base-30: #ebedf0;
+    --h1-color: var(--color-base-00);
+  }
+}

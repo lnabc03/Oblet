@@ -1,0 +1,224 @@
+
+/*
+  Obsidian Nord theme, by insanum — MIT License
+  https://github.com/insanum/obsidian_nord
+*/
+/*
+  
+  Oblet 原生主题：Obsidian Nord（深/浅双模）
+  本文件由 scripts/theme-distill.mjs 从 ref/themes/nord.css 蒸馏生成：
+  死规则（Obsidian 外壳/不支持特性）已按运行时探测剔除，变量经传递闭包剪枝，
+  --ob-* 已求值为字面值（桥接层废弃）。全部规则带 body.ob-t-nord 门控前缀，
+  多主题共存互不泄漏。改配色请改本文件，或改 scripts/themes.config.mjs 后重跑。
+
+*/
+body.ob-t-nord.theme-dark, body.ob-t-nord.theme-dark .app-container
+{  --ob-bg: rgb(46,52,64);
+  --ob-bg-alt: rgb(59,66,82);
+  --ob-text: rgb(236,239,244);
+  --ob-text-mut: rgb(229,233,240);
+  --ob-text-faint: rgb(216,222,233);
+  --ob-accent: rgb(208,135,112);
+  --ob-accent-soft: color-mix(in srgb, rgb(208,135,112) 30%, transparent);
+  --ob-link: rgb(208,135,112);
+  --ob-h1: rgb(191,97,106);
+  --ob-h2: rgb(235,203,139);
+  --ob-h3: rgb(163,190,140);
+  --ob-h4: rgb(180,142,173);
+  --ob-h5: rgb(143,188,187);
+  --ob-h6: rgb(129,161,193);
+  --ob-h1-size: 1.8em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.4em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.1em;
+  --ob-h6-size: 1em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: rgb(208,135,112);
+  --ob-code-bg: rgb(59,66,82);
+  --ob-code-text: rgb(136,192,208);
+  --ob-border: rgb(67,76,94);
+  --ob-selection: rgba(191,97,106, 0.6);
+  --ob-list-marker: rgb(229,233,240);
+  --ob-bold: rgb(235,203,139);
+  --ob-italic: rgb(235,203,139);
+  --ob-strikethrough: rgb(229,233,240);
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e5534b;
+  --ob-bg-low: rgb(46,52,64);
+  --ob-hover: var(--ob-bg-alt);
+  --ob-hl-text: rgb(236,239,244);
+  --ob-hl-keyword: rgb(143,188,187);
+  --ob-hl-string: rgb(163,190,140);
+  --ob-hl-number: rgb(180,142,173);
+  --ob-hl-comment: rgb(76,86,106);
+  --ob-hl-function: rgb(136,192,208);
+  --ob-hl-property: rgb(129,161,193);
+  --ob-hl-type: rgb(235,203,139);
+  --ob-hl-operator: rgb(143,188,187);
+  --ob-hl-punctuation: rgb(216,222,233);
+  --ob-hl-tag: rgb(191,97,106);
+  --ob-hl-attr: rgb(235,203,139);
+  --ob-hl-regexp: rgb(208,135,112);
+  --ob-hl-link: rgb(94,129,172);
+  --ob-hl-inserted: rgb(163,190,140);
+  --ob-hl-deleted: rgb(191,97,106);
+  --ob-hl-changed: rgb(235,203,139);
+  --ob-hl-invalid: rgb(191,97,106);
+  --ob-hl-heading: rgb(136,192,208);
+}
+body.ob-t-nord.theme-light, body.ob-t-nord.theme-light .app-container
+{  --ob-bg: rgb(255,255,255);
+  --ob-bg-alt: rgb(236,239,244);
+  --ob-text: rgb(67,76,94);
+  --ob-text-mut: rgb(59,66,82);
+  --ob-text-faint: rgb(46,52,64);
+  --ob-accent: rgb(208,135,112);
+  --ob-accent-soft: color-mix(in srgb, rgb(208,135,112) 30%, transparent);
+  --ob-link: rgb(208,135,112);
+  --ob-h1: rgb(191,97,106);
+  --ob-h2: rgb(235,203,139);
+  --ob-h3: rgb(163,190,140);
+  --ob-h4: rgb(180,142,173);
+  --ob-h5: rgb(143,188,187);
+  --ob-h6: rgb(129,161,193);
+  --ob-h1-size: 1.8em;
+  --ob-h2-size: 1.6em;
+  --ob-h3-size: 1.4em;
+  --ob-h4-size: 1.25em;
+  --ob-h5-size: 1.1em;
+  --ob-h6-size: 1em;
+  --ob-quote-bg: transparent;
+  --ob-quote-border: rgb(208,135,112);
+  --ob-code-bg: rgb(236,239,244);
+  --ob-code-text: rgb(136,192,208);
+  --ob-border: rgb(229,233,240);
+  --ob-selection: rgba(191,97,106, 0.6);
+  --ob-list-marker: rgb(59,66,82);
+  --ob-bold: rgb(163,190,140);
+  --ob-italic: rgb(163,190,140);
+  --ob-strikethrough: rgb(59,66,82);
+  --ob-toast-warn: #d29922;
+  --ob-toast-error: #e5534b;
+  --ob-bg-low: rgb(255,255,255);
+  --ob-hover: var(--ob-bg-alt);
+  --ob-hl-text: rgb(67,76,94);
+  --ob-hl-keyword: rgb(143,188,187);
+  --ob-hl-string: rgb(163,190,140);
+  --ob-hl-number: rgb(180,142,173);
+  --ob-hl-comment: rgb(76,86,106);
+  --ob-hl-function: rgb(136,192,208);
+  --ob-hl-property: rgb(129,161,193);
+  --ob-hl-type: rgb(235,203,139);
+  --ob-hl-operator: rgb(143,188,187);
+  --ob-hl-punctuation: rgb(46,52,64);
+  --ob-hl-tag: rgb(191,97,106);
+  --ob-hl-attr: rgb(235,203,139);
+  --ob-hl-regexp: rgb(208,135,112);
+  --ob-hl-link: rgb(94,129,172);
+  --ob-hl-inserted: rgb(163,190,140);
+  --ob-hl-deleted: rgb(191,97,106);
+  --ob-hl-changed: rgb(235,203,139);
+  --ob-hl-invalid: rgb(191,97,106);
+  --ob-hl-heading: rgb(136,192,208);
+}
+body.ob-t-nord
+{--dark0_x:  46,52,64;--dark0:    rgb(var(--dark0_x));--dark1_x:  59,66,82;--dark1:    rgb(var(--dark1_x));--dark2_x:  67,76,94;--dark2:    rgb(var(--dark2_x));--dark3_x:  76,86,106;--dark3:    rgb(var(--dark3_x));--light0_x: 216,222,233;--light0:   rgb(var(--light0_x));--light1_x: 229,233,240;--light1:   rgb(var(--light1_x));--light2_x: 236,239,244;--light2:   rgb(var(--light2_x));--light3_x: 255,255,255;--light3:   rgb(var(--light3_x));--frost0_x: 143,188,187;--frost0:   rgb(var(--frost0_x));--frost1_x: 136,192,208;--frost1:   rgb(var(--frost1_x));--frost2_x: 129,161,193;--frost2:   rgb(var(--frost2_x));--frost3_x: 94,129,172;--frost3:   rgb(var(--frost3_x));--red_x:    191,97,106;--red:      rgb(var(--red_x));--orange_x: 208,135,112;--orange:   rgb(var(--orange_x));--yellow_x: 235,203,139;--yellow:   rgb(var(--yellow_x));--green_x:  163,190,140;--green:    rgb(var(--green_x));--purple_x: 180,142,173;--purple:   rgb(var(--purple_x));
+}
+
+body.ob-t-nord.theme-dark
+{--background-primary:            var(--dark0);--background-primary-alt:        var(--dark0);--background-secondary:          var(--dark1);--background-modifier-border:    var(--dark2);--cursor-line-background:        rgba(var(--red_x), 0.2);--text-normal:                   var(--light2);--text-faint:                    var(--light0);--text-muted:                    var(--light1);--link-url:                      var(--purple);--h1-color:                      var(--red);--h2-color:                      var(--yellow);--h3-color:                      var(--green);--h4-color:                      var(--purple);--h5-color:                      var(--frost0);--h6-color:                      var(--frost2);--text-highlight-bg:             var(--frost1);--text-highlight-fg:             var(--dark0);--text-accent:                   var(--orange);--text-accent-hover:             var(--frost2);--bold-color:                    var(--yellow);--italic-color:                  var(--yellow);--checkbox-color:                var(--frost0);--table-row-even-background:     hsl(220, 16%, 20%);--table-row-odd-background:      hsl(220, 16%, 24%);--text-selection:                rgba(var(--red_x), 0.6);--code-normal:                   var(--frost1);--code-background:               var(--dark1);
+}
+
+body.ob-t-nord.theme-light
+{--background-primary:            var(--light3);--background-primary-alt:        var(--light3);--background-secondary:          var(--light2);--background-modifier-border:    var(--light1);--cursor-line-background:        rgba(var(--red_x), 0.1);--text-normal:                   var(--dark2);--text-faint:                    var(--dark0);--text-muted:                    var(--dark1);--link-url:                      var(--purple);--h1-color:                      var(--red);--h2-color:                      var(--yellow);--h3-color:                      var(--green);--h4-color:                      var(--purple);--h5-color:                      var(--frost0);--h6-color:                      var(--frost2);--text-highlight-bg:             var(--yellow);--text-highlight-fg:             var(--dark0);--text-accent:                   var(--orange);--text-accent-hover:             var(--frost2);--bold-color:                    var(--green);--italic-color:                  var(--green);--checkbox-color:                var(--frost2);--table-row-even-background:     rgba(var(--light2_x), 0.4);--table-row-odd-background:      rgba(var(--light2_x), 0.8);--text-selection:                rgba(var(--red_x), 0.6);--code-normal:                   var(--frost1);--code-background:               var(--light2);
+}
+
+body.ob-t-nord table
+{
+    border: 1px solid var(--background-secondary) !important;
+    border-collapse: collapse;
+}
+  
+body.ob-t-nord th
+{
+    font-weight: 600 !important;
+    border: 1px solid var(--background-secondary) !important;
+}
+
+body.ob-t-nord td
+{
+    border-left: 1px solid var(--background-secondary) !important;
+    border-right: 1px solid var(--background-secondary) !important;
+    border-bottom: 1px solid var(--background-secondary) !important;
+}
+
+body.ob-t-nord .markdown-rendered tbody tr:nth-child(even)
+{
+    background-color: var(--table-row-even-background) !important;
+}
+
+body.ob-t-nord .markdown-rendered tbody tr:nth-child(odd)
+{
+    background-color: var(--table-row-odd-background) !important;
+}
+
+body.ob-t-nord .cm-hashtag-begin:hover, body.ob-t-nord .cm-hashtag-end:hover
+{
+    color: var(--text-accent);
+    /* background-color: var(--tag-background-hover); */
+    text-decoration: underline;
+}
+
+body.ob-t-nord input[type=checkbox]
+{
+    border: 1px solid var(--checkbox-color);
+}
+
+body.ob-t-nord .cm-url
+{
+    color: var(--link-url) !important;
+}
+
+body.ob-t-nord .cm-url:hover
+{
+    color: var(--text-accent-hover) !important;
+}
+body.ob-t-nord .cm-highlight
+{
+    color: var(--text-highlight-fg) !important;
+}
+body.ob-t-nord .cm-inline-code
+{
+    border-radius: var(--radius-s);
+    font-size: var(--code-size);
+    padding: 0.1em 0.25em;
+}
+
+body.ob-t-nord .cm-formatting-code + .cm-inline-code
+{
+    border-radius: 0;
+    padding: 0.1em 0;
+}
+
+body.ob-t-nord .cm-formatting-code
+{
+    border-radius: var(--radius-s) 0 0 var(--radius-s);
+    padding: 0.1em 0 0.1em 0.25em;
+}
+
+body.ob-t-nord .cm-inline-code + .cm-formatting-code
+{
+    border-radius: 0 var(--radius-s) var(--radius-s) 0;
+    padding: 0.1em 0.25em 0.1em 0;
+}
+
+body.ob-t-nord .cm-line .cm-strong
+{
+    color: var(--bold-color) !important;
+}
+
+body.ob-t-nord .cm-active
+{
+    background-color: var(--cursor-line-background) !important;
+}

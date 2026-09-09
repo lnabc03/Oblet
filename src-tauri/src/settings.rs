@@ -1,5 +1,4 @@
 // 设置持久化：./data/settings.json（exe 同级，绿色版）
-// （主题已固化为 AnuPpuccin 深色单主题，只剩排版覆盖）
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -55,6 +54,9 @@ pub struct EditorSetting {
     // 主题模式（多主题一期）：None/"dark" = 深色（现状默认）；"light" = 浅色；"system" = 跟随系统
     #[serde(default)]
     pub theme_mode: Option<String>,
+    // 主题身份（多主题二期）：None/"anuppuccin" = AnuPpuccin（默认）；其余为主题注册表 id
+    #[serde(default)]
+    pub theme_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
