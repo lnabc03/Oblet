@@ -35,9 +35,9 @@ body,
   --crepe-color-diff-removed: var(--ob-diff-removed, #f85149);
   --crepe-color-diff-removed-bg: var(--ob-diff-removed-bg, rgba(248, 81, 73, 0.15));
   --crepe-color-diff-removed-text: var(--ob-diff-removed, #f85149);
-  /* 编辑区文字=正文字体；标题=界面字体（AnuPpuccin 惯例），回退正文字体 */
+  /* 编辑区文字与标题均=正文字体（Obsidian 惯例；默认均为华文中宋） */
   --crepe-font-default: var(--ob-font);
-  --crepe-font-title: var(--font-interface, var(--ob-font));
+  --crepe-font-title: var(--ob-font);
   --crepe-font-code: var(--ob-font-mono);
   /* 浮层投影（toast/检索条/右键菜单/确认弹窗/TOC 同一语言）：
      深色下需要更重的投影才"浮"得起来；浅色由 body.theme-light 覆写调轻 */
@@ -367,6 +367,13 @@ body.ob-vibrancy .search-bar input {
 }
 .markdown-rendered del {
   color: var(--ob-strikethrough);
+}
+
+/* 图片圆角：AnuPpuccin 原规则 img/iframe/video{border-radius:var(--embed-corner-radius,4px)}
+ * 在 1D 蒸馏时被误剔（运行时探测的验收文档无图片，规则判死）。基座收回，
+ * 主题可经 --ob-img-radius 覆盖 */
+.markdown-rendered img {
+  border-radius: var(--ob-img-radius, 4px);
 }
 
 .markdown-rendered .ProseMirror a {
@@ -986,8 +993,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 
 /* ==================== 打印（批次 7.2 导出为 PDF） ====================
- * window.print() 走系统对话框；深色主题下 setup.ts 先把 body 类临时 swap
- * 成浅色（打印强制浅色，afterprint 恢复），这里的 var(--ob-bg) 随之解析为白底。 */
+ * window.print() 走系统对话框；跟随当前深浅模式上纸（2026-09-09 用户拍板，
+ * 替代一期的"强制浅色 swap"——color-adjust: exact 保证深底色无需开"背景图形"）。 */
 @media print {
   html,
   body {

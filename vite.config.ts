@@ -9,6 +9,6 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    minify: "esbuild",
+    // Vite 8（rolldown）默认 oxc 压缩；esbuild 已非依赖，勿再指定 "esbuild"
   },
 });

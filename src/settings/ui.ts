@@ -77,7 +77,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>排版</h3>
         <div class="typo-grid">
           <label>正文字体</label>
-          <input type="text" data-typo="text_font" placeholder="霞鹜臻楷 GB">
+          <input type="text" data-typo="text_font" placeholder="华文中宋">
           <label>等宽字体</label>
           <input type="text" data-typo="mono_font" placeholder="JetBrainsMonoNL NF">
           <label>界面字体</label>

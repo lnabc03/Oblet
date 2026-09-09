@@ -65,7 +65,7 @@ export function currentEditorSettings(): EditorSettings {
 
 /** 排版硬默认（用户未覆盖时生效，替代原"跟随主题"的透传策略） */
 const TYPO_DEFAULTS = {
-  text_font: "霞鹜臻楷 GB",
+  text_font: "华文中宋",
   mono_font: "JetBrainsMonoNL NF",
   interface_font: "华文中宋",
   base_font_size: 17,

@@ -60,9 +60,9 @@ body.ob-t-anuppuccin.theme-light, body.ob-t-anuppuccin.theme-light .app-containe
   --ob-text: rgb(87, 82, 121);
   --ob-text-mut: rgb(128, 124, 153);
   --ob-text-faint: rgb(121, 117, 147);
-  --ob-accent: #7b6cd9;
-  --ob-accent-soft: rgba(144, 122, 169, 0.35);
-  --ob-link: #7b6cd9;
+  --ob-accent: #d7827e;
+  --ob-accent-soft: rgba(215, 130, 126, 0.32);
+  --ob-link: #d7827e;
   --ob-h1: var(--h1-color, var(--text-normal, #222222));
   --ob-h2: var(--h2-color, var(--text-normal, #222222));
   --ob-h3: var(--h3-color, var(--text-normal, #222222));
@@ -76,11 +76,11 @@ body.ob-t-anuppuccin.theme-light, body.ob-t-anuppuccin.theme-light .app-containe
   --ob-h5-size: 1.1em;
   --ob-h6-size: 1em;
   --ob-quote-bg: transparent;
-  --ob-quote-border: #7b6cd9;
+  --ob-quote-border: #d7827e;
   --ob-code-bg: rgb(221, 208, 198);
   --ob-code-text: rgb(87, 82, 121);
   --ob-border: rgb(209, 201, 194);
-  --ob-selection: rgba(123, 108, 217, 0.25);
+  --ob-selection: rgba(215, 130, 126, 0.25);
   --ob-list-marker: rgb(128, 124, 153);
   --ob-bold: rgb(180, 99, 122);
   --ob-italic: rgb(86, 148, 159);

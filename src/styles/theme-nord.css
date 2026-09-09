@@ -18,9 +18,9 @@ body.ob-t-nord.theme-dark, body.ob-t-nord.theme-dark .app-container
   --ob-text: rgb(236,239,244);
   --ob-text-mut: rgb(229,233,240);
   --ob-text-faint: rgb(216,222,233);
-  --ob-accent: rgb(208,135,112);
-  --ob-accent-soft: color-mix(in srgb, rgb(208,135,112) 30%, transparent);
-  --ob-link: rgb(208,135,112);
+  --ob-accent: #88c0d0;
+  --ob-accent-soft: rgba(136, 192, 208, 0.3);
+  --ob-link: #88c0d0;
   --ob-h1: rgb(191,97,106);
   --ob-h2: rgb(235,203,139);
   --ob-h3: rgb(163,190,140);
@@ -34,7 +34,7 @@ body.ob-t-nord.theme-dark, body.ob-t-nord.theme-dark .app-container
   --ob-h5-size: 1.1em;
   --ob-h6-size: 1em;
   --ob-quote-bg: transparent;
-  --ob-quote-border: rgb(208,135,112);
+  --ob-quote-border: #88c0d0;
   --ob-code-bg: rgb(59,66,82);
   --ob-code-text: rgb(136,192,208);
   --ob-border: rgb(67,76,94);
@@ -73,9 +73,9 @@ body.ob-t-nord.theme-light, body.ob-t-nord.theme-light .app-container
   --ob-text: rgb(67,76,94);
   --ob-text-mut: rgb(59,66,82);
   --ob-text-faint: rgb(46,52,64);
-  --ob-accent: rgb(208,135,112);
-  --ob-accent-soft: color-mix(in srgb, rgb(208,135,112) 30%, transparent);
-  --ob-link: rgb(208,135,112);
+  --ob-accent: #5e81ac;
+  --ob-accent-soft: rgba(94, 129, 172, 0.28);
+  --ob-link: #5e81ac;
   --ob-h1: rgb(191,97,106);
   --ob-h2: rgb(235,203,139);
   --ob-h3: rgb(163,190,140);
@@ -89,7 +89,7 @@ body.ob-t-nord.theme-light, body.ob-t-nord.theme-light .app-container
   --ob-h5-size: 1.1em;
   --ob-h6-size: 1em;
   --ob-quote-bg: transparent;
-  --ob-quote-border: rgb(208,135,112);
+  --ob-quote-border: #5e81ac;
   --ob-code-bg: rgb(236,239,244);
   --ob-code-text: rgb(136,192,208);
   --ob-border: rgb(229,233,240);

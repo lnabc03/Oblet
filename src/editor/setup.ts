@@ -14,15 +14,14 @@ import {
   toggleStrongCommand,
   wrapInHeadingCommand,
 } from "@milkdown/preset-commonmark";
+import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { languages } from "@codemirror/language-data";
 import {
   currentEditorSettings,
   initTypography,
-  resolveTheme,
   switchTypography,
 } from "../settings/typography";
-import { applyThemeClasses } from "../settings/theme-classes";
 import { initSettingsUI } from "../settings/ui";
 import { obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
@@ -609,6 +608,14 @@ export async function boot() {
     },
   });
   registerCommand({
+    id: "strikethrough",
+    title: "删除线",
+    defaultCombo: "Ctrl+K",
+    run: () => {
+      if (editable()) crepe.editor.action(callCommand(toggleStrikethroughCommand.key));
+    },
+  });
+  registerCommand({
     id: "highlight",
     title: "高亮",
     defaultCombo: "Ctrl+H",
@@ -785,31 +792,50 @@ export async function boot() {
   }, true);
 
   // 批次 7 导出动作注入右键菜单（菜单插件拿不到这里的 path/crepe 闭包）
+  // 打印前强制挂载全部代码块：Crepe 的 CM 实例由 IntersectionObserver 懒挂载
+  // （视口外只有无高亮的 placeholder <pre>，离开视口 5s 后还会拆回 placeholder），
+  // 不处理则打印页里只有视口附近的代码块带高亮。快速滚一遍全文触发挂载后回位，
+  // 在 5s teardown 窗口内完成打印（print 对话框阻塞 JS，期间不会 teardown）
+  const mountAllCodeBlocks = async (): Promise<void> => {
+    const scroller = document.querySelector<HTMLElement>(".markdown-rendered");
+    if (!scroller) return;
+    const prev = scroller.scrollTop;
+    const step = Math.max(200, Math.floor(scroller.clientHeight * 0.8));
+    for (let y = 0; y < scroller.scrollHeight; y += step) {
+      scroller.scrollTop = y;
+      // IO 回调与 CM 首渲染都要等帧
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+    scroller.scrollTop = prev;
+    // 等 placeholder 清零 + 按需加载的语言包落地
+    for (let i = 0; i < 20 && document.querySelector(".milkdown-code-block-placeholder"); i++)
+      await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  const doPrint = () => {
+    void (async () => {
+      await mountAllCodeBlocks();
+      window.print();
+    })();
+  };
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
     vault: () => void exportToVault(path, crepe.getMarkdown()),
-    // 7.2 导出 PDF：打印强制浅色（深底色上纸费墨且难读）——临时 swap 主题类
-    // 利用 1A 的类切换机制，afterprint 恢复（30s 超时双保险），不写 localStorage 镜像
-    //（Mica 已暂时下架——上游 #183；复活时需恢复打印前的材质临时摘除）
-    print: () => {
-      const themeId = currentEditorSettings().theme_id;
-      const current = resolveTheme(currentEditorSettings().theme_mode);
-      if (current === "light") {
-        window.print();
-        return;
-      }
-      applyThemeClasses(themeId, "light");
-      const restore = () => {
-        window.clearTimeout(timer);
-        window.removeEventListener("afterprint", restore);
-        applyThemeClasses(themeId, current);
-      };
-      window.addEventListener("afterprint", restore);
-      const timer = window.setTimeout(restore, 30_000);
-      // 等一帧让浅色渲染落地，再弹系统打印窗
-      requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
-    },
+    // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
+    // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
+    print: doPrint,
   });
+  // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键
+  registerCommand({
+    id: "print",
+    title: "导出为 PDF",
+    defaultCombo: "Ctrl+P",
+    run: doPrint,
+  });
+  // CDP 冒烟钩子：打印挂载逻辑本体（repro-print-hl 验证用）
+  (
+    (window as unknown as Record<string, unknown>).__oblet as Record<string, unknown>
+  ).testMountCodeBlocks = mountAllCodeBlocks;
 
   // 外链点击调系统默认浏览器：webview 对 target=_blank 不处理（悬浮窗网址点击无响应）。
   // 只劫持浮层里的链接（链接预览悬浮窗等）；正文 .ProseMirror 内的 a 是编辑态，
