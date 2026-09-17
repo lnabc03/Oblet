@@ -12,6 +12,9 @@ body,
   --ob-font-size: var(--font-text-size, 16px);
 
   /* Crepe 组件变量 ← --ob-* 静态映射（与主题无关的 Crepe 消费适配层，保留） */
+  /* 字号桥：Milkdown 7.22 起 reset.css 给 .milkdown 钉 font-size: var(--crepe-base-font-size, 16px)，
+   * 不接桥则基础字号设置进不了编辑器（7.21 靠继承 body 内联字号，升级后回归） */
+  --crepe-base-font-size: var(--ob-font-size);
   --crepe-color-background: var(--ob-bg);
   --crepe-color-on-background: var(--ob-text);
   --crepe-color-surface: var(--ob-bg-alt);
