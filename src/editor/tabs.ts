@@ -179,6 +179,22 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
       }
       return cache.get(key)!;
     },
+
+    /** 重命名（v0.6.0）：迁移缓存 key（old→new）+ 更新路径列表。
+     *  Rust 侧 rename_file 已把 tabs 里的 old 替换为 new（顺序不变、活跃索引不变），
+     *  此处把 old 的 TabState 迁到 new 名下并同步列表 */
+    renamePath(oldPath: string, newTabs: string[], idx: number) {
+      const oldKey = oldPath.toLowerCase();
+      const newPath = newTabs[idx] ?? newTabs[0];
+      const entry = cache.get(oldKey);
+      if (entry) {
+        entry.path = newPath;
+        cache.delete(oldKey);
+        cache.set(newPath.toLowerCase(), entry);
+      }
+      tabs = [...newTabs];
+      active = idx;
+    },
   };
 
   return model;

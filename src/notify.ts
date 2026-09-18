@@ -46,7 +46,8 @@ export function promptDialog(
   title: string,
   placeholder = "",
   confirmText = "确认",
-  cancelText = "取消"
+  cancelText = "取消",
+  defaultValue = ""
 ): Promise<string | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -63,6 +64,7 @@ export function promptDialog(
     overlay.querySelector(".ob-confirm-label")!.textContent = title;
     const input = overlay.querySelector<HTMLInputElement>(".ob-prompt-input")!;
     input.placeholder = placeholder;
+    input.value = defaultValue;
     const cancel = overlay.querySelector<HTMLButtonElement>('[data-act="cancel"]')!;
     const ok = overlay.querySelector<HTMLButtonElement>('[data-act="ok"]')!;
     cancel.textContent = cancelText;
@@ -90,6 +92,8 @@ export function promptDialog(
     });
     document.body.appendChild(overlay);
     input.focus();
+    // 预填值默认全选，直接输入即可覆盖（重命名场景的常见预期）
+    if (defaultValue) input.select();
   });
 }
 

@@ -366,6 +366,82 @@ pub fn get_desktop_dir() -> Result<String, String> {
     Ok(format!("{home}\\Desktop"))
 }
 
+/// 重命名文档（v0.6.0）：同目录改名，同步所有窗口 tab 路径与内容哈希
+#[tauri::command]
+pub fn rename_file(
+    state: State<AppState>,
+    window: tauri::Window,
+    old_path: String,
+    new_name: String,
+) -> Result<TabsPayload, String> {
+    let clean = new_name.trim();
+    if clean.is_empty()
+        || clean.contains('/')
+        || clean.contains('\\')
+        || clean.contains(':')
+        || clean.contains('<')
+        || clean.contains('>')
+        || clean.contains('"')
+        || clean.contains('|')
+        || clean.contains('?')
+        || clean.contains('*')
+    {
+        return Err("非法文件名".to_string());
+    }
+    let file_name = if clean.to_lowercase().ends_with(".md") {
+        clean.to_string()
+    } else {
+        format!("{clean}.md")
+    };
+
+    let old = PathBuf::from(&old_path);
+    let parent = old
+        .parent()
+        .ok_or_else(|| "无法定位父目录".to_string())?;
+    let new_path = parent.join(&file_name);
+    let new_path_str = new_path.to_string_lossy().into_owned();
+
+    // 同名（含仅大小写变化）视为无需重命名：直接返回当前 tabs
+    if old_path.to_lowercase() == new_path_str.to_lowercase() {
+        return state
+            .get_tabs(window.label())
+            .map(|(tabs, idx)| TabsPayload {
+                path: tabs.get(idx).cloned().unwrap_or_default(),
+                tabs,
+                active_index: idx,
+            })
+            .ok_or_else(|| "窗口未登记".to_string());
+    }
+
+    if new_path.exists() {
+        return Err("EXISTS".to_string());
+    }
+
+    std::fs::rename(&old, &new_path).map_err(|e| format!("重命名失败: {e}"))?;
+    state.rename_path(&old_path, &new_path_str);
+
+    // 更新窗口标题（活跃 tab 名可能变化）
+    let label = window.label().to_string();
+    if let Some(path) = state.path_for(&label) {
+        let title = Path::new(&path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Oblet");
+        window
+            .set_title(&format!("Oblet - {title}"))
+            .map_err(|e| format!("设置标题失败: {e}"))?;
+    }
+
+    state
+        .get_tabs(&label)
+        .map(|(tabs, idx)| TabsPayload {
+            path: tabs.get(idx).cloned().unwrap_or_default(),
+            tabs,
+            active_index: idx,
+        })
+        .ok_or_else(|| "窗口未登记".to_string())
+}
+
 /// 清除当前窗口的文件登记（Esc 退回到起始页前调用）并重置标题
 #[tauri::command]
 pub fn clear_window_file(state: State<AppState>, window: tauri::Window) {

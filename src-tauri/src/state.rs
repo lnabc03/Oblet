@@ -125,6 +125,29 @@ impl AppState {
             .insert(canonical_key(path), hash);
     }
 
+    /// 重命名（批次 v0.6.0）：把所有窗口 tab 列表中的 old 路径替换为 new，
+    /// 并迁移内容哈希（自写事件过滤键跟路径走，否则重命名后的保存会被误判为外部变更）
+    pub fn rename_path(&self, old_path: &str, new_path: &str) {
+        let old_key = canonical_key(old_path);
+        let new_key = canonical_key(new_path);
+        {
+            let mut map = self.windows.lock().unwrap();
+            for (_, (tabs, _)) in map.iter_mut() {
+                for p in tabs.iter_mut() {
+                    if canonical_key(p) == old_key {
+                        *p = new_path.to_string();
+                    }
+                }
+            }
+        }
+        {
+            let mut hashes = self.last_hash.lock().unwrap();
+            if let Some(h) = hashes.remove(&old_key) {
+                hashes.insert(new_key, h);
+            }
+        }
+    }
+
     /// 事件去重判定：哈希与上次一致 = 重复事件或自身写入，返回 true 表示应忽略
     pub fn is_stale_hash(&self, path: &str, hash: u64) -> bool {
         let mut map = self.last_hash.lock().unwrap();

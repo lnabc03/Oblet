@@ -202,6 +202,7 @@ pub fn run() {
             commands::save_image_asset,
             commands::export_to_vault,
             commands::create_note,
+            commands::rename_file,
             commands::get_desktop_dir,
             commands::take_pending_new_dir,
             commands::clear_window_file,

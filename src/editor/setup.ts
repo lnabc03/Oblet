@@ -721,6 +721,16 @@ export async function boot() {
       crepe.editor.action(replaceAll(content)),
     /** 批次 7.1 验证钩子：路径规整纯函数单测 */
     testSanitize: sanitizePathInput,
+    /** v0.6.0 验证钩子：驱动 rename_file 并同步本地缓存（跳过 promptDialog，冒烟用） */
+    testRename: async (newName: string) => {
+      const result = await invoke<TabsPayload>("rename_file", {
+        oldPath: path,
+        newName,
+      });
+      tabsModel.renamePath(path, result.tabs, result.active_index);
+      path = result.path;
+      return result;
+    },
     /** 批次 7.1 验证钩子：驱动真实导出链路（菜单同款 handler） */
     testExportVault: () => exportToVault(path, crepe.getMarkdown()),
     /** 批次 7.1 验证钩子：写 vault_dir 并刷新设置缓存（模拟设置面板保存） */
@@ -833,12 +843,46 @@ export async function boot() {
       window.print();
     })();
   };
+  // v0.6.0 重命名当前文档：预填原文件名（去 .md），Rust rename_file 落盘并同步
+  // 所有窗口 tab 路径与内容哈希，本地迁移缓存 key + path 闭包，监听自动适配（目录不变）
+  const doRename = async () => {
+    const oldName =
+      path.replace(/\\/g, "/").split("/").pop()?.replace(/\.md$/i, "") ?? "";
+    const name = await promptDialog(
+      "重命名文档",
+      "输入新文件名（不含 .md）",
+      "重命名",
+      "取消",
+      oldName
+    );
+    if (!name) return;
+    const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
+    if (!clean) {
+      notify("文件名不能为空", "warn");
+      return;
+    }
+    try {
+      const result = await invoke<TabsPayload>("rename_file", {
+        oldPath: path,
+        newName: clean,
+      });
+      tabsModel.renamePath(path, result.tabs, result.active_index);
+      path = result.path;
+      void invoke("watch_file", { path: result.path }).catch(() => {});
+      notify("已重命名");
+    } catch (e) {
+      if (String(e) === "EXISTS") notify("目标已存在同名文件", "warn");
+      else notify(`重命名失败：${e}`, "error");
+    }
+  };
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
     vault: () => void exportToVault(path, crepe.getMarkdown()),
     // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
     // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
     print: doPrint,
+    // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
+    rename: () => void doRename(),
   });
   // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键
   registerCommand({

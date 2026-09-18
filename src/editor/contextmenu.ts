@@ -10,7 +10,7 @@ import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { notify } from "../notify";
 
 /** 导出动作回调（批次 7）：由 setup.ts 注入（插件内拿不到文件路径闭包） */
-let exportHandlers: { print?: () => void; vault?: () => void } = {};
+let exportHandlers: { print?: () => void; vault?: () => void; rename?: () => void } = {};
 export function setExportHandlers(h: typeof exportHandlers) {
   exportHandlers = h;
 }
@@ -87,6 +87,12 @@ const ITEMS: Item[] = [
     label: "另存",
     run: () => exportHandlers.vault?.(),
     enabled: () => !!exportHandlers.vault,
+  },
+  {
+    // v0.6.0：同目录重命名当前文档（预填原文件名，见 setup.ts doRename）
+    label: "重命名文档",
+    run: () => exportHandlers.rename?.(),
+    enabled: () => !!exportHandlers.rename,
   },
 ];
 
