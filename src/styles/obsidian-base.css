@@ -483,19 +483,32 @@ body.ob-vibrancy .search-bar input {
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .actor-line {
   stroke: var(--ob-text-mut) !important;
 }
-/* 时序图序号：硬编码 #849326 / #edf2ae */
+/* 时序图序号：text-mut 太淡会"看不见"，用正文亮色 */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .sequenceNumber {
-  fill: var(--ob-text-mut) !important;
+  fill: var(--ob-text) !important;
 }
 /* 时间线节点底：硬编码深色（观感"纯黑"），改 bg-alt + accent 边框与其余图表一致 */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .node-bkg {
   fill: var(--ob-bg-alt) !important;
   stroke: var(--ob-accent) !important;
 }
-/* 看板卡片：透笔记背景 */
-.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .basic.label-container {
-  fill: transparent !important;
+/* 思维导图子节点：section 色被算成 hsl(...,0%) 纯黑——按 aria-roledescription 精确作用域改 bg-alt */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="mindmap"] .mindmap-node:not(.section-root) rect,
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="mindmap"] .mindmap-node:not(.section-root) path,
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="mindmap"] .mindmap-node:not(.section-root) circle,
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="mindmap"] .mindmap-node:not(.section-root) polygon {
+  fill: var(--ob-bg-alt) !important;
   stroke: var(--ob-accent) !important;
+}
+/* XY 图表背景：硬编码 fill="white" → 透明 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="xychart"] rect.background {
+  fill: transparent !important;
+}
+/* 看板：列背景（无 class 的 rect）与卡片（rect.basic.label-container）全透；
+   用 kanban 作用域 + rect 限定，避免误伤 mindmap 根节点圆圈（circle.basic.label-container） */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="kanban"] .cluster rect,
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="kanban"] rect.basic.label-container {
+  fill: transparent !important;
 }
 /* 甘特已完成事件：doneTaskBkgColor 被 base updateColors 重算成 lightgrey——CSS 兜底 */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .task[class*="done"] {
