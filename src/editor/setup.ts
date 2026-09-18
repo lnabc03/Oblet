@@ -17,6 +17,7 @@ import {
 import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { languages } from "@codemirror/language-data";
+import { LanguageDescription, LanguageSupport, StreamLanguage } from "@codemirror/language";
 import {
   currentEditorSettings,
   initTypography,
@@ -30,6 +31,7 @@ import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { obletCmTheme } from "./cm-theme";
+import { renderMermaidPreview, whenMermaidIdle } from "./mermaid";
 import { confirmDialog, notify, promptDialog } from "../notify";
 import { registerCommand } from "../commands";
 const logoUrl = "/logo.png";
@@ -476,10 +478,22 @@ export async function boot() {
         previewOnlyByDefault: true,
         // 语言列表：Crepe 不传 languages 时会以空数组覆盖组件默认配置，
         // 导致语言选择弹出空白——显式传入 language-data 全量预设（高亮按需懒加载）
-        languages,
+        // + mermaid（无 CM 语法包，给空 stream 语言纯占位让候选列表能选到；
+        //   LanguageDescription.of 必填 load/support 之一，漏了会在启动时抛 RangeError）
+        languages: [
+          ...languages,
+          LanguageDescription.of({
+            name: "mermaid",
+            alias: ["mmd"],
+            support: new LanguageSupport(StreamLanguage.define({ token: () => null })),
+          }),
+        ],
         // 多主题一期 1C：覆盖默认 oneDark——全 CSS 变量驱动（--ctp-*），
         // 深浅切换零重配置自动跟随（见 cm-theme.ts）
         theme: obletCmTheme,
+        // Mermaid 图表预览（mermaid.ts）：latex 特性 wrap 后非 latex 语言落到这里；
+        // crepe feature 加载顺序 code-mirror 先于 latex，故本配置会被 latex 包成 prev，互不顶掉
+        renderPreview: renderMermaidPreview,
       },
       // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
       // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table
@@ -815,6 +829,7 @@ export async function boot() {
   const doPrint = () => {
     void (async () => {
       await mountAllCodeBlocks();
+      await whenMermaidIdle(); // mermaid 渲染是异步的，挂载完再等图表出图，否则打印页是 Loading 占位
       window.print();
     })();
   };

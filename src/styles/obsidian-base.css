@@ -464,6 +464,55 @@ body.ob-vibrancy .search-bar input {
   padding: 12px 16px;
 }
 
+/* mermaid 图表预览（renderPreview 钩子，editor/mermaid.ts；配色走 SVG 内联 themeVariables，不在此处） */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid {
+  text-align: center;
+}
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* mermaid 硬编码色兜底：新图表（sequence 底部框/生命线/序号、timeline、kanban）不响应
+   themeVariables，颜色写死在渲染代码里——CSS 覆盖 presentation attribute 与内联 <style> */
+/* 时序图 actor 底部标签方框：硬编码浅灰 #eaeaea/#666 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .actor.actor-bottom {
+  fill: var(--ob-bg-alt) !important;
+  stroke: var(--ob-accent) !important;
+}
+/* 时序图生命线：硬编码灰 #999 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .actor-line {
+  stroke: var(--ob-text-mut) !important;
+}
+/* 时序图序号：硬编码 #849326 / #edf2ae */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .sequenceNumber {
+  fill: var(--ob-text-mut) !important;
+}
+/* 时间线节点底：硬编码深色（观感"纯黑"），改 bg-alt + accent 边框与其余图表一致 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .node-bkg {
+  fill: var(--ob-bg-alt) !important;
+  stroke: var(--ob-accent) !important;
+}
+/* 看板卡片：透笔记背景 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .basic.label-container {
+  fill: transparent !important;
+  stroke: var(--ob-accent) !important;
+}
+/* 甘特已完成事件：doneTaskBkgColor 被 base updateColors 重算成 lightgrey——CSS 兜底 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .task[class*="done"] {
+  fill: var(--ob-bg-alt) !important;
+  stroke: var(--ob-accent) !important;
+}
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid-error {
+  text-align: left;
+  white-space: pre-wrap;
+  font-family: var(--ob-font-mono);
+  font-size: 0.85em;
+  color: var(--ob-hl-deleted, #e06c75);
+  background: var(--ob-bg-alt);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
 .markdown-rendered hr {
   border: none;
   border-top: 1px solid var(--ob-border);
