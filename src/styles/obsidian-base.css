@@ -487,10 +487,15 @@ body.ob-vibrancy .search-bar input {
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .sequenceNumber {
   fill: var(--ob-text) !important;
 }
-/* 时间线节点底：硬编码深色（观感"纯黑"），改 bg-alt + accent 边框与其余图表一致 */
-.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .node-bkg {
+/* 时间线节点底：硬编码深色（观感"纯黑"），改 bg-alt + accent 边框与其余图表一致。
+   限定 timeline 作用域——architecture 的 group 边框也用 node-bkg，误伤会实色填充遮住内部 service */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="timeline"] .node-bkg {
   fill: var(--ob-bg-alt) !important;
   stroke: var(--ob-accent) !important;
+}
+/* XY 图表文本：fill="#131300" 硬编码深色，深浅模式都黑——改用主题正文色 */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="xychart"] text {
+  fill: var(--ob-text) !important;
 }
 /* 思维导图子节点：section 色被算成 hsl(...,0%) 纯黑——按 aria-roledescription 精确作用域改 bg-alt */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg[aria-roledescription="mindmap"] .mindmap-node:not(.section-root) rect,
