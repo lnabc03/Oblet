@@ -483,7 +483,11 @@ body.ob-vibrancy .search-bar input {
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .actor-line {
   stroke: var(--ob-text-mut) !important;
 }
-/* 时序图序号：text-mut 太淡会"看不见"，用正文亮色 */
+/* 时序图序号徽章：mermaid 让圆底与数字共用 sequenceNumberColor（同色即隐形）——CSS 分离双色：
+   圆底 = bg-alt（深浅自适应），数字 = 正文色（深浅自适应） */
+.markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg [id$="-sequencenumber"] {
+  fill: var(--ob-bg-alt) !important;
+}
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg .sequenceNumber {
   fill: var(--ob-text) !important;
 }

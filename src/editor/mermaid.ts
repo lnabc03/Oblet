@@ -73,6 +73,8 @@ const readThemeVars = (): Record<string, unknown> => {
     noteTextColor: text,
     activationBkgColor: bg,
     activationBorderColor: accent,
+    // 序号徽章圆底与数字共用此变量（同色即隐形）——仅作兜底，实际由 CSS 分离双色
+    //（徽章底 bg-alt、数字正文色，深浅自适应；见 obsidian-base.css 与 CLAUDE.md 坑）
     sequenceNumberColor: textMut,
     // 类图关系标签（"持有/读取/实现"这类纯文字节点）
     relationLabelBackground: bgAlt,
@@ -174,15 +176,32 @@ export const whenMermaidIdle = (): Promise<void> =>
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// 拆分用户自带的 init 指令（仅识别文档开头，mermaid 官方惯例位置）：
+// 用户指令后置 + 我方变量收敛到仅字体——mermaid 对多 init 按序深度合并、后者覆盖，
+// 用户的 theme/themeVariables 因而完整生效（如 %%{init: {'theme':'forest'}}%% 覆盖默认配色）
+const splitUserInit = (content: string): { init: string | null; rest: string } => {
+  const m = content.match(/^\s*(%%\{init:([\s\S]*?)\}%%)/);
+  if (!m) return { init: null, rest: content };
+  return { init: m[1], rest: content.slice(m[0].length).replace(/^\s*\n/, "") };
+};
+
+const buildInitDirective = (withThemeVars: boolean): string => {
+  const init: Record<string, unknown> = {
+    theme: "base",
+    look: "classic", // v12 部分图默认 neo 外观（节点投影发光），宣传图感过重，回退经典平面风
+    themeVariables: withThemeVars
+      ? readThemeVars()
+      : { fontFamily: getComputedStyle(document.body).fontFamily }, // 用户有 init：只保字体一致性
+  };
+  return `%%{init: ${JSON.stringify(init)}}%%`;
+};
+
 const renderSvg = async (content: string): Promise<string> => {
   const mermaid = await loadMermaid();
   // init 指令按次注入配色（v12 render 不再收 config 参数；指令随文本走，天然免疫并发配置串扰），
-  // 不改文档原文——只在渲染入参上 prepend
-  const themed = `%%{init: ${JSON.stringify({
-    theme: "base",
-    look: "classic", // v12 部分图默认 neo 外观（节点投影发光），宣传图感过重，回退经典平面风
-    themeVariables: readThemeVars(),
-  })}}%%\n${content}`;
+  // 不改文档原文——只在渲染入参上拆合
+  const { init, rest } = splitUserInit(content);
+  const themed = `${buildInitDirective(!init)}\n${rest}${init ? `\n${init}` : ""}`;
   const { svg } = await mermaid.render(`ob-mmd-${idSeq++}`, themed);
   return svg;
 };
