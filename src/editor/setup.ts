@@ -43,6 +43,8 @@ import {
   taskListSpaceTrim,
   tuneSerialization,
 } from "./frontmatter";
+// 图片块 alt 保真：覆盖上游 image-block schema（alt 不再被 ratio 槽位吞掉）
+import { imageBlockFidelity } from "./image-block";
 import {
   createTabsModel,
   createTabArrows,
@@ -544,6 +546,8 @@ export async function boot() {
   crepe.addFeature((editor) =>
     editor
       .use(obletPlugins)
+      .use(imageBlockFidelity.ctx)
+      .use(imageBlockFidelity.node)
       .use(frontmatterSchema.node)
       .use(frontmatterSchema.ctx)
       .use(frontmatterView)

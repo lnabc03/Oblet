@@ -2,20 +2,25 @@
 // 1. remark-frontmatter：--- YAML 头解析为独立 yaml 节点（不再被当成 hr / setext 标题），
 //    序列化时原样写回 --- 围栏
 // 2. frontmatterSchema：yaml 节点映射为可编辑文本节点（code 模式，多行直接编辑）
-// 3. tuneSerialization：保存不侵入原文 —— hr 写 --- 不写 ***、列表符号用 -；
-//    自定义 text 处理器撤销六类破坏原文的过度转义：
+// 3. tuneSerialization：保存不侵入原文 —— hr 写 --- 不写 ***、列表符号用 -、
+//    表格输出紧凑形态（不对齐 padding，紧凑表格往返字节级不变）、段落直接接
+//    列表不插空行；自定义 text 处理器撤销破坏原文的过度转义：
 //    \[! → [! （callout 标记，转义后 Obsidian 不再识别）
 //    \== → ==（行首高亮，转义后 == 变字面文本）
 //    \_ → _（词内下划线，按 CommonMark flanking 规则不可能构成强调时）
 //    \[\[ → [[（wikilink/embed，转义后 Obsidian 双链失效；]] 后跟 ( 时保留）
 //    \# → #（行首标签，# 后非空白非 # 不可能构成 ATX 标题）
 //    \& → &（仅当后文真构成实体引用时保留转义）
-//    其余转义（\*、\[x 等）在 Obsidian 中渲染等价，保持默认；
+//    \~ → ~（单个波浪号；解析侧已关闭 singleTilde 对齐 Obsidian，单 ~ 永不构成
+//      语法，~~ 及以上 run 保留转义防重解析成删除线）
+//    \* → *（非 left-flanking 即不可能开启强调时撤销；行首保守保留防列表/分隔线；
+//      强调/加粗内部的 closer-capable run 保留——防与外层结构性 opener 配对）
 //    link 处理器把 GFM literal autolink（裸 URL/www/email）还原裸写，不写 <url>；
 //    break 处理器把 Shift+Enter 硬换行写回普通换行，不写行尾 \
 import type { Ctx, MilkdownPlugin } from '@milkdown/ctx'
 import { InitReady, remarkStringifyOptionsCtx } from '@milkdown/core'
 import { remarkPreserveEmptyLinePlugin } from '@milkdown/preset-commonmark'
+import { remarkGFMPlugin } from '@milkdown/preset-gfm'
 import { $nodeSchema, $remark, $view } from '@milkdown/utils'
 import type { EditorView, NodeView } from '@milkdown/prose/view'
 import type { Node as PMNode } from '@milkdown/prose/model'
@@ -353,18 +358,105 @@ const entityReferenceStart = /^(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]+
 const unescapeNonEntityAmp = (match: string, offset: number, whole: string): string =>
   entityReferenceStart.test(whole.slice(offset + match.length)) ? match : '&'
 
-// text 处理器：默认转义后，撤销破坏原文语义的 \[!、\==、词内 \_、\[\[、行首 \#、非实体 \&
-const keepObsidianSyntax: Handle = (node, _parent, state, info) =>
-  unescapeIntrawordUnderscores(
+// 星号/波浪号转义收紧（扫描器实现，先跳过 \\ 转义反斜杠对，不误判 \\\* 形态）：
+// safe() 把文本中每个 * 与 ~ 都无脑转义，按实际语法语义收紧：
+// - ~：解析侧已关闭 singleTilde（对齐 Obsidian，见 tuneSerialization），
+//   单个 ~ 永不构成语法，撤销；~~ 及以上的 run 保留（防重解析成删除线）
+// - *：非 left-flanking 的 run 不可能开启强调，撤销。不变式：裸 left-flanking *
+//   永不落地（它们保留转义），被撤销的 closer-only * 找不到可配对的 opener，
+//   重解析不会形成新强调——无震荡、无渲染变化。行首位置保守保留
+//  （行首非 left-flanking ⟺ 后随空白/EOL，恰好是 * 列表项与 *** 分隔线风险区）
+interface MarkerRun {
+  prev: string
+  next: string
+  runLen: number
+  atLineStart: boolean
+}
+
+const unescapeMarkerRuns = (
+  value: string,
+  before: string,
+  after: string,
+  marker: string,
+  keep: (run: MarkerRun) => boolean
+): string => {
+  let out = ''
+  let i = 0
+  while (i < value.length) {
+    if (value[i] === '\\' && value[i + 1] === '\\') {
+      out += '\\\\'
+      i += 2
+      continue
+    }
+    if (value[i] !== '\\' || value[i + 1] !== marker) {
+      out += value[i++]
+      continue
+    }
+    // safe() 把 run 内每个字符都转义为 \X，整串消费
+    let runLen = 0
+    while (value[i + runLen * 2] === '\\' && value[i + runLen * 2 + 1] === marker) runLen++
+    const prev = out.length > 0 ? out[out.length - 1] : before
+    const next = i + runLen * 2 < value.length ? value[i + runLen * 2] : after
+    // 行首判定：本行已输出内容则必非行首；run 在节点开头且 before 为空白/边界时
+    // 无法排除行首（> / - / | 等块标记前缀都以空白结尾），保守视为行首
+    const lineBefore = out.slice(out.lastIndexOf('\n') + 1)
+    const atLineStart =
+      lineBefore === '' && (out.includes('\n') || before === '' || cmWhitespace.test(before))
+    out += keep({ prev, next, runLen, atLineStart })
+      ? ('\\' + marker).repeat(runLen)
+      : marker.repeat(runLen)
+    i += runLen * 2
+  }
+  return out
+}
+
+const isWs = (ch: string) => ch === '' || cmWhitespace.test(ch)
+const isPunct = (ch: string) => ch !== '' && cmPunctuation.test(ch)
+
+// * 撤销条件：非 left-flanking（不可能开启强调）。但只挡得住"文本内的 opener"——
+// 还有一种结构性 opener：祖先 emphasis/strong 节点的 * 定界符本身。定界符匹配是
+// 段落级全局行为，在强调/加粗内部的 right-flanking（可闭合）* run 会和外层 opener
+// 配对、提前闭合强调（实案：加粗图注里的 \* FDR、+2.26\*\* 被剥离后加粗被切碎）。
+// 故强调上下文内 closer-capable 的 run 必须保留转义（inEmphasis 由调用方从
+// state.stack 判定；单个 ~ 无此问题——strikethrough 只配对等长 run，单 ~ 无法
+// 闭合 ~~，且 singleTilde:false 下单 ~ 永不开启）
+const keepStarEscape =
+  (inEmphasis: boolean) =>
+  ({ prev, next, atLineStart }: MarkerRun): boolean => {
+    const leftFlanking = !isWs(next) && (!isPunct(next) || isWs(prev) || isPunct(prev))
+    if (leftFlanking || atLineStart) return true
+    if (inEmphasis) {
+      const rightFlanking = !isWs(prev) && (!isPunct(prev) || isWs(next) || isPunct(next))
+      if (rightFlanking) return true
+    }
+    return false
+  }
+
+const keepTildeEscape = ({ runLen }: MarkerRun): boolean => runLen >= 2
+
+// text 处理器：默认转义后，撤销破坏原文语义的 \[!、\==、词内 \_、\[\[、行首 \#、非实体 \&，
+// 以及按 flanking/配对规则不可能构成语法的 \* 与单 \~
+const keepObsidianSyntax: Handle = (node, _parent, state, info) => {
+  const base = unescapeIntrawordUnderscores(
     state.safe((node as unknown as { value?: string }).value ?? '', info),
     info.before,
     info.after
+  )
+  const inEmphasis =
+    (state.stack as string[]).includes('strong') || (state.stack as string[]).includes('emphasis')
+  return unescapeMarkerRuns(
+    unescapeMarkerRuns(base, info.before, info.after, '*', keepStarEscape(inEmphasis)),
+    info.before,
+    info.after,
+    '~',
+    keepTildeEscape
   )
     .replace(/\\\[(?=!)/g, '[')
     .replace(/\\=(?==)/g, '=')
     .replace(unescapeWikilinks.regex, unescapeWikilinks.replacer)
     .replace(/\\#(.|$)/g, unescapeLineStartHash)
     .replace(/\\&/g, unescapeNonEntityAmp)
+}
 
 // break 处理器：Shift+Enter 硬换行写回普通换行，不写行尾 \（Obsidian 风格）。
 // 往返稳定：重新解析时软换行进入 text 节点值，ProseMirror pre-wrap 下照常渲染换行，
@@ -381,6 +473,52 @@ const joinTightLists: Join = (left, right, parent) => {
   if (left.type === 'paragraph' && (right.type === 'paragraph' || right.type === 'definition'))
     return
   return spread === true || spread === 'true' ? 1 : 0
+}
+
+// 段落直接接列表（CommonMark 合法：无序列表与 start=1 的有序列表可中断段落），
+// 默认 containerFlow 会在两块之间插入空行——撤销这个规范化，恢复原文形态。
+// start≠1 的有序列表无法中断段落，保留空行防粘连成段落文本；
+// 列表内部（parent 带 spread）让位 joinTightLists 按宽松度裁决。
+const joinParagraphToList: Join = (left, right, parent) => {
+  if (left.type !== 'paragraph' || right.type !== 'list') return
+  const spread = (parent as { spread?: boolean | string }).spread
+  if (spread != null) return
+  const list = right as unknown as { ordered?: boolean | null; start?: number | null }
+  if (list.ordered && list.start != null && list.start !== 1) return 1
+  return 0
+}
+
+// 表格紧凑序列化：mdast-util-gfm-table 默认把整表按列宽 padding 重排，且列宽按
+// 字符数而非显示宽度计算（CJK 全角按 1 计，"对齐"后反而错位）——对手写紧凑表格
+// 是整表 diff。覆盖 table 处理器输出紧凑形态（| a | b | + |---|---|）：
+// 已是紧凑形态的表格往返字节级不变；对齐语义（:--- / ---: / :---:）保留，
+// 仅放弃视觉对齐 padding。单元格转义复刻 gfm-table 的 handleTableCell
+// （tableCell + phrasing 上下文），管道符等 unsafe 规则不受影响。
+const tableCompact: Handle = (node, _parent, state, info) => {
+  const table = node as unknown as import('mdast').Table
+  const rows = table.children
+  const colCount = Math.max(...rows.map((r) => r.children.length))
+  const cellText = (cell: import('mdast').TableCell): string => {
+    const exit = state.enter('tableCell')
+    const subexit = state.enter('phrasing')
+    const value = state.containerPhrasing(cell, { ...info, before: ' ', after: ' ' })
+    subexit()
+    exit()
+    return value
+  }
+  const lines = rows.map((row) => {
+    const cells: string[] = []
+    for (let i = 0; i < colCount; i++)
+      cells.push(row.children[i] ? cellText(row.children[i]) : '')
+    // 空单元格输出单空格 `| |`（对齐手写习惯），非空单元格 `| a |`
+    return '|' + cells.map((c) => (c === '' ? ' ' : ' ' + c + ' ')).join('|') + '|'
+  })
+  const delim = (a?: string | null) =>
+    a === 'center' ? ':---:' : a === 'left' ? ':---' : a === 'right' ? '---:' : '---'
+  const delims: string[] = []
+  for (let i = 0; i < colCount; i++) delims.push(delim(table.align?.[i]))
+  lines.splice(1, 0, '|' + delims.join('|') + '|')
+  return lines.join('\n')
 }
 
 // GFM 解析任务项勾选框只消耗其后一个空格，源文件中 `[x]  文字` 的第二个空格
@@ -416,6 +554,10 @@ export const taskListSpaceTrim = $remark(
 
 /** 在 config 阶段调用：收紧序列化输出，避免对未编辑内容做侵入性改写 */
 export function tuneSerialization(ctx: Ctx) {
+  // 关闭 GFM 单波浪号删除线解析（~x~ → 字面文本，对齐 Obsidian）：
+  // 单 ~ 不再构成语法后，序列化侧才能安全撤销单 \~ 转义（见 keepTildeEscape）。
+  // ~~x~~ 双波浪号删除线不受影响。config 阶段执行，先于 InitReady 的 remark 组装。
+  ctx.set(remarkGFMPlugin.options.key, { singleTilde: false })
   ctx.update(remarkStringifyOptionsCtx, (prev) => {
     // link 处理器：GFM literal autolink（裸 URL/www/email）还原裸写。
     // 默认处理器会写成 <url> 或 [www.example.com](http://www.example.com) 形态，
@@ -444,12 +586,13 @@ export function tuneSerialization(ctx: Ctx) {
       ...prev,
       rule: '-' as const, // hr 写 ---（默认会写成 ***，毁掉 frontmatter 围栏）
       bullet: '-' as const, // 无序列表符号用 -（对齐 Obsidian 习惯）
-      join: [...(prev.join ?? []), joinTightLists],
+      join: [...(prev.join ?? []), joinTightLists, joinParagraphToList],
       handlers: {
         ...prev.handlers,
         text: keepObsidianSyntax,
         break: breakAsPlainNewline,
         link: linkKeepBare,
+        table: tableCompact,
       },
     }
   })
