@@ -513,3 +513,129 @@ pub fn save_image_asset(
     fs::write(dir.join(&file_name), &data).map_err(|e| format!("写入图片失败: {e}"))?;
     Ok(format!("assets/{file_name}"))
 }
+
+/// v0.7.0 图片加载失败占位框的原因分级：ok / not_found / unreadable / not_image。
+/// 读头部魔数判别常见位图格式，svg 按文本头另判（ftyp 盒覆盖 avif/heic 等 ISOBMFF）
+#[tauri::command]
+pub fn probe_image_path(path: String) -> Result<String, String> {
+    use std::io::Read;
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Ok("not_found".into());
+    }
+    let mut f = fs::File::open(p).map_err(|_| "unreadable".to_string())?;
+    let mut buf = [0u8; 512];
+    let n = f.read(&mut buf).map_err(|_| "unreadable".to_string())?;
+    let b = &buf[..n];
+    let is_image = b.starts_with(b"\x89PNG\r\n\x1a\n")
+        || b.starts_with(b"\xff\xd8\xff")
+        || b.starts_with(b"GIF8")
+        || b.starts_with(b"BM")
+        || (b.len() >= 12 && b.starts_with(b"RIFF") && &b[8..12] == b"WEBP")
+        || (b.len() >= 12 && &b[4..8] == b"ftyp")
+        || {
+            let t = String::from_utf8_lossy(b);
+            let t = t.trim_start();
+            t.starts_with("<svg") || t.starts_with("<?xml")
+        };
+    Ok(if is_image { "ok" } else { "not_image" }.into())
+}
+
+/// v0.7.0 批量转相对路径的逐项结果：source → assets/<name> 或失败原因
+#[derive(Serialize)]
+pub struct LocalizeItem {
+    pub source: String,
+    pub target: Option<String>,
+    pub error: Option<String>,
+}
+
+/// v0.7.0 右键「转换图片为相对路径」：把本地绝对路径图片复制进 md 同目录 assets/。
+/// 冲突策略：同名同内容直接复用引用，同名异内容 -1/-2 后缀；同一源多次引用只复制一次
+/// （前端先按源去重，这里再兜底一道）。失败的项保留原引用由前端跳过。
+#[tauri::command]
+pub fn localize_image_assets(
+    state: State<AppState>,
+    window: tauri::Window,
+    sources: Vec<String>,
+) -> Result<Vec<LocalizeItem>, String> {
+    let path = state.path_for(window.label()).ok_or("窗口未登记文件")?;
+    let dir = Path::new(&path)
+        .parent()
+        .ok_or("非法路径")?
+        .join("assets");
+
+    let fail = |source: String, error: String| LocalizeItem {
+        source,
+        target: None,
+        error: Some(error),
+    };
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for src in sources {
+        if !seen.insert(src.clone()) {
+            continue;
+        }
+        let sp = Path::new(&src);
+        if !sp.exists() {
+            out.push(fail(src, "源文件不存在".into()));
+            continue;
+        }
+        let data = match fs::read(sp) {
+            Ok(d) => d,
+            Err(e) => {
+                out.push(fail(src, format!("读取源文件失败: {e}")));
+                continue;
+            }
+        };
+        if let Err(e) = fs::create_dir_all(&dir) {
+            out.push(fail(src, format!("创建 assets 目录失败: {e}")));
+            continue;
+        }
+        let name = sp
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image.png")
+            .to_string();
+        // 保留原文件名；无扩展名不加 .png 尾巴（那是粘贴场景的猜测，这里源是真实文件）
+        let (stem, ext) = match name.rfind('.') {
+            Some(i) if i > 0 => (name[..i].to_string(), Some(name[i + 1..].to_string())),
+            _ => (name.clone(), None),
+        };
+        let make_name = |i: usize| {
+            let base = if i == 0 { stem.clone() } else { format!("{stem}-{i}") };
+            match &ext {
+                Some(e) => format!("{base}.{e}"),
+                None => base,
+            }
+        };
+        let mut chosen: Option<String> = None;
+        let mut i = 0usize;
+        loop {
+            let file_name = make_name(i);
+            let target = dir.join(&file_name);
+            if !target.exists() {
+                match fs::write(&target, &data) {
+                    Ok(_) => chosen = Some(file_name),
+                    Err(e) => out.push(fail(src.clone(), format!("写入图片失败: {e}"))),
+                }
+                break;
+            }
+            match fs::read(&target) {
+                // 同名同内容：直接复用引用，不重复落盘
+                Ok(existing) if existing == data => {
+                    chosen = Some(file_name);
+                    break;
+                }
+                _ => i += 1,
+            }
+        }
+        if let Some(file_name) = chosen {
+            out.push(LocalizeItem {
+                source: src,
+                target: Some(format!("assets/{file_name}")),
+                error: None,
+            });
+        }
+    }
+    Ok(out)
+}

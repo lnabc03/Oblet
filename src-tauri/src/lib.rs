@@ -200,6 +200,8 @@ pub fn run() {
             commands::watch_file,
             commands::set_window_effect,
             commands::save_image_asset,
+            commands::probe_image_path,
+            commands::localize_image_assets,
             commands::export_to_vault,
             commands::create_note,
             commands::rename_file,

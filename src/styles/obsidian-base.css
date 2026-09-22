@@ -1247,3 +1247,71 @@ body.anp-current-line .markdown-rendered .ob-active-block {
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.045);
   border-radius: 6px;
 }
+
+/* ========== v0.7.0 图片路径编辑 / 加载失败占位 ========== */
+/* 加载失败的 img 本体隐藏（占位框替身）；修复后 load 事件摘除 */
+.markdown-rendered .milkdown-image-block img.ob-img-broken {
+  display: none;
+}
+/* 失败占位框：图标 + 原因 + 原始路径 + 编辑引导，双击进路径编辑 */
+.markdown-rendered .milkdown-image-block .ob-img-error {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--ob-toast-warn, var(--ob-accent));
+  border-radius: 6px;
+  background: var(--ob-bg-alt);
+  color: var(--ob-text-mut);
+  font-size: 0.9em;
+  cursor: text;
+  user-select: text;
+}
+.ob-img-error .ob-img-error-icon {
+  display: inline-flex;
+  align-self: center;
+  color: var(--ob-toast-warn, var(--ob-accent));
+  flex: none;
+}
+.ob-img-error .ob-img-error-src {
+  font-size: 0.85em;
+  color: var(--ob-text-faint);
+  word-break: break-all;
+}
+.ob-img-error .ob-img-error-hint {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.8em;
+  color: var(--ob-accent);
+  cursor: pointer;
+  user-select: none;
+}
+.ob-img-error .ob-img-error-hint:hover {
+  text-decoration: underline;
+}
+/* v0.7.0 双参数面板：两条 Crepe caption-input 风格输入框（无边框居中，失焦自动
+   提交、无确认/取消按钮）。caption-input 基样式来自 Crepe 主题，这里只补交互细节：
+   聚焦即隐去占位文本（不等输入）；光标用主题强调色，两条输入框一致且醒目 */
+.markdown-rendered .milkdown-image-block .caption-input::placeholder {
+  color: var(--ob-text-faint);
+}
+.markdown-rendered .milkdown-image-block .caption-input:focus::placeholder {
+  color: transparent;
+}
+.markdown-rendered .milkdown-image-block .caption-input {
+  caret-color: var(--ob-accent);
+}
+/* 空 src 占位框（斜杠 Image 命令插入的空图片块） */
+.markdown-rendered .milkdown-image-block .ob-img-empty .ob-img-empty-text {
+  flex: 1;
+  color: var(--ob-text-faint);
+  font-size: 0.9em;
+}
+/* caption（markdown title 槽位）只读展示 */
+.markdown-rendered .milkdown-image-block .ob-img-caption {
+  margin: 4px auto;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--ob-text-mut);
+}

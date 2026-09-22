@@ -7,15 +7,18 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Crepe } from "@milkdown/crepe";
 import { replaceAll, callCommand, $prose } from "@milkdown/utils";
-import { editorViewCtx, serializerCtx } from "@milkdown/core";
+import { editorViewCtx, serializerCtx, commandsCtx } from "@milkdown/core";
 import {
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
   toggleStrongCommand,
   wrapInHeadingCommand,
+  clearTextInCurrentBlockCommand,
+  addBlockTypeCommand,
 } from "@milkdown/preset-commonmark";
 import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
+import type { EditorView } from "@milkdown/prose/view";
 import { languages } from "@codemirror/language-data";
 import { LanguageDescription, LanguageSupport, StreamLanguage } from "@codemirror/language";
 import {
@@ -45,6 +48,14 @@ import {
 } from "./frontmatter";
 // 图片块 alt 保真：覆盖上游 image-block schema（alt 不再被 ratio 槽位吞掉）
 import { imageBlockFidelity } from "./image-block";
+// v0.7.0 图片：自绘块级图片 node view（占位框/双参数面板/失败占位）+ 共享路径判定
+import { imageBlockView, imagePanelEscGuard, setImageEditDocPath } from "./image-edit";
+import { imageBlockSchema } from "@milkdown/components/image-block";
+import {
+  decodeMaybe,
+  isAbsoluteLocalSrc,
+  resolveLocalAbs,
+} from "./image-paths";
 import {
   createTabsModel,
   createTabArrows,
@@ -68,6 +79,9 @@ interface TabsPayload {
 
 const AUTOSAVE_DELAY = 500; // 十一轮批示写死（原 1000）
 
+/** 斜杠菜单「图片」项图标（复用 Crepe 内置 imageIcon 的 SVG） */
+const IMG_SLASH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g clip-path="url(#clip0_977_8075)"><path d="M19 5V19H5V5H19ZM19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM14.14 11.86L11.14 15.73L9 13.14L6 17H18L14.14 11.86Z"/></g><defs><clipPath id="clip0_977_8075"><rect width="24" height="24" /></clipPath></defs></svg>`;
+
 /** 路径归一化比较（拖放路径与登记路径可能一个规范化一个不曾） */
 function samePath(a: string, b: string) {
   return a.replace(/\//g, "\\").toLowerCase() === b.replace(/\//g, "\\").toLowerCase();
@@ -75,40 +89,8 @@ function samePath(a: string, b: string) {
 
 // ---- 图片 src 解析（3.7）：网络/data 图原样放行；本地路径经 asset 协议转换 ----
 // 相对路径相对当前 md 文件所在目录解析（对齐 Ob/VSCode 惯例）；
-// 渲染只影响 DOM src，文档里的 src 原文不动（保真原则的渲染侧体现）
-const REMOTE_SRC_RE = /^(https?:|data:|blob:|asset:|tauri:)/i;
-const ABS_PATH_RE = /^([a-zA-Z]:[\\/]|\\\\|\/)/;
-
-function decodeMaybe(s: string): string {
-  try {
-    return decodeURIComponent(s);
-  } catch {
-    return s;
-  }
-}
-
-function dirnameOf(p: string): string {
-  const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"));
-  return i < 0 ? p : p.slice(0, i);
-}
-
-/** 拼合 dir 与 rel 并归一化 . / .. 段（保留盘符与 UNC 前缀） */
-function joinResolve(dir: string, rel: string): string {
-  const combined = `${dir}\\${rel}`;
-  const unc = combined.startsWith("\\\\");
-  const parts = combined.split(/[\\/]+/).filter(Boolean);
-  const out: string[] = [];
-  for (const seg of parts) {
-    if (seg === ".") continue;
-    if (seg === "..") {
-      // 盘符（C:）与 UNC 主机\共享名不可弹出
-      if (out.length > (unc ? 2 : 1)) out.pop();
-      continue;
-    }
-    out.push(seg);
-  }
-  return (unc ? "\\\\" : "") + out.join("\\");
-}
+// 渲染只影响 DOM src，文档里的 src 原文不动（保真原则的渲染侧体现）。
+// v0.7.0 起判定/解析收口到 image-paths.ts（路径编辑/失败占位/批量转换共用）
 
 export async function boot() {
   // 启动计时（性能专题 baseline）：相对 navigationStart 的毫秒数，dev 工具/冒烟脚本可读
@@ -285,13 +267,11 @@ export async function boot() {
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
    *  闭包读的是 let path，拖入换文件后 replaceAll 重渲染自动跟随新目录 */
   const toDomUrl = (src: string): string => {
-    if (!src || REMOTE_SRC_RE.test(src)) return src;
-    const decoded = decodeMaybe(src);
-    const abs = ABS_PATH_RE.test(decoded)
-      ? decoded
-      : joinResolve(dirnameOf(path), decoded);
-    return convertFileSrc(abs);
+    const abs = resolveLocalAbs(src, path);
+    return abs ? convertFileSrc(abs) : src;
   };
+  // 图片路径编辑/失败占位插件的文档路径取值器（拖入换文件后闭包 path 更新即跟随）
+  setImageEditDocPath(() => path);
 
   // 编辑器容器：对齐 Ob 阅读视图类名
   const host = document.createElement("div");
@@ -502,6 +482,21 @@ export async function boot() {
       [Crepe.Feature.BlockEdit]: {
         textGroup: { h4: null, h5: null, h6: null, quote: null, divider: null },
         advancedGroup: { image: null, math: null },
+        // v0.7.0：图片入口回归——插入空图片块，渲染为占位框（「设置图片」按钮
+        // 弹双参数面板填 alt 与路径；双参数面板/占位框实现见 image-edit.ts）
+        buildMenu: (builder) => {
+          builder.getGroup("advanced").addItem("image-placeholder", {
+            label: "Image",
+            icon: IMG_SLASH_ICON,
+            onRun: (ctx) => {
+              const commands = ctx.get(commandsCtx);
+              commands.call(clearTextInCurrentBlockCommand.key);
+              commands.call(addBlockTypeCommand.key, {
+                nodeType: imageBlockSchema.type(ctx),
+              });
+            },
+          });
+        },
       },
       // 快捷操作栏追加：==高亮== 开关 + callout 包裹（见 toolbar.ts）
       [Crepe.Feature.Toolbar]: toolbarConfig,
@@ -548,6 +543,8 @@ export async function boot() {
       .use(obletPlugins)
       .use(imageBlockFidelity.ctx)
       .use(imageBlockFidelity.node)
+      .use(imageBlockView)
+      .use(imagePanelEscGuard)
       .use(frontmatterSchema.node)
       .use(frontmatterSchema.ctx)
       .use(frontmatterView)
@@ -737,6 +734,8 @@ export async function boot() {
     },
     /** 批次 7.1 验证钩子：驱动真实导出链路（菜单同款 handler） */
     testExportVault: () => exportToVault(path, crepe.getMarkdown()),
+    /** v0.7.0 验证钩子：驱动真实批量转相对路径链路（菜单同款 handler） */
+    testLocalizeImages: () => localizeImages(),
     /** 批次 7.1 验证钩子：写 vault_dir 并刷新设置缓存（模拟设置面板保存） */
     testSetVaultDir: async (dir: string | null) => {
       const s = await invoke<{ editor: Record<string, unknown> }>("get_settings");
@@ -879,6 +878,62 @@ export async function boot() {
       else notify(`重命名失败：${e}`, "error");
     }
   };
+  // v0.7.0 右键「转换图片为相对路径（assets/）」：扫描文档内本地绝对路径图片
+  // （块级+行内），Rust 批量复制进 assets/（同内容复用、异内容 -1 后缀、逐源去重），
+  // 成功的引用单事务改写 src（可 Ctrl+Z 撤销、自动保存自然生效），失败的保留原样并汇总
+  const localizeImages = async () => {
+    const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+    if (!view) return;
+    const targets: { pos: number; src: string }[] = [];
+    view.state.doc.descendants((node, pos) => {
+      const src = (node.attrs.src as string) ?? "";
+      if (
+        (node.type.name === "image-block" || node.type.name === "image") &&
+        isAbsoluteLocalSrc(src)
+      ) {
+        targets.push({ pos, src: decodeMaybe(src) });
+      }
+      return true;
+    });
+    if (!targets.length) {
+      notify("没有需要转换的图片");
+      return;
+    }
+    interface LocalizeItem {
+      source: string;
+      target: string | null;
+      error: string | null;
+    }
+    try {
+      const items = await invoke<LocalizeItem[]>("localize_image_assets", {
+        sources: [...new Set(targets.map((t) => t.src))],
+      });
+      const map = new Map(
+        items.filter((i) => i.target).map((i) => [i.source, i.target as string])
+      );
+      const failed = items.filter((i) => i.error);
+      // setNodeAttribute 只改属性不动文档结构，同一事务内 pos 稳定
+      if (map.size) {
+        const tr = view.state.tr;
+        for (const t of targets) {
+          const rel = map.get(t.src);
+          if (rel) tr.setNodeAttribute(t.pos, "src", rel);
+        }
+        view.dispatch(tr);
+      }
+      const okCount = targets.filter((t) => map.has(t.src)).length;
+      if (failed.length) {
+        notify(
+          `已转换 ${okCount} 张，跳过 ${failed.length} 张：${failed[0].error}（${failed[0].source}）`,
+          "warn"
+        );
+      } else {
+        notify(`已转换 ${okCount} 张图片到 assets/`);
+      }
+    } catch (e) {
+      notify(`转换图片失败：${e}`, "error");
+    }
+  };
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
     vault: () => void exportToVault(path, crepe.getMarkdown()),
@@ -887,6 +942,8 @@ export async function boot() {
     print: doPrint,
     // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
     rename: () => void doRename(),
+    // v0.7.0 转换图片为相对路径（assets/）
+    localizeImages: () => void localizeImages(),
   });
   // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键
   registerCommand({
