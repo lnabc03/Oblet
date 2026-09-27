@@ -30,8 +30,8 @@ release/
 *.sw?
 
 # 本地开发资产（不入库，仅存在工作区）：
-# 参考素材、开发脚本、文档、打磨记录、序列化回归测试、Claude Code 说明
+# 参考素材、开发脚本、打磨记录、序列化回归测试、Claude Code 说明
+# docs/ 已入库：存放平台适配等正式文档
 ref/
 scripts/
-docs/
 CLAUDE.md
