@@ -160,11 +160,20 @@ impl AppState {
     }
 }
 
-/// 路径归一化键：规范化 + 小写（Windows 不区分大小写）
+/// 路径归一化键：规范化（Windows 另加小写——Windows 不区分大小写；
+/// Android/Linux 文件系统区分大小写，不能小写化，否则 A.md/a.md 撞键）
 fn canonical_key(path: &str) -> String {
-    std::fs::canonicalize(path)
-        .map(|p| p.to_string_lossy().to_lowercase())
-        .unwrap_or_else(|_| path.to_lowercase())
+    let p = std::fs::canonicalize(path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| path.to_string());
+    #[cfg(target_os = "windows")]
+    {
+        p.to_lowercase()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        p
+    }
 }
 
 /// FNV-1a 内容哈希（用于自写事件过滤，非密码学用途）
