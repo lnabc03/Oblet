@@ -8,6 +8,8 @@ import type { Crepe } from "@milkdown/crepe";
 import { confirmDialog, notify } from "../notify";
 import { currentEditorSettings } from "../settings/typography";
 
+import { pathKey } from "./image-paths";
+
 // ---- 类型 ----
 
 export interface TabState {
@@ -61,14 +63,13 @@ export interface TabsCallbacks {
 }
 
 // ---- 工厂函数 ----
-
 export function createTabsModel(initialTabs: string[], activeIndex: number) {
   const cache = new Map<string, TabState>();
 
   // 预填活跃 tab 的路径占位（内容稍后由 setup.ts 填充）
   for (const p of initialTabs) {
-    if (!cache.has(p.toLowerCase())) {
-      cache.set(p.toLowerCase(), {
+    if (!cache.has(pathKey(p))) {
+      cache.set(pathKey(p), {
         path: p,
         content: "",
         newline: "CRLF",
@@ -92,14 +93,14 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
     /** 活跃 tab 路径 */
     get activePath() { return tabs[active] ?? ""; },
 
-    /** 获取 tab 缓存（按路径，大小写不敏感） */
+    /** 获取 tab 缓存（按路径，经 pathKey 归一：分隔符统一，仅 Windows 小写） */
     get(path: string): TabState | undefined {
-      return cache.get(path.toLowerCase());
+      return cache.get(pathKey(path));
     },
 
     /** 更新当前活跃 tab 的缓存字段 */
     updateCurrent(patch: Partial<TabState>) {
-      const key = tabs[active]?.toLowerCase();
+      const key = tabs[active] ? pathKey(tabs[active]) : "";
       if (!key) return;
       const cur = cache.get(key);
       if (cur) Object.assign(cur, patch);
@@ -110,8 +111,8 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
       tabs = [...t];
       // 确保所有路径都有缓存占位
       for (const p of t) {
-        if (!cache.has(p.toLowerCase())) {
-          cache.set(p.toLowerCase(), {
+        if (!cache.has(pathKey(p))) {
+          cache.set(pathKey(p), {
             path: p,
             content: "",
             newline: "CRLF",
@@ -134,8 +135,8 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
       active = idx;
       // 确保所有路径都有缓存占位
       for (const p of t) {
-        if (!cache.has(p.toLowerCase())) {
-          cache.set(p.toLowerCase(), {
+        if (!cache.has(pathKey(p))) {
+          cache.set(pathKey(p), {
             path: p,
             content: "",
             newline: "CRLF",
@@ -166,7 +167,7 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
 
     /** 获取活跃 tab 的缓存状态（不存在则创建空占位） */
     current(): TabState {
-      const key = tabs[active]?.toLowerCase() ?? "";
+      const key = tabs[active] ? pathKey(tabs[active]) : "";
       if (!cache.has(key)) {
         cache.set(key, {
           path: tabs[active],
@@ -184,13 +185,13 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
      *  Rust 侧 rename_file 已把 tabs 里的 old 替换为 new（顺序不变、活跃索引不变），
      *  此处把 old 的 TabState 迁到 new 名下并同步列表 */
     renamePath(oldPath: string, newTabs: string[], idx: number) {
-      const oldKey = oldPath.toLowerCase();
+      const oldKey = pathKey(oldPath);
       const newPath = newTabs[idx] ?? newTabs[0];
       const entry = cache.get(oldKey);
       if (entry) {
         entry.path = newPath;
         cache.delete(oldKey);
-        cache.set(newPath.toLowerCase(), entry);
+        cache.set(pathKey(newPath), entry);
       }
       tabs = [...newTabs];
       active = idx;
@@ -255,7 +256,7 @@ export async function switchToTab(
 
   // guard：用路径比较而非索引比较（remove_tab 场景下索引会偏移）
   const oldActivePath = model.activePath;
-  if (oldActivePath.replace(/\//g, "\\").toLowerCase() === targetPath.replace(/\//g, "\\").toLowerCase()) {
+  if (pathKey(oldActivePath) === pathKey(targetPath)) {
     model.updatePaths(updatedTabs);
     return;
   }

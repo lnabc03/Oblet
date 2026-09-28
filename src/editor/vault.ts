@@ -3,8 +3,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { currentEditorSettings } from "../settings/typography";
 import { confirmDialog, notify } from "../notify";
+import { FS_CASE_INSENSITIVE } from "./image-paths";
 
-/** 规整用户随手输入的路径：去首尾空白与成对引号、正斜杠归一为反斜杠、去末尾分隔符 */
+/** 规整用户随手输入的路径：去首尾空白与成对引号、分隔符归一为平台惯例
+ * （Windows `\`；其余平台 `/`——照 Windows 习惯输入 `\` 也容错）、去末尾分隔符 */
 export function sanitizePathInput(raw: string): string {
   let s = raw.trim();
   // 成对引号（支持嵌套误输的多次剥离，如 ""D:\Notes""）
@@ -14,12 +16,12 @@ export function sanitizePathInput(raw: string): string {
   ) {
     s = s.slice(1, -1).trim();
   }
-  s = s.replace(/\//g, "\\");
+  s = FS_CASE_INSENSITIVE ? s.replace(/\//g, "\\") : s.replace(/\\/g, "/");
   // 去末尾分隔符；但保留 UNC 根（\\server\share\）与盘符根（C:\）的语义最小形
-  while (s.length > 1 && s.endsWith("\\")) s = s.slice(0, -1);
+  while (s.length > 1 && /[\\/]$/.test(s)) s = s.slice(0, -1);
   if (s === "") return "";
   // 盘符根被削成 "C:" 时补回（C: 在 Windows 上是"当前目录"相对语义，不是根）
-  if (/^[a-zA-Z]:$/.test(s)) s += "\\";
+  if (FS_CASE_INSENSITIVE && /^[a-zA-Z]:$/.test(s)) s += "\\";
   return s;
 }
 
@@ -51,7 +53,7 @@ export async function exportToVault(
     if (String(e) === "EXISTS") {
       // 自绘确认弹窗（原生 window.confirm 是浏览器默认样式，与设计语言不符）
       const ok = await confirmDialog(
-        `目标已存在同名文件：\n${dir}\\${fileName}\n\n覆盖它吗？`,
+        `目标已存在同名文件：\n${dir}/${fileName}\n\n覆盖它吗？`,
         "覆盖"
       );
       if (!ok) return;

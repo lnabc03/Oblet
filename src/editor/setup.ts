@@ -54,6 +54,7 @@ import { imageBlockSchema } from "@milkdown/components/image-block";
 import {
   decodeMaybe,
   isAbsoluteLocalSrc,
+  pathKey,
   resolveLocalAbs,
 } from "./image-paths";
 import {
@@ -84,7 +85,7 @@ const IMG_SLASH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" heigh
 
 /** 路径归一化比较（拖放路径与登记路径可能一个规范化一个不曾） */
 function samePath(a: string, b: string) {
-  return a.replace(/\//g, "\\").toLowerCase() === b.replace(/\//g, "\\").toLowerCase();
+  return pathKey(a) === pathKey(b);
 }
 
 // ---- 图片 src 解析（3.7）：网络/data 图原样放行；本地路径经 asset 协议转换 ----
@@ -151,7 +152,7 @@ export async function boot() {
       dest = await doCreate(false);
     } catch (e) {
       if (String(e) !== "EXISTS") { notify(`创建失败：${e}`, "error"); return; }
-      const ok = await confirmDialog(`目标已存在同名文件：\n${targetDir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
+      const ok = await confirmDialog(`目标已存在同名文件：\n${targetDir}/${fileName}\n\n覆盖它吗？`, "覆盖");
       if (!ok) return;
       try {
         dest = await doCreate(true);
@@ -176,7 +177,7 @@ export async function boot() {
     if (!newPath) return;
     // 去重：已在列表中则仅切换
     const existingIdx = tabsModel.paths.findIndex(
-      (p) => p.replace(/\//g, "\\").toLowerCase() === newPath.replace(/\//g, "\\").toLowerCase()
+      (p) => samePath(p, newPath)
     );
     if (existingIdx >= 0) {
       if (tabCallbacks) {
