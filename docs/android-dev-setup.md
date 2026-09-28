@@ -55,6 +55,20 @@ rustup target add aarch64-linux-android   # 真机/发布用这个（D3：仅 ar
 rustup target add x86_64-linux-android    # 用模拟器调试才需要（Windows 模拟器是 x86_64）
 ```
 
+> **国内网络必看**：rustup 下载 rust-std 组件极易卡死（实踩：卡 10+ 分钟无进度）。卡死就 Ctrl+C，挂中科大镜像重跑：
+> ```bash
+> export RUSTUP_DIST_SERVER="https://mirrors.ustc.edu.cn/rust-static"
+> export RUSTUP_UPDATE_ROOT="https://mirrors.ustc.edu.cn/rust-static/rustup"
+> ```
+> 同理 crates.io 也建议配镜像（`~/.cargo/config.toml`）：
+> ```toml
+> [source.crates-io]
+> replace-with = 'rsproxy-sparse'
+> [source.rsproxy-sparse]
+> registry = "sparse+https://rsproxy.cn/index/"
+> ```
+> 注意 `tauri android init` 会默认安装全部 4 个 target（armv7/arm64/x86/x86_64），嫌慢可以先按上面镜像手动 `rustup target add` 装齐再 init（init 会跳过已装的）。
+
 > 模拟器说明：Windows 上的安卓模拟器是 x86_64 架构，arm64-only 的 APK 跑不了/极慢。所以**日常调试优先真机**（见第五步）；没真机才加第二个 target 用模拟器。发布包仍只出 arm64。
 
 ## 第四步：初始化安卓工程（1 分钟，在仓库根目录）
