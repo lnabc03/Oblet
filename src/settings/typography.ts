@@ -2,6 +2,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { setKeymapOverrides } from "../commands";
+import { IS_MOBILE } from "../platform";
 import {
   swapThemeClasses,
   type ResolvedTheme,
@@ -63,11 +64,12 @@ export function currentEditorSettings(): EditorSettings {
   return current;
 }
 
-/** 排版硬默认（用户未覆盖时生效，替代原"跟随主题"的透传策略） */
+/** 排版硬默认（用户未覆盖时生效，替代原"跟随主题"的透传策略）。
+ * 移动端用系统通用族（Android 无华文中宋等桌面字体，generic 族落到 Roboto/Noto CJK 兜底链） */
 const TYPO_DEFAULTS = {
-  text_font: "华文中宋",
-  mono_font: "JetBrainsMonoNL NF",
-  interface_font: "华文中宋",
+  text_font: IS_MOBILE ? "sans-serif" : "华文中宋",
+  mono_font: IS_MOBILE ? "monospace" : "JetBrainsMonoNL NF",
+  interface_font: IS_MOBILE ? "sans-serif" : "华文中宋",
   base_font_size: 17,
 };
 

@@ -15,6 +15,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { boot } from "./editor/setup";
 import { initKeymap } from "./commands";
 import { applyThemeFromMirror } from "./settings/theme-classes";
+import { IS_MOBILE } from "./platform";
 
 // 主题首帧防闪（多主题一期）：deferred 模块在首个 paint 前执行，
 // 同步从 localStorage 镜像 swap body 类——覆盖 reload（Esc/追加 tab）时
@@ -46,7 +47,9 @@ void (async () => {
   }
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
-      void getCurrentWindow().show();
+      // 桌面窗口初始隐藏（lib.rs visible(false)），首帧画好后揭窗；
+      // 移动端窗口由系统创建即直接可见，show 无意义（且 mobile 上不受支持）
+      if (!IS_MOBILE) void getCurrentWindow().show();
     })
   );
 })();

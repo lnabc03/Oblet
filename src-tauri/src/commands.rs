@@ -78,9 +78,8 @@ pub fn add_tab(
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
-    window
-        .set_title(&format!("Oblet - {title}"))
-        .map_err(|e| format!("设置标题失败: {e}"))?;
+    // 移动端无窗口标题概念，set_title 可能不受支持——失败不阻断主流程
+    let _ = window.set_title(&format!("Oblet - {title}"));
     Ok(TabsPayload {
         path: tabs[idx].clone(),
         tabs,
@@ -104,9 +103,8 @@ pub fn remove_tab(
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
-    window
-        .set_title(&format!("Oblet - {title}"))
-        .map_err(|e| format!("设置标题失败: {e}"))?;
+    // 移动端无窗口标题概念，set_title 可能不受支持——失败不阻断主流程
+    let _ = window.set_title(&format!("Oblet - {title}"));
     Ok(Some(TabsPayload {
         path: tabs[idx].clone(),
         tabs,
@@ -128,9 +126,8 @@ pub fn switch_tab(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Oblet");
-        window
-            .set_title(&format!("Oblet - {title}"))
-            .map_err(|e| format!("设置标题失败: {e}"))?;
+        // 移动端无窗口标题概念，失败不阻断主流程
+        let _ = window.set_title(&format!("Oblet - {title}"));
     }
     Ok(())
 }
@@ -455,9 +452,8 @@ pub fn rename_file(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Oblet");
-        window
-            .set_title(&format!("Oblet - {title}"))
-            .map_err(|e| format!("设置标题失败: {e}"))?;
+        // 移动端无窗口标题概念，失败不阻断主流程
+        let _ = window.set_title(&format!("Oblet - {title}"));
     }
 
     state
