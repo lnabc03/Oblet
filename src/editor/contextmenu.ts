@@ -9,6 +9,7 @@ import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { docHasAbsoluteImages } from "./image-paths";
 import { notify } from "../notify";
+import { COARSE_POINTER } from "../platform";
 
 /** 导出动作回调（批次 7）：由 setup.ts 注入（插件内拿不到文件路径闭包） */
 let exportHandlers: {
@@ -149,6 +150,14 @@ export const contextMenuPlugin = $prose(
               }
               sub.appendChild(btn);
               sub.appendChild(flyout);
+              // 触屏无 hover：点按父项切换子菜单（CSS .open 类与 :hover 规则并列）
+              if (COARSE_POINTER) {
+                btn.addEventListener("click", () => {
+                  const willOpen = !sub.classList.contains("open");
+                  menu?.querySelectorAll(".context-sub.open").forEach((el) => el.classList.remove("open"));
+                  sub.classList.toggle("open", willOpen);
+                });
+              }
               menu.appendChild(sub);
               continue;
             }
@@ -194,7 +203,41 @@ export const contextMenuPlugin = $prose(
           if (e.key === "Escape") close();
         };
 
+        // 触屏：长按（500ms 不位移超阈值）触发自绘菜单——contenteditable 里
+        // Android 不一定发 contextmenu 事件，用 pointer 事件自实现
+        let lpTimer: number | undefined;
+        let lpX = 0, lpY = 0;
+        const lpCancel = () => window.clearTimeout(lpTimer);
+        const onPointerDown = (e: PointerEvent) => {
+          if (e.pointerType !== "touch") return;
+          lpX = e.clientX; lpY = e.clientY;
+          lpCancel();
+          lpTimer = window.setTimeout(() => {
+            // 与右键同款语义：空选区先把光标落到长按处
+            if (view.state.selection.empty) {
+              const pos = view.posAtCoords({ left: lpX, top: lpY });
+              if (pos) {
+                view.dispatch(
+                  view.state.tr.setSelection(
+                    TextSelection.create(view.state.doc, pos.pos)
+                  )
+                );
+              }
+            }
+            open(lpX, lpY);
+          }, 500);
+        };
+        const onPointerMove = (e: PointerEvent) => {
+          if (Math.abs(e.clientX - lpX) > 10 || Math.abs(e.clientY - lpY) > 10) lpCancel();
+        };
+
         view.dom.addEventListener("contextmenu", onContextMenu);
+        if (COARSE_POINTER) {
+          view.dom.addEventListener("pointerdown", onPointerDown);
+          view.dom.addEventListener("pointermove", onPointerMove);
+          view.dom.addEventListener("pointerup", lpCancel);
+          view.dom.addEventListener("pointercancel", lpCancel);
+        }
         window.addEventListener("mousedown", onGlobalDown, true);
         window.addEventListener("keydown", onKey, true);
         window.addEventListener("blur", close);
@@ -205,7 +248,14 @@ export const contextMenuPlugin = $prose(
         return {
           destroy() {
             close();
+            lpCancel();
             view.dom.removeEventListener("contextmenu", onContextMenu);
+            if (COARSE_POINTER) {
+              view.dom.removeEventListener("pointerdown", onPointerDown);
+              view.dom.removeEventListener("pointermove", onPointerMove);
+              view.dom.removeEventListener("pointerup", lpCancel);
+              view.dom.removeEventListener("pointercancel", lpCancel);
+            }
             window.removeEventListener("mousedown", onGlobalDown, true);
             window.removeEventListener("keydown", onKey, true);
             window.removeEventListener("blur", close);

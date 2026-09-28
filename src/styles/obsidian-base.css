@@ -849,7 +849,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   color: var(--ob-text-faint);
   cursor: default;
 }
-/* 子菜单：hover 展开浮出层；父菜单贴右缘时（.flip）向左展开 */
+/* 子菜单：hover 展开浮出层（触屏改点按，JS 挂 .open 类）；父菜单贴右缘时（.flip）向左展开 */
 .context-sub {
   position: relative;
 }
@@ -859,7 +859,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   left: 100%;
   top: -5px;
 }
-.context-sub:hover > .context-flyout {
+.context-sub:hover > .context-flyout,
+.context-sub.open > .context-flyout {
   display: flex;
 }
 .context-menu.flip .context-sub > .context-flyout {
