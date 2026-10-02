@@ -468,7 +468,16 @@ export async function boot() {
           LanguageDescription.of({
             name: "mermaid",
             alias: ["mmd"],
-            support: new LanguageSupport(StreamLanguage.define({ token: () => null })),
+            // token 必须消费字符推进 stream（StreamParser 契约），空转会被 CM 判为死循环抛
+            // "Stream parser failed to advance stream"，连带代码块组件挂载失败、mermaid 预览出不来
+            support: new LanguageSupport(
+              StreamLanguage.define({
+                token: (stream) => {
+                  stream.next();
+                  return null;
+                },
+              })
+            ),
           }),
         ],
         // 多主题一期 1C：覆盖默认 oneDark——全 CSS 变量驱动（--ctp-*），
