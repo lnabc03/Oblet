@@ -398,18 +398,8 @@ export const touchBlockHandlePlugin = $prose(
       view(view) {
         if (!noHoverPointer()) return {};
         let timer: number | undefined;
-        const poke = () => {
+        const pokeAt = (y: number) => {
           if (!view.editable || view.composing) return;
-          const { selection } = view.state;
-          // 只跟行内光标；NodeSelection（选中图片等）让原生流程处理
-          if (!(selection instanceof TextSelection)) return;
-          let rect: { top: number; bottom: number };
-          try {
-            rect = view.coordsAtPos(selection.$head.pos);
-          } catch {
-            return; // 光标在自定义 NodeView 内部等无法取坐标的场景
-          }
-          const y = (rect.top + rect.bottom) / 2;
           if (y < 0 || y > window.innerHeight) return;
           // service 只用 clientY（x 固定取编辑器水平中点），给个合法值即可
           const box = view.dom.getBoundingClientRect();
@@ -421,6 +411,26 @@ export const touchBlockHandlePlugin = $prose(
             })
           );
         };
+        const poke = () => {
+          const { selection } = view.state;
+          let rect: { top: number; bottom: number };
+          try {
+            // TextSelection 取光标行中点；NodeSelection（选中图片等）取节点顶，
+            // service 会按 y 自己定位到该块
+            rect = view.coordsAtPos(selection.from);
+          } catch {
+            return; // 光标在自定义 NodeView 内部等无法取坐标的场景
+          }
+          pokeAt((rect.top + rect.bottom) / 2);
+        };
+        // 兜底：tap 落在 gutter / 图片等不产生选区变化的位置时 update 不会触发，
+        // 直接按触点 y 驱动一次（手指拖动滚动时原生 pointermove 本来就会驱动，
+        // service 内部 200ms 节流，重复无害）
+        const onPointerDown = (e: PointerEvent) => {
+          if (e.pointerType === "mouse") return;
+          pokeAt(e.clientY);
+        };
+        view.dom.addEventListener("pointerdown", onPointerDown);
         // 软键盘开合只改变视口、不动选区，update 捕不到，单独监听。
         // 键盘动画约 300ms，结束时再补一次保证落在最终布局上。
         const onResize = () => {
@@ -440,6 +450,7 @@ export const touchBlockHandlePlugin = $prose(
           },
           destroy() {
             window.clearTimeout(timer);
+            view.dom.removeEventListener("pointerdown", onPointerDown);
             window.visualViewport?.removeEventListener("resize", onResize);
           },
         };

@@ -17,6 +17,8 @@ import {
   addBlockTypeCommand,
 } from "@milkdown/preset-commonmark";
 import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
+import { blockConfig } from "@milkdown/plugin-block";
+import { findParent } from "@milkdown/prose";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
 import { languages } from "@codemirror/language-data";
@@ -576,6 +578,25 @@ export async function boot() {
 
   // 序列化保真（必须在 create 前的 config 阶段生效）
   crepe.editor.config(tuneSerialization);
+  // 块手柄活动节点过滤修正：Crepe 原版只用 findParent 查祖先链，但 math_inline
+  // 是行内节点不在祖先链上——坐标落在 KaTeX 元素内时 nodeAt 返回 math_inline
+  // 本身，手柄就以公式 span 为基准定位（叠在行文字上而非块左侧）。
+  // 补上“节点本身”判断（selectRootNodeByDom 对 false 会自动上探父块）。
+  crepe.editor.config((ctx) => {
+    ctx.set(blockConfig.key, {
+      filterNodes: (pos, node) => {
+        if (["table", "blockquote", "math_inline"].includes(node.type.name))
+          return false;
+        if (
+          findParent((n) =>
+            ["table", "blockquote", "math_inline"].includes(n.type.name)
+          )(pos)
+        )
+          return false;
+        return true;
+      },
+    });
+  });
 
   await crepe.create();
   bootTiming.crepeCreated = performance.now();
