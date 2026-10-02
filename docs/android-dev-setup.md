@@ -91,13 +91,35 @@ npm run tauri android init
 2. USB 连电脑，手机上弹出的 RSA 授权点允许
 3. `adb devices` 能看到设备即就绪（要求 Android 11+，D2）
 
-**方式 B：模拟器**：Android Studio → Device Manager → Create Device → 选 API 30+ 的 x86_64 镜像。
+**方式 B：模拟器**
+
+有 Android Studio 就走 GUI：Device Manager → Create Device → 选 API 30+ 的 x86_64 镜像。
+纯命令行（实踩可行，无需 Android Studio GUI）：
+
+```bash
+sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"   # 装模拟器+系统镜像（约 1~2 GB）
+avdmanager create avd -n oblet_dev -k "system-images;android-34;google_apis;x86_64" -d pixel_6
+emulator -avd oblet_dev                                                # 启动（保持窗口开着）
+adb wait-for-device && adb shell getprop sys.boot_completed            # 等到输出 1
+```
+
+> 注意：sdkmanager/avdmanager 在 `%ANDROID_HOME%\cmdline-tools\latest\bin\`，且 avdmanager 不认 `--sdk_root` 全局位，直接配好 `ANDROID_HOME` 环境变量再跑即可。
 
 然后：
 
 ```bash
 npm run tauri android dev    # 开发模式：编译 Rust 全依赖（首次 10~30 分钟）+ 部署到设备 + 热更新前端
 ```
+
+> **vite 必须监听局域网地址（实踩）**：`tauri android dev` 会让设备经局域网 IP 访问前端 dev server（日志：`Replacing devUrl host with 192.168.x.x`）。若 vite 只听 localhost，CLI 会一直卡 `Waiting for your frontend dev server to start on http://192.168.x.x:1420/`。解法：`vite.config.ts` 的 `server` 加 `host: process.env.TAURI_DEV_HOST || false`（CLI 运行 beforeDevCommand 时会注入该变量；桌面开发未注入则仍 localhost）。本仓库已配置。
+
+> **路径含非 ASCII 字符必看（实踩）**：仓库在中文路径下（如 `D:\个人文档\...`）时，编译能过但**链接失败**：
+> `ld.lld: error: cannot open D:\个人文档\...symbols.o: unspecified system_category error`（同批还有 `cannot find version script ...\list`）。原因是 NDK 的 ld.lld 按 ANSI 代码页处理路径，中文目录打不开。解法：把构建产物目录指到纯英文路径（源码目录不用动）：
+> ```bash
+> set CARGO_TARGET_DIR=C:\Users\wjs_R\oblet-android-target
+> npm run tauri android dev
+> ```
+> 注意换目录等于放弃增量缓存，首次会全量重编。tauri CLI 经 `cargo metadata` 定位产物，能正确识别该变量。
 
 **国内网络提示**：首次构建 Gradle 要下载大量依赖，如果卡在下载，配阿里云镜像：编辑 `src-tauri/gen/android/build.gradle.kts` 和 `settings.gradle.kts` 中的仓库声明，在 `google()` 前加 `maven("https://maven.aliyun.com/repository/google")` 和 `maven("https://maven.aliyun.com/repository/central")`。
 
@@ -123,4 +145,6 @@ npm run tauri android build -- --apk    # 产出 APK（签名按 D11 另配）
 | 模拟器装不上 APK | 模拟器是 x86_64，缺 `x86_64-linux-android` target |
 | `adb devices` 看不到手机 | USB 调试没开 / RSA 授权没点 / 换数据线（有些线只能充电） |
 | cargo 报 linker 错误 | NDK 没装或 NDK_HOME 指错版本目录 |
+| 链接期 `ld.lld: cannot open D:\中文\...*.o` / `cannot find version script` | NDK 链接器不认非 ASCII 路径。设纯英文 `CARGO_TARGET_DIR` 再跑（见第五步） |
+| CLI 卡 `Waiting for your frontend dev server to start on http://192.168...` | vite 只听 localhost，`server.host` 加 `process.env.TAURI_DEV_HOST \|\| false`（见第五步） |
 | 启动即 panic：`AssetDirOutsideOfAppRoot { asset_dir: "assets" }` | 仓库路径上有符号链接/重解析点，canonicalize 穿透后路径对不上。cd 到真实路径再跑（见第四步警告） |
