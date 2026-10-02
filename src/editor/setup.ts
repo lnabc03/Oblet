@@ -582,11 +582,12 @@ export async function boot() {
   // 是行内节点不在祖先链上——坐标落在 KaTeX 元素内时 nodeAt 返回 math_inline
   // 本身，手柄就以公式 span 为基准定位（叠在行文字上而非块左侧）。
   // 补上“节点本身”判断（selectRootNodeByDom 对 false 会自动上探父块）。
+  // 注意自身判断只针对 math_inline：table/blockquote 是期望的活动节点
+  // （上探终点），否掉会让上探冲出文档根导致手柄永不显示。
   crepe.editor.config((ctx) => {
     ctx.set(blockConfig.key, {
       filterNodes: (pos, node) => {
-        if (["table", "blockquote", "math_inline"].includes(node.type.name))
-          return false;
+        if (node.type.name === "math_inline") return false;
         if (
           findParent((n) =>
             ["table", "blockquote", "math_inline"].includes(n.type.name)
