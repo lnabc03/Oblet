@@ -377,10 +377,81 @@ export const dragMovePlugin = $prose(
     })
 );
 
+// ---- 触屏块手柄驱动（移动端联调修复）----
+// Crepe 的块手柄（+ / 选中钮）由 plugin-block 的 pointermove 驱动：桌面端靠
+// 鼠标悬停逐帧更新位置。触屏 tap 不产生 pointermove（按下-抬起不算 move），
+// 手柄不随光标更新——要么不出现，要么停在上次悬停/滚动的陈旧位置。
+// 无悬停能力设备上把选区变化转成一次合成 pointermove（落在光标行垂直中点），
+// 复用 service 自身的节流(200ms)/过滤(table、blockquote 不显示)/定位(floating-ui)，
+// 手柄即精确贴到光标所在块左侧。
+// 判定：真机 (pointer: coarse) 命中；接了鼠标的模拟器报 fine 但 hover: none
+// 且有触屏，也命中；桌面鼠标两者皆否，行为不变。
+export const noHoverPointer = () =>
+  typeof window.matchMedia === "function" &&
+  (window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(hover: none)").matches);
+
+export const touchBlockHandlePlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("oblet-touch-block-handle"),
+      view(view) {
+        if (!noHoverPointer()) return {};
+        let timer: number | undefined;
+        const poke = () => {
+          if (!view.editable || view.composing) return;
+          const { selection } = view.state;
+          // 只跟行内光标；NodeSelection（选中图片等）让原生流程处理
+          if (!(selection instanceof TextSelection)) return;
+          let rect: { top: number; bottom: number };
+          try {
+            rect = view.coordsAtPos(selection.$head.pos);
+          } catch {
+            return; // 光标在自定义 NodeView 内部等无法取坐标的场景
+          }
+          const y = (rect.top + rect.bottom) / 2;
+          if (y < 0 || y > window.innerHeight) return;
+          // service 只用 clientY（x 固定取编辑器水平中点），给个合法值即可
+          const box = view.dom.getBoundingClientRect();
+          view.dom.dispatchEvent(
+            new PointerEvent("pointermove", {
+              clientX: box.left + box.width / 2,
+              clientY: y,
+              bubbles: true,
+            })
+          );
+        };
+        // 软键盘开合只改变视口、不动选区，update 捕不到，单独监听。
+        // 键盘动画约 300ms，结束时再补一次保证落在最终布局上。
+        const onResize = () => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(poke, 350);
+        };
+        window.visualViewport?.addEventListener("resize", onResize);
+        return {
+          update(view2, prev) {
+            const selSame = view2.state.selection.eq(prev.selection);
+            const docSame = view2.state.doc.eq(prev.doc);
+            if (selSame && docSame) return;
+            // rAF 等布局稳定；第二次延迟触发兜住软键盘弹起引起的视口位移
+            window.clearTimeout(timer);
+            requestAnimationFrame(poke);
+            timer = window.setTimeout(poke, 350);
+          },
+          destroy() {
+            window.clearTimeout(timer);
+            window.visualViewport?.removeEventListener("resize", onResize);
+          },
+        };
+      },
+    })
+);
+
 export const obletPlugins = [
   highlightPlugin,
   calloutPlugin,
   activeBlockPlugin,
   languageFreeInputPlugin,
   dragMovePlugin,
+  touchBlockHandlePlugin,
 ];

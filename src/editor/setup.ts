@@ -27,7 +27,7 @@ import {
   switchTypography,
 } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
-import { obletPlugins } from "./plugins";
+import { noHoverPointer, obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { tocPlugin } from "./toc";
 import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
@@ -490,6 +490,11 @@ export async function boot() {
       // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
       // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table
       [Crepe.Feature.BlockEdit]: {
+        // 触屏设备编辑器左侧留白窄（约 72px），默认 offset 16 会把 66px 宽的
+        // 手柄推出左屏外（实测 left=-10）；无悬停设备贴边放（offset 0 正好落进留白）
+        blockHandle: {
+          getOffset: () => (noHoverPointer() ? 0 : 16),
+        },
         textGroup: { h4: null, h5: null, h6: null, quote: null, divider: null },
         advancedGroup: { image: null, math: null },
         // v0.7.0：图片入口回归——插入空图片块，渲染为占位框（「设置图片」按钮
