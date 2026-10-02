@@ -79,6 +79,10 @@ npm run tauri android init
 
 在 `src-tauri/gen/android/` 生成 Kotlin 工程。**这个目录要提交 git**（`.gitignore` 若有排除要放行，init 后检查 `git status`）。
 
+> **必须在真实路径下运行（重要，实踩）**：若仓库是通过符号链接/重解析点访问的（典型：桌面放了个指向 D 盘仓库的目录链接），`tauri android` 全系命令（init/dev/build）会在启动瞬间 panic：
+> `AssetDirOutsideOfAppRoot { asset_dir: "assets", root_dir: "..." }`
+> 原因：cargo-mobile2 校验 asset 目录时用 canonicalize 解析路径——它会穿透符号链接得到真实路径（如 `D:\个人文档\...`），而 root_dir 保持链接路径（如 `C:\Users\...\Desktop\...`），两侧字符串前缀比较失败。与 CWD 无关、换目录跑也没用。**解法：cd 到 canonicalize 之后的真实路径再跑**。查真实路径：Node `fs.realpathSync.native('<链接路径>')` 或 PowerShell `(Get-Item <链接>).Target` 逐跳解析。本机实例：桌面 `Oblet`、`PROJECTS` 全是重解析点，真实路径 `D:\个人文档\PROJECTS\Oblet`。
+
 ## 第五步：跑起来
 
 **方式 A：真机调试（推荐）**
@@ -119,3 +123,4 @@ npm run tauri android build -- --apk    # 产出 APK（签名按 D11 另配）
 | 模拟器装不上 APK | 模拟器是 x86_64，缺 `x86_64-linux-android` target |
 | `adb devices` 看不到手机 | USB 调试没开 / RSA 授权没点 / 换数据线（有些线只能充电） |
 | cargo 报 linker 错误 | NDK 没装或 NDK_HOME 指错版本目录 |
+| 启动即 panic：`AssetDirOutsideOfAppRoot { asset_dir: "assets" }` | 仓库路径上有符号链接/重解析点，canonicalize 穿透后路径对不上。cd 到真实路径再跑（见第四步警告） |

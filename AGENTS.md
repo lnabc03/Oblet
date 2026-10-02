@@ -126,6 +126,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 
 ## 环境备忘
 
+- **仓库真实路径是 `D:\个人文档\PROJECTS\Oblet`**；桌面的 `Oblet`（以及 `PROJECTS`、`RAINOTES` 等）全是符号链接/重解析点。跑任何 `tauri android` 命令必须 cd 到真实路径，否则 cargo-mobile2 的 asset 目录校验 canonicalize 穿透链接后路径字符串对不上，启动即 panic `AssetDirOutsideOfAppRoot { asset_dir: "assets" }`（2026-10 实踩，详见 docs/android-dev-setup.md 第四步警告）
 - `src-tauri/target/` 约 3.6G 属 Rust 调试编译产物常态，已 gitignore，清理用 `cargo clean`（需先关闭运行中的 oblet.exe，否则文件锁导致拒绝访问）。
 - `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
 - `scripts/`（repro-*/verify-* 冒烟）、根目录 `test-*-roundtrip.mjs`、`Oblet-打磨*.md`、本文件均为**本地开发资产**：.gitignore 防回流云端，本地保留可正常跑；CI 发布链路依赖的组包/审计/许可收集脚本在 `.github/`（`npm run pack` / `npm run audit` 即指向那里）。
