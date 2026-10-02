@@ -467,10 +467,24 @@ body.ob-vibrancy .search-bar input {
 /* mermaid 图表预览（renderPreview 钩子，editor/mermaid.ts；配色走 SVG 内联 themeVariables，不在此处） */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid {
   text-align: center;
+  /* 窄屏下限策略：min-width 保住可读性后横向滚动（下限在下方的媒体查询里） */
+  overflow-x: auto;
 }
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg {
   max-width: 100%;
   height: auto;
+}
+/* 窄屏（手机竖屏内容区约 330-400px）：mermaid 默认 useMaxWidth 会把图缩到容器宽，
+   流程图文字缩到看不清。给定 420px 下限（约一个双节点流程图的可读宽度），
+   超出容器部分横向滑动查看；上限仍为容器宽/mermaid 固有尺寸，桌面不受影响 */
+@media (max-width: 640px) {
+  .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid {
+    /* 图比容器宽时居中对齐会把左侧裁进不可滚动区，窄屏一律左对齐起滚 */
+    text-align: left;
+  }
+  .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg {
+    min-width: 420px;
+  }
 }
 /* mermaid 硬编码色兜底：新图表（sequence 底部框/生命线/序号、timeline、kanban）不响应
    themeVariables，颜色写死在渲染代码里——CSS 覆盖 presentation attribute 与内联 <style> */
