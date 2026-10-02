@@ -183,6 +183,8 @@ export async function initSettingsUI(container: HTMLElement) {
     (e) => {
       if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
         toggle(false);
+        // preventDefault：安卓返回键桥（MainActivity 注入 Esc）以此判断"页面已消费"
+        e.preventDefault();
         e.stopImmediatePropagation();
       }
     },

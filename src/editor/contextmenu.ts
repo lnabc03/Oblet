@@ -200,7 +200,11 @@ export const contextMenuPlugin = $prose(
           if (menu && !menu.contains(e.target as Node)) close();
         };
         const onKey = (e: KeyboardEvent) => {
-          if (e.key === "Escape") close();
+          // preventDefault：安卓返回键桥以此判定"已消费"（菜单开着时不退页面）
+          if (e.key === "Escape" && menu) {
+            e.preventDefault();
+            close();
+          }
         };
 
         // 触屏：长按（500ms 不位移超阈值）触发自绘菜单——contenteditable 里
