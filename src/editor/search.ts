@@ -153,6 +153,17 @@ export const searchPlugin = $prose(() => {
     },
     view(v) {
       view = v;
+      // 安卓返回键桥注入的是 window 级合成 Esc（不经 PM/输入框）——浮条开着时在
+      // window 捕获层接住：关浮条 + preventDefault（桥的"已消费"信号）
+      const onWinKey = (e: KeyboardEvent) => {
+        if (e.key !== "Escape") return;
+        const s = searchKey.getState(v.state);
+        if (!s?.open) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        dispatchMeta({ type: "close" });
+      };
+      window.addEventListener("keydown", onWinKey, true);
       const bar = document.createElement("div");
       bar.className = "search-bar hidden";
       bar.innerHTML = `
@@ -289,6 +300,7 @@ export const searchPlugin = $prose(() => {
         },
         destroy() {
           bar.remove();
+          window.removeEventListener("keydown", onWinKey, true);
           view = null;
         },
       };

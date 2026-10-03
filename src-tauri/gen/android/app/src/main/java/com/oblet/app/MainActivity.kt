@@ -106,6 +106,24 @@ class MainActivity : TauriActivity() {
     handleOpenIntent(intent)
   }
 
+  // 物理键盘 Esc：Android 在到达 WebView 前就吞掉 KEYCODE_ESCAPE（实测模拟器 JS
+  // 层完全收不到 keydown），在 Activity 派发入口拦截，注入与返回键相同的 Esc 语义链。
+  // 与返回键桥不同：页面未消费时不退后台（对齐桌面——起始页按 Esc 什么都不做）。
+  override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+    if (
+      event.keyCode == android.view.KeyEvent.KEYCODE_ESCAPE &&
+      event.action == android.view.KeyEvent.ACTION_DOWN &&
+      event.repeatCount == 0
+    ) {
+      webView?.evaluateJavascript(
+        "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))",
+        null,
+      )
+      return true
+    }
+    return super.dispatchKeyEvent(event)
+  }
+
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     this.webView = webView
