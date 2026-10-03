@@ -60,6 +60,9 @@ pub struct EditorSetting {
     // 主题身份（多主题二期）：None/"anuppuccin" = AnuPpuccin（默认）；其余为主题注册表 id
     #[serde(default)]
     pub theme_id: Option<String>,
+    // 最近打开文件（应用菜单「最近打开」，安卓入口）：新路径置顶去重，封顶 10；None = 无记录
+    #[serde(default)]
+    pub recent_files: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -122,4 +125,17 @@ pub fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     fs::write(&tmp, text).map_err(|e| e.to_string())?;
     fs::rename(&tmp, &p).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// 记录最近打开文件（置顶去重，封顶 10）。历史是辅助数据，任何失败都静默，不阻断主流程
+pub fn note_recent_file(app: &AppHandle, path: &str) {
+    let Ok(mut s) = get_settings(app.clone()) else {
+        return;
+    };
+    let mut list = s.editor.recent_files.take().unwrap_or_default();
+    list.retain(|p| p != path);
+    list.insert(0, path.to_string());
+    list.truncate(10);
+    s.editor.recent_files = Some(list);
+    let _ = save_settings(app.clone(), s);
 }

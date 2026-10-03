@@ -65,6 +65,7 @@ pub fn get_window_file(state: State<AppState>, window: tauri::Window) -> Option<
 /// 返回更新后的 TabsPayload
 #[tauri::command]
 pub fn add_tab(
+    app: tauri::AppHandle,
     state: State<AppState>,
     window: tauri::Window,
     path: String,
@@ -80,6 +81,8 @@ pub fn add_tab(
         .unwrap_or("Oblet");
     // 移动端无窗口标题概念，set_title 可能不受支持——失败不阻断主流程
     let _ = window.set_title(&format!("Oblet - {title}"));
+    // 最近打开历史（应用菜单入口用）
+    crate::settings::note_recent_file(&app, &tabs[idx]);
     Ok(TabsPayload {
         path: tabs[idx].clone(),
         tabs,
@@ -136,11 +139,12 @@ pub fn switch_tab(
 /// 批次 7.3 起语义变为追加 tab 并切换（不再替换整个窗口内容）
 #[tauri::command]
 pub fn set_window_file(
+    app: tauri::AppHandle,
     state: State<AppState>,
     window: tauri::Window,
     path: String,
 ) -> Result<TabsPayload, String> {
-    add_tab(state, window, path)
+    add_tab(app, state, window, path)
 }
 
 #[tauri::command]

@@ -25,10 +25,13 @@ import { languages } from "@codemirror/language-data";
 import { LanguageDescription, LanguageSupport, StreamLanguage } from "@codemirror/language";
 import {
   currentEditorSettings,
+  getSettings,
   initTypography,
   switchTypography,
 } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
+import { initAppMenu } from "./appmenu";
+import { IS_MOBILE } from "../platform";
 import { noHoverPointer, obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { tocPlugin } from "./toc";
@@ -122,6 +125,20 @@ export async function boot() {
   bootTiming.settingsAndPayloadReady = performance.now();
   void initSettingsUI(app);
 
+  // 移动端应用菜单（左上角 ☰，appmenu.ts）：触屏上长按右键与选中工具栏互相干扰，
+  // 给打开/最近/新建/设置等提供显性常驻入口；appView 在编辑器创建后回填（起始页为 null）
+  let appView: EditorView | null = null;
+  initAppMenu({
+    getView: () => appView,
+    openFile: () =>
+      (
+        window as unknown as { ObletNative?: { pickFile?: () => void } }
+      ).ObletNative?.pickFile?.(),
+    newNote: () => void createNoteIn(""),
+    openPath: (p) => void openPathInTab(p),
+    getRecents: async () => (await getSettings()).editor.recent_files ?? [],
+  });
+
   // 初始化 tab 模型与箭头 UI（无论是否有初始文件）
   const tabsModel = createTabsModel([], 0);
   const tabArrows = createTabArrows(document.body);
@@ -173,9 +190,8 @@ export async function boot() {
     await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
   }
 
-  // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
-  await listen("add-tab", async (event: { payload: { path: string } }) => {
-    const { path: newPath } = event.payload;
+  // ---- 打开路径到 tab（桌面 add-tab 事件与安卓 Intent 桥共用同一链路） ----
+  const openPathInTab = async (newPath: string) => {
     if (!newPath) return;
     // 去重：已在列表中则仅切换
     const existingIdx = tabsModel.paths.findIndex(
@@ -207,7 +223,20 @@ export async function boot() {
     } catch (e) {
       notify(`打开失败：${e}`, "error");
     }
+  };
+
+  // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
+  await listen("add-tab", (event: { payload: { path: string } }) => {
+    void openPathInTab(event.payload?.path);
   });
+
+  // 安卓「打开方式」桥：MainActivity 把 Intent 解析成真实路径后，
+  // 轮询等本函数出现再投递（冷启动时 WebView 加载慢于 Intent 到达）
+  (window as unknown as Record<string, unknown>).__obletOpenFromIntent = (
+    p: string
+  ) => {
+    void openPathInTab(p);
+  };
 
   // ---- new-note-at 事件监听（右键「新建 Markdown 文档」转发到运行中的实例） ----
   await listen("new-note-at", (event: { payload: string }) => {
@@ -229,7 +258,7 @@ export async function boot() {
     empty.innerHTML = `
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
-      <p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>
+      <p class="muted">${IS_MOBILE ? "点左上角 ☰ 菜单打开 .md 文件，或在文件管理器里选择用 Oblet 打开" : "双击任意 .md 文件即可编辑，或将文件拖入窗口"}</p>
       <p><button class="empty-new-note">新建 Markdown 笔记</button></p>
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
@@ -600,6 +629,7 @@ export async function boot() {
   });
 
   await crepe.create();
+  appView = crepe.editor.ctx.get(editorViewCtx);
   bootTiming.crepeCreated = performance.now();
   if (payload.readonly) crepe.setReadonly(true);
   // 末尾空段落不落地：trailing 插件为"文末可点击"在列表/表格/代码块结尾后
@@ -976,19 +1006,23 @@ export async function boot() {
     vault: () => void exportToVault(path, crepe.getMarkdown()),
     // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
     // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
-    print: doPrint,
+    // D9：移动端 window.print() 链路在 Android WebView 行为不同，初版隐藏入口
+    print: IS_MOBILE ? undefined : doPrint,
     // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
     rename: () => void doRename(),
     // v0.7.0 转换图片为相对路径（assets/）
     localizeImages: () => void localizeImages(),
   });
-  // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键
-  registerCommand({
-    id: "print",
-    title: "导出为 PDF",
-    defaultCombo: "Ctrl+P",
-    run: doPrint,
-  });
+  // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键。
+  // 移动端不注册（D9 初版隐藏导出 PDF）
+  if (!IS_MOBILE) {
+    registerCommand({
+      id: "print",
+      title: "导出为 PDF",
+      defaultCombo: "Ctrl+P",
+      run: doPrint,
+    });
+  }
   // CDP 冒烟钩子：打印挂载逻辑本体（repro-print-hl 验证用）
   (
     (window as unknown as Record<string, unknown>).__oblet as Record<string, unknown>

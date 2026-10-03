@@ -152,6 +152,14 @@ export async function initSettingsUI(container: HTMLElement) {
     </div>`;
   container.appendChild(overlay);
 
+  // 移动端单 Activity 单窗口，多窗口无意义（D8；Rust 侧 open_or_focus 本就桌面专属）
+  if (IS_MOBILE) {
+    overlay
+      .querySelector('input[data-check="allow_multi_window"]')
+      ?.closest("label")
+      ?.remove();
+  }
+
   const toggle = (show: boolean) =>
     overlay.classList.toggle("hidden", !show);
 

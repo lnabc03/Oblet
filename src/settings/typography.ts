@@ -46,6 +46,8 @@ export interface EditorSettings {
   theme_mode?: ThemeMode | null;
   /** 主题身份（多主题二期）：null/"anuppuccin" = AnuPpuccin（默认）；其余见 theme-classes.ts 注册表 */
   theme_id?: string | null;
+  /** 最近打开文件（应用菜单「最近打开」，安卓入口）：新→旧，封顶 10 */
+  recent_files?: string[] | null;
 }
 
 export async function getSettings(): Promise<Settings> {

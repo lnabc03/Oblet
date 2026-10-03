@@ -988,6 +988,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .settings-panel {
   width: 420px;
+  max-width: calc(100vw - 24px);
   max-height: 70vh;
   overflow-y: auto;
   background: var(--ob-bg);
@@ -1332,18 +1333,60 @@ body.anp-current-line .markdown-rendered .ob-active-block {
 }
 
 /* ---- 移动端安全区避让（Android/iOS 边到边布局）----
- * 桌面端 env() 解析为 0，无影响；移动端状态栏/手势条区域不遮挡内容。
- * 视口已声明 viewport-fit=cover，故 env(safe-area-inset-*) 可用（实测 Android 14 顶部 49px）。 */
+ * 优先级：--ob-safe-top/bottom（MainActivity 由 WindowInsets 主动注入，boot 即准确）
+ * → env() 兜底（iOS/支持完整的 WebView）→ 0px（桌面）。
+ * 不能裸用 env()：Android WebView 的 env(safe-area-inset-top) 在 boot 后很晚
+ * 才从 0 变为真值（实测 reload 后 1 分钟+），表现为刚进应用按钮被状态栏盖住。 */
 body {
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: var(--ob-safe-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--ob-safe-bottom, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
 
 /* 固定定位的浮层按钮不受 body padding 影响，需各自叠加安全区 */
 .pin-btn {
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
 }
 .settings-btn {
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
+}
+
+/* 设置浮层：面板在安全区内居中（状态栏/手势条不遮面板顶底） */
+.settings-overlay {
+  padding-top: var(--ob-safe-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--ob-safe-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- 移动端应用菜单按钮（左上角 ☰，占桌面端置顶按钮的位置） ---- */
+.appmenu-btn {
+  position: fixed;
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
+  left: 12px;
+  z-index: 30;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg);
+  color: var(--ob-text-mut);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+}
+.appmenu-btn:hover {
+  color: var(--ob-text);
+}
+
+/* 菜单分隔线（应用菜单分组用） */
+.context-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--ob-border);
+}
+
+/* 自绘菜单打开期间压住 Crepe 选中工具栏：
+   触屏长按会同时触发文本选择（弹工具栏）与自绘菜单，两者叠屏冲突 */
+body.ob-ctx-open .milkdown-toolbar {
+  display: none !important;
 }
