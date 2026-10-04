@@ -81,11 +81,11 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>排版</h3>
         <div class="typo-grid">
           <label>正文字体</label>
-          <input type="text" data-typo="text_font" placeholder="${IS_MOBILE ? "系统默认（sans-serif）" : "华文中宋"}">
+          <input type="text" data-typo="text_font" placeholder="${IS_MOBILE ? "sans-serif" : "华文中宋"}">
           <label>等宽字体</label>
-          <input type="text" data-typo="mono_font" placeholder="${IS_MOBILE ? "系统等宽（monospace）" : "JetBrainsMonoNL NF"}">
+          <input type="text" data-typo="mono_font" placeholder="${IS_MOBILE ? "monospace" : "JetBrainsMonoNL NF"}">
           <label>界面字体</label>
-          <input type="text" data-typo="interface_font" placeholder="${IS_MOBILE ? "系统默认（sans-serif）" : "华文中宋"}">
+          <input type="text" data-typo="interface_font" placeholder="${IS_MOBILE ? "sans-serif" : "华文中宋"}">
           <label>基础字号</label>
           <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="17">
         </div>
@@ -140,9 +140,9 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>路径</h3>
         <div class="typo-grid">
           <label>笔记新建至</label>
-          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "默认 /storage/emulated/0/Documents" : "默认为用户桌面"}">
+          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "/storage/emulated/0/Documents" : "默认为用户桌面"}">
           <label>笔记另存至</label>
-          <input type="text" data-typo="vault_dir" class="vault-input" placeholder="${IS_MOBILE ? "如 Documents/Oblet（相对内部存储根）" : ""}">
+          <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
         </div>
       </div>
       <div class="settings-section">

@@ -18,7 +18,7 @@ import {
 } from "@milkdown/preset-commonmark";
 import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
 import { blockConfig } from "@milkdown/plugin-block";
-import { findParent } from "@milkdown/prose";
+import { findParent, posToDOMRect } from "@milkdown/prose";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
 import { languages } from "@codemirror/language-data";
@@ -35,7 +35,7 @@ import { IS_MOBILE } from "../platform";
 import { noHoverPointer, obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { tocPlugin } from "./toc";
-import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
+import { contextMenuPlugin, openMenu, setExportHandlers, type MenuEntry } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { obletCmTheme } from "./cm-theme";
@@ -258,14 +258,36 @@ export async function boot() {
     empty.innerHTML = `
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
-      <p class="muted">${IS_MOBILE ? "点左上角 ☰ 菜单打开 .md 文件，或在文件管理器里选择用 Oblet 打开" : "双击任意 .md 文件即可编辑，或将文件拖入窗口"}</p>
+      ${IS_MOBILE ? "" : `<p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>`}
+      ${IS_MOBILE ? `<p><button class="empty-new-note empty-open-file">打开文件</button></p>
+      <p><button class="empty-new-note empty-recent">最近打开</button></p>` : ""}
       <p><button class="empty-new-note">新建 Markdown 笔记</button></p>
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
     // "新建 Markdown 笔记"按钮 → 走统一入口（默认目录：设置 new_note_dir → 桌面）
-    empty.querySelector(".empty-new-note")?.addEventListener("click", async () => {
+    empty.querySelector(".empty-new-note:not(.empty-open-file):not(.empty-recent)")?.addEventListener("click", async () => {
       await createNoteIn("");
+    });
+    // 移动端欢迎页双入口（样式同新建按钮）：打开文件走 SAF 选择器；
+    // 最近打开在按钮下方弹最近列表（与 ☰ 菜单同数据源）
+    empty.querySelector(".empty-open-file")?.addEventListener("click", () => {
+      (
+        window as unknown as { ObletNative?: { pickFile?: () => void } }
+      ).ObletNative?.pickFile?.();
+    });
+    empty.querySelector(".empty-recent")?.addEventListener("click", async (e) => {
+      // currentTarget 只在同步派发期有效，await 后变 null——先取坐标再 await
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const recents = (await getSettings()).editor.recent_files ?? [];
+      const entries: MenuEntry[] = recents.length
+        ? recents.map((p) => ({
+            label: p.split("/").pop() || p,
+            enabled: true,
+            run: () => void openPathInTab(p),
+          }))
+        : [{ label: "暂无最近文件", enabled: false }];
+      openMenu(r.left, r.bottom + 6, entries);
     });
 
     // 右键「新建 Markdown 文档」首实例：启动带 --new 目标目录时，直接弹命名框
@@ -629,8 +651,51 @@ export async function boot() {
   });
 
   await crepe.create();
-  appView = crepe.editor.ctx.get(editorViewCtx);
+  const editorView = crepe.editor.ctx.get(editorViewCtx);
+  appView = editorView;
   bootTiming.crepeCreated = performance.now();
+  // 移动端选区工具栏与系统浮动操作菜单叠屏（两者都定位在选区上方，系统菜单
+  // 盖住 Crepe 工具栏致其不可点）：floating-ui 每次定位（style 属性变化）后
+  // 把 Crepe 工具栏改到选区下方，系统菜单留上方，两者皆可用。
+  // 注意工具栏 absolute 定位在 .milkdown 容器内（offsetParent 非 body），
+  // 视口坐标必须换算成容器坐标再写 style.top
+  if (IS_MOBILE) {
+    let tries = 0;
+    const armToolbarShift = () => {
+      const tb = document.querySelector<HTMLElement>(".milkdown-toolbar");
+      if (!tb) {
+        // 工具栏元素首次更新时才挂载，等它出现
+        if (tries++ < 60) window.setTimeout(armToolbarShift, 250);
+        return;
+      }
+      let adjusting = false;
+      const adjust = () => {
+        if (adjusting || tb.dataset.show !== "true") return;
+        const { from, to } = editorView.state.selection;
+        if (from === to) return;
+        const rect = posToDOMRect(editorView, from, to);
+        const desiredClient = Math.min(
+          rect.bottom + 8,
+          window.innerHeight - tb.offsetHeight - 8
+        );
+        const parentTop = tb.offsetParent instanceof HTMLElement
+          ? tb.offsetParent.getBoundingClientRect().top
+          : 0;
+        const desired = desiredClient - parentTop;
+        const cur = parseFloat(tb.style.top || "0");
+        if (Number.isFinite(cur) && Math.abs(cur - desired) > 2) {
+          adjusting = true;
+          tb.style.top = `${desired}px`;
+          adjusting = false;
+        }
+      };
+      new MutationObserver(adjust).observe(tb, {
+        attributes: true,
+        attributeFilter: ["style", "data-show"],
+      });
+    };
+    armToolbarShift();
+  }
   if (payload.readonly) crepe.setReadonly(true);
   // 末尾空段落不落地：trailing 插件为"文末可点击"在列表/表格/代码块结尾后
   // 自动补一个空段落，序列化会多出 EOF 空行——既污染原文，又击穿 flushSave
