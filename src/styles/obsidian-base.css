@@ -163,6 +163,39 @@ body.ob-vibrancy .search-bar input {
   border-color: var(--ob-accent);
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
 }
+/* 移动端欢迎页按钮组：列布局 + stretch，让「新建」与「打开|最近」两行左右两端对齐
+ *（inline-flex 收缩到最宽行——新建按钮的宽度，分段行随之拉齐） */
+.empty-actions {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 1em 0;
+}
+/* 「打开文件 | 最近打开」分段入口：无外框（边框观感违和），仅中缝竖线分隔两个半区 */
+.empty-seg {
+  display: flex;
+  color: var(--ob-accent);
+  font-size: 0.88em;
+}
+.empty-seg button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 5px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+/* 移动端欢迎页按钮统一去框（纯文字入口，跟随主题色；桌面端 .empty-new-note 保留原边框样式） */
+.empty-actions .empty-new-note {
+  border: none;
+}
+.empty-seg button:hover {
+  background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
+}
 .empty-author {
   margin-top: 2em;
   font-size: 0.8em;

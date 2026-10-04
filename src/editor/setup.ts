@@ -293,9 +293,11 @@ export async function boot() {
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
       ${IS_MOBILE ? "" : `<p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>`}
-      ${IS_MOBILE ? `<p><button class="empty-new-note empty-open-file">打开文件</button></p>
-      <p><button class="empty-new-note empty-recent">最近打开</button></p>` : ""}
-      <p><button class="empty-new-note">新建 Markdown 笔记</button></p>
+      ${IS_MOBILE ? `<div class="empty-actions">
+      <button class="empty-new-note">新建 Markdown 文件</button>
+      <div class="empty-seg">
+      <button class="empty-open-file">打开文件</button><button class="empty-recent">最近打开</button>
+      </div></div>` : `<p><button class="empty-new-note">新建 Markdown 文件</button></p>`}
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);

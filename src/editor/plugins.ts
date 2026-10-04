@@ -7,6 +7,7 @@ import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorState } from "@milkdown/prose/state";
 import type { Node as PMNode } from "@milkdown/prose/model";
+import { COARSE_POINTER } from "../platform";
 
 // ---------------------------------------------------------------- 装饰器插件工厂
 
@@ -386,10 +387,8 @@ export const dragMovePlugin = $prose(
 // 手柄即精确贴到光标所在块左侧。
 // 判定：真机 (pointer: coarse) 命中；接了鼠标的模拟器报 fine 但 hover: none
 // 且有触屏，也命中；桌面鼠标两者皆否，行为不变。
-export const noHoverPointer = () =>
-  typeof window.matchMedia === "function" &&
-  (window.matchMedia("(pointer: coarse)").matches ||
-    window.matchMedia("(hover: none)").matches);
+// 判定实现收口在 platform.ts（COARSE_POINTER），此处保留函数形导出兼容既有调用点
+export const noHoverPointer = () => COARSE_POINTER;
 
 export const touchBlockHandlePlugin = $prose(
   () =>
