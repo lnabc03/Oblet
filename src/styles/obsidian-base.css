@@ -50,6 +50,12 @@ body,
   --crepe-shadow-2: var(--ob-shadow-2);
 }
 
+/* 安卓 WebView 点按可点元素时画蓝色高亮框（-webkit-tap-highlight-color 默认色），
+ * 视觉噪音且与设计语言不符：全局关闭（桌面端无此行为，无副作用） */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
 body {
   --anp-cursor: pointer;
@@ -157,6 +163,39 @@ body.ob-vibrancy .search-bar input {
   border-color: var(--ob-accent);
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
 }
+/* 移动端欢迎页按钮组：列布局 + stretch，让「新建」与「打开|最近」两行左右两端对齐
+ *（inline-flex 收缩到最宽行——新建按钮的宽度，分段行随之拉齐） */
+.empty-actions {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 1em 0;
+}
+/* 「打开文件 | 最近打开」分段入口：无外框（边框观感违和），仅中缝竖线分隔两个半区 */
+.empty-seg {
+  display: flex;
+  color: var(--ob-accent);
+  font-size: 0.88em;
+}
+.empty-seg button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 5px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+/* 移动端欢迎页按钮统一去框（纯文字入口，跟随主题色；桌面端 .empty-new-note 保留原边框样式） */
+.empty-actions .empty-new-note {
+  border: none;
+}
+.empty-seg button:hover {
+  background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
+}
 .empty-author {
   margin-top: 2em;
   font-size: 0.8em;
@@ -176,7 +215,8 @@ body.ob-vibrancy .search-bar input {
 /* ---- 统一通知（toast）---- */
 .toast-container {
   position: fixed;
-  top: 12px;
+  /* 安全区全局避让：顶栏存在时下移（--ob-safe-top 由 MainActivity 注入，沉浸式隐藏后为 0 自动贴顶） */
+  top: calc(12px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -467,10 +507,24 @@ body.ob-vibrancy .search-bar input {
 /* mermaid 图表预览（renderPreview 钩子，editor/mermaid.ts；配色走 SVG 内联 themeVariables，不在此处） */
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid {
   text-align: center;
+  /* 窄屏下限策略：min-width 保住可读性后横向滚动（下限在下方的媒体查询里） */
+  overflow-x: auto;
 }
 .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg {
   max-width: 100%;
   height: auto;
+}
+/* 窄屏（手机竖屏内容区约 330-400px）：mermaid 默认 useMaxWidth 会把图缩到容器宽，
+   流程图文字缩到看不清。给定 420px 下限（约一个双节点流程图的可读宽度），
+   超出容器部分横向滑动查看；上限仍为容器宽/mermaid 固有尺寸，桌面不受影响 */
+@media (max-width: 640px) {
+  .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid {
+    /* 图比容器宽时居中对齐会把左侧裁进不可滚动区，窄屏一律左对齐起滚 */
+    text-align: left;
+  }
+  .markdown-rendered .ProseMirror .milkdown-code-block .preview .ob-mermaid svg {
+    min-width: 420px;
+  }
 }
 /* mermaid 硬编码色兜底：新图表（sequence 底部框/生命线/序号、timeline、kanban）不响应
    themeVariables，颜色写死在渲染代码里——CSS 覆盖 presentation attribute 与内联 <style> */
@@ -716,7 +770,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
    命中计数叠在搜索框内右端（VS Code 风格），不占额外列 */
 .search-bar {
   position: fixed;
-  top: 10px;
+  /* 安全区全局避让：顶栏存在时下移 */
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
   right: 48px; /* 给右上角设置按钮留位 */
   z-index: 40;
   display: flex;
@@ -824,6 +879,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   display: flex;
   flex-direction: column;
   min-width: 140px;
+  max-width: min(70vw, 320px); /* 小屏上限，防长条目把菜单撑出屏幕 */
   padding: 4px;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
@@ -841,6 +897,9 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   text-align: left;
   cursor: pointer;
   font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .context-menu button:hover:not(:disabled) {
   background: var(--ob-selection);
@@ -849,7 +908,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   color: var(--ob-text-faint);
   cursor: default;
 }
-/* 子菜单：hover 展开浮出层；父菜单贴右缘时（.flip）向左展开 */
+/* 子菜单：hover 展开浮出层（触屏改点按，JS 挂 .open 类）；父菜单贴右缘时（.flip）向左展开 */
 .context-sub {
   position: relative;
 }
@@ -859,12 +918,30 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   left: 100%;
   top: -5px;
 }
-.context-sub:hover > .context-flyout {
+.context-sub:hover > .context-flyout,
+.context-sub.open > .context-flyout {
   display: flex;
 }
 .context-menu.flip .context-sub > .context-flyout {
   left: auto;
   right: 100%;
+}
+/* 触屏/窄屏：二级菜单改内联手风琴展开——侧向 flyout 在小屏上无论左右
+   都会跑出屏幕（实踩：☰ 菜单贴左缘时 flip 判定把子菜单甩出屏幕左侧） */
+@media (hover: none), (pointer: coarse), (max-width: 600px) {
+  .context-sub > .context-flyout,
+  .context-menu.flip .context-sub > .context-flyout {
+    position: static;
+    left: auto;
+    right: auto;
+    min-width: 0;
+    box-shadow: none;
+    border: none;
+    border-left: 2px solid var(--ob-border);
+    border-radius: 0;
+    margin: 2px 4px 2px 12px;
+    padding: 0 0 0 4px;
+  }
 }
 
 /* ---- 设置浮层 ---- */
@@ -973,6 +1050,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 }
 .settings-panel {
   width: 420px;
+  max-width: calc(100vw - 24px);
   max-height: 70vh;
   overflow-y: auto;
   background: var(--ob-bg);
@@ -1314,4 +1392,63 @@ body.anp-current-line .markdown-rendered .ob-active-block {
   text-align: center;
   font-size: 0.85em;
   color: var(--ob-text-mut);
+}
+
+/* ---- 移动端安全区避让（Android/iOS 边到边布局）----
+ * 优先级：--ob-safe-top/bottom（MainActivity 由 WindowInsets 主动注入，boot 即准确）
+ * → env() 兜底（iOS/支持完整的 WebView）→ 0px（桌面）。
+ * 不能裸用 env()：Android WebView 的 env(safe-area-inset-top) 在 boot 后很晚
+ * 才从 0 变为真值（实测 reload 后 1 分钟+），表现为刚进应用按钮被状态栏盖住。 */
+body {
+  padding-top: var(--ob-safe-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--ob-safe-bottom, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+/* 固定定位的浮层按钮不受 body padding 影响，需各自叠加安全区 */
+.pin-btn {
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
+}
+.settings-btn {
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
+}
+
+/* 设置浮层：面板在安全区内居中（状态栏/手势条不遮面板顶底） */
+.settings-overlay {
+  padding-top: var(--ob-safe-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--ob-safe-bottom, env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- 移动端应用菜单按钮（左上角 ☰，占桌面端置顶按钮的位置） ---- */
+.appmenu-btn {
+  position: fixed;
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
+  left: 12px;
+  z-index: 30;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg);
+  color: var(--ob-text-mut);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+}
+.appmenu-btn:hover {
+  color: var(--ob-text);
+}
+
+/* 菜单分隔线（应用菜单分组用） */
+.context-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--ob-border);
+}
+
+/* 自绘菜单打开期间压住 Crepe 选中工具栏：
+   触屏长按会同时触发文本选择（弹工具栏）与自绘菜单，两者叠屏冲突 */
+body.ob-ctx-open .milkdown-toolbar {
+  display: none !important;
 }

@@ -7,6 +7,7 @@ import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorState } from "@milkdown/prose/state";
 import type { Node as PMNode } from "@milkdown/prose/model";
+import { COARSE_POINTER } from "../platform";
 
 // ---------------------------------------------------------------- 装饰器插件工厂
 
@@ -377,10 +378,90 @@ export const dragMovePlugin = $prose(
     })
 );
 
+// ---- 触屏块手柄驱动（移动端联调修复）----
+// Crepe 的块手柄（+ / 选中钮）由 plugin-block 的 pointermove 驱动：桌面端靠
+// 鼠标悬停逐帧更新位置。触屏 tap 不产生 pointermove（按下-抬起不算 move），
+// 手柄不随光标更新——要么不出现，要么停在上次悬停/滚动的陈旧位置。
+// 无悬停能力设备上把选区变化转成一次合成 pointermove（落在光标行垂直中点），
+// 复用 service 自身的节流(200ms)/过滤(table、blockquote 不显示)/定位(floating-ui)，
+// 手柄即精确贴到光标所在块左侧。
+// 判定：真机 (pointer: coarse) 命中；接了鼠标的模拟器报 fine 但 hover: none
+// 且有触屏，也命中；桌面鼠标两者皆否，行为不变。
+// 判定实现收口在 platform.ts（COARSE_POINTER），此处保留函数形导出兼容既有调用点
+export const noHoverPointer = () => COARSE_POINTER;
+
+export const touchBlockHandlePlugin = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("oblet-touch-block-handle"),
+      view(view) {
+        if (!noHoverPointer()) return {};
+        let timer: number | undefined;
+        const pokeAt = (y: number) => {
+          if (!view.editable || view.composing) return;
+          if (y < 0 || y > window.innerHeight) return;
+          // service 只用 clientY（x 固定取编辑器水平中点），给个合法值即可
+          const box = view.dom.getBoundingClientRect();
+          view.dom.dispatchEvent(
+            new PointerEvent("pointermove", {
+              clientX: box.left + box.width / 2,
+              clientY: y,
+              bubbles: true,
+            })
+          );
+        };
+        const poke = () => {
+          const { selection } = view.state;
+          let rect: { top: number; bottom: number };
+          try {
+            // TextSelection 取光标行中点；NodeSelection（选中图片等）取节点顶，
+            // service 会按 y 自己定位到该块
+            rect = view.coordsAtPos(selection.from);
+          } catch {
+            return; // 光标在自定义 NodeView 内部等无法取坐标的场景
+          }
+          pokeAt((rect.top + rect.bottom) / 2);
+        };
+        // 兜底：tap 落在 gutter / 图片等不产生选区变化的位置时 update 不会触发，
+        // 直接按触点 y 驱动一次（手指拖动滚动时原生 pointermove 本来就会驱动，
+        // service 内部 200ms 节流，重复无害）
+        const onPointerDown = (e: PointerEvent) => {
+          if (e.pointerType === "mouse") return;
+          pokeAt(e.clientY);
+        };
+        view.dom.addEventListener("pointerdown", onPointerDown);
+        // 软键盘开合只改变视口、不动选区，update 捕不到，单独监听。
+        // 键盘动画约 300ms，结束时再补一次保证落在最终布局上。
+        const onResize = () => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(poke, 350);
+        };
+        window.visualViewport?.addEventListener("resize", onResize);
+        return {
+          update(view2, prev) {
+            const selSame = view2.state.selection.eq(prev.selection);
+            const docSame = view2.state.doc.eq(prev.doc);
+            if (selSame && docSame) return;
+            // rAF 等布局稳定；第二次延迟触发兜住软键盘弹起引起的视口位移
+            window.clearTimeout(timer);
+            requestAnimationFrame(poke);
+            timer = window.setTimeout(poke, 350);
+          },
+          destroy() {
+            window.clearTimeout(timer);
+            view.dom.removeEventListener("pointerdown", onPointerDown);
+            window.visualViewport?.removeEventListener("resize", onResize);
+          },
+        };
+      },
+    })
+);
+
 export const obletPlugins = [
   highlightPlugin,
   calloutPlugin,
   activeBlockPlugin,
   languageFreeInputPlugin,
   dragMovePlugin,
+  touchBlockHandlePlugin,
 ];

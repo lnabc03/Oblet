@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- D0 路线 B：所有文件访问权限（Markor 同款先例，仅 GitHub 侧载分发）。
+         缺它读不到 /sdcard 上的用户 md 文件；运行时由 MainActivity 引导授权 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- AndroidTV support -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.oblet"
+        android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:label="@string/main_activity_title"
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <!-- AndroidTV support -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <!-- .md 文件打开方式注册（Markor/Obsidian 同款多组堆叠策略）：
+                 文件管理器发 Intent 的 mime 五花八门（text/markdown、text/plain、
+                 application/octet-stream 甚至不带 mime），单组 filter 收不全 -->
+            <!-- file:// 直路径：按扩展名过滤 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\.md" />
+                <data android:pathPattern=".*\.markdown" />
+                <data android:pathPattern=".*\.mdown" />
+                <data android:pathPattern=".*\.mkd" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <!-- content://（系统文件/SAF 来源，URI 无可靠扩展名）：按 mime 过滤 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/markdown" />
+            </intent-filter>
+            <!-- 常见文件管理器把 .md 发成 text/plain 或 octet-stream -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

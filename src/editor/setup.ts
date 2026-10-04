@@ -17,20 +17,26 @@ import {
   addBlockTypeCommand,
 } from "@milkdown/preset-commonmark";
 import { toggleStrikethroughCommand } from "@milkdown/preset-gfm";
+import { blockConfig } from "@milkdown/plugin-block";
+import { findParent, posToDOMRect } from "@milkdown/prose";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
 import { languages } from "@codemirror/language-data";
 import { LanguageDescription, LanguageSupport, StreamLanguage } from "@codemirror/language";
 import {
   currentEditorSettings,
+  getSettings,
   initTypography,
+  saveSettings,
   switchTypography,
 } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
-import { obletPlugins } from "./plugins";
+import { initAppMenu } from "./appmenu";
+import { IS_MOBILE } from "../platform";
+import { noHoverPointer, obletPlugins } from "./plugins";
 import { searchPlugin } from "./search";
 import { tocPlugin } from "./toc";
-import { contextMenuPlugin, setExportHandlers } from "./contextmenu";
+import { contextMenuPlugin, openMenu, setExportHandlers, type MenuEntry } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
 import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { obletCmTheme } from "./cm-theme";
@@ -54,6 +60,7 @@ import { imageBlockSchema } from "@milkdown/components/image-block";
 import {
   decodeMaybe,
   isAbsoluteLocalSrc,
+  pathKey,
   resolveLocalAbs,
 } from "./image-paths";
 import {
@@ -84,7 +91,7 @@ const IMG_SLASH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" heigh
 
 /** 路径归一化比较（拖放路径与登记路径可能一个规范化一个不曾） */
 function samePath(a: string, b: string) {
-  return a.replace(/\//g, "\\").toLowerCase() === b.replace(/\//g, "\\").toLowerCase();
+  return pathKey(a) === pathKey(b);
 }
 
 // ---- 图片 src 解析（3.7）：网络/data 图原样放行；本地路径经 asset 协议转换 ----
@@ -119,6 +126,20 @@ export async function boot() {
   bootTiming.settingsAndPayloadReady = performance.now();
   void initSettingsUI(app);
 
+  // 移动端应用菜单（左上角 ☰，appmenu.ts）：触屏上长按右键与选中工具栏互相干扰，
+  // 给打开/最近/新建/设置等提供显性常驻入口；appView 在编辑器创建后回填（起始页为 null）
+  let appView: EditorView | null = null;
+  initAppMenu({
+    getView: () => appView,
+    openFile: () =>
+      (
+        window as unknown as { ObletNative?: { pickFile?: () => void } }
+      ).ObletNative?.pickFile?.(),
+    newNote: () => void createNoteIn(""),
+    openPath: (p) => void openPathInTab(p),
+    getRecents: async () => (await getSettings()).editor.recent_files ?? [],
+  });
+
   // 初始化 tab 模型与箭头 UI（无论是否有初始文件）
   const tabsModel = createTabsModel([], 0);
   const tabArrows = createTabArrows(document.body);
@@ -151,7 +172,7 @@ export async function boot() {
       dest = await doCreate(false);
     } catch (e) {
       if (String(e) !== "EXISTS") { notify(`创建失败：${e}`, "error"); return; }
-      const ok = await confirmDialog(`目标已存在同名文件：\n${targetDir}\\${fileName}\n\n覆盖它吗？`, "覆盖");
+      const ok = await confirmDialog(`目标已存在同名文件：\n${targetDir}/${fileName}\n\n覆盖它吗？`, "覆盖");
       if (!ok) return;
       try {
         dest = await doCreate(true);
@@ -170,13 +191,26 @@ export async function boot() {
     await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
   }
 
-  // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
-  await listen("add-tab", async (event: { payload: { path: string } }) => {
-    const { path: newPath } = event.payload;
+  /** 从最近打开剔除路径（文件被外部删除后历史记录自愈） */
+  const removeRecent = async (p: string) => {
+    try {
+      const s = await getSettings();
+      const list = s.editor.recent_files ?? [];
+      const next = list.filter((x) => !samePath(x, p));
+      if (next.length === list.length) return;
+      s.editor.recent_files = next;
+      await saveSettings(s);
+    } catch {
+      /* 历史记录是辅助数据，失败静默 */
+    }
+  };
+
+  // ---- 打开路径到 tab（桌面 add-tab 事件与安卓 Intent 桥共用同一链路） ----
+  const openPathInTab = async (newPath: string) => {
     if (!newPath) return;
     // 去重：已在列表中则仅切换
     const existingIdx = tabsModel.paths.findIndex(
-      (p) => p.replace(/\//g, "\\").toLowerCase() === newPath.replace(/\//g, "\\").toLowerCase()
+      (p) => samePath(p, newPath)
     );
     if (existingIdx >= 0) {
       if (tabCallbacks) {
@@ -187,12 +221,20 @@ export async function boot() {
       }
       return;
     }
-    // 空状态（编辑器未初始化）：先登记 tab 再 reload 走正常启动
+    // 空状态（编辑器未初始化）：先登记 tab 再 reload 走正常启动。
+    // 登记失败（文件已被外部删除等）停留起始页：不 reload、报错、剔除最近记录——
+    // 若带病 reload，boot 读文件失败会进无 Esc 链路的红字错误页
     if (!tabCallbacks) {
       try {
         await invoke<TabsPayload>("add_tab", { path: newPath });
       } catch (e) {
-        notify(`打开失败：${e}`, "error");
+        if (String(e) === "NOT_FOUND") {
+          notify("文件已被删除或移动，已从最近打开移除", "warn");
+          void removeRecent(newPath);
+        } else {
+          notify(`打开失败：${e}`, "error");
+        }
+        return;
       }
       location.reload();
       return;
@@ -202,9 +244,27 @@ export async function boot() {
       tabArrows.show(result.tabs.length >= 2);
       await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
     } catch (e) {
-      notify(`打开失败：${e}`, "error");
+      if (String(e) === "NOT_FOUND") {
+        notify("文件已被删除或移动，已从最近打开移除", "warn");
+        void removeRecent(newPath);
+      } else {
+        notify(`打开失败：${e}`, "error");
+      }
     }
+  };
+
+  // ---- add-tab 全局事件监听（单实例双击/命令行追加 tab） ----
+  await listen("add-tab", (event: { payload: { path: string } }) => {
+    void openPathInTab(event.payload?.path);
   });
+
+  // 安卓「打开方式」桥：MainActivity 把 Intent 解析成真实路径后，
+  // 轮询等本函数出现再投递（冷启动时 WebView 加载慢于 Intent 到达）
+  (window as unknown as Record<string, unknown>).__obletOpenFromIntent = (
+    p: string
+  ) => {
+    void openPathInTab(p);
+  };
 
   // ---- new-note-at 事件监听（右键「新建 Markdown 文档」转发到运行中的实例） ----
   await listen("new-note-at", (event: { payload: string }) => {
@@ -212,6 +272,12 @@ export async function boot() {
   });
 
   if (!initialPayload) {
+    // boot 期打开失败（文件被外部删除）跨 reload 的提示
+    const bootErr = sessionStorage.getItem("oblet.bootError");
+    if (bootErr) {
+      sessionStorage.removeItem("oblet.bootError");
+      notify(bootErr, "warn");
+    }
     // 重置窗口标题（Esc 退回起始页后避免残留旧文件名）
     await getCurrentWindow().setTitle("Oblet").catch(() => {});
 
@@ -226,14 +292,38 @@ export async function boot() {
     empty.innerHTML = `
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
-      <p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>
-      <p><button class="empty-new-note">新建 Markdown 笔记</button></p>
+      ${IS_MOBILE ? "" : `<p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>`}
+      ${IS_MOBILE ? `<div class="empty-actions">
+      <button class="empty-new-note">新建 Markdown 文件</button>
+      <div class="empty-seg">
+      <button class="empty-open-file">打开文件</button><button class="empty-recent">最近打开</button>
+      </div></div>` : `<p><button class="empty-new-note">新建 Markdown 文件</button></p>`}
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
     // "新建 Markdown 笔记"按钮 → 走统一入口（默认目录：设置 new_note_dir → 桌面）
-    empty.querySelector(".empty-new-note")?.addEventListener("click", async () => {
+    empty.querySelector(".empty-new-note:not(.empty-open-file):not(.empty-recent)")?.addEventListener("click", async () => {
       await createNoteIn("");
+    });
+    // 移动端欢迎页双入口（样式同新建按钮）：打开文件走 SAF 选择器；
+    // 最近打开在按钮下方弹最近列表（与 ☰ 菜单同数据源）
+    empty.querySelector(".empty-open-file")?.addEventListener("click", () => {
+      (
+        window as unknown as { ObletNative?: { pickFile?: () => void } }
+      ).ObletNative?.pickFile?.();
+    });
+    empty.querySelector(".empty-recent")?.addEventListener("click", async (e) => {
+      // currentTarget 只在同步派发期有效，await 后变 null——先取坐标再 await
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const recents = (await getSettings()).editor.recent_files ?? [];
+      const entries: MenuEntry[] = recents.length
+        ? recents.map((p) => ({
+            label: p.split("/").pop() || p,
+            enabled: true,
+            run: () => void openPathInTab(p),
+          }))
+        : [{ label: "暂无最近文件", enabled: false }];
+      openMenu(r.left, r.bottom + 6, entries);
     });
 
     // 右键「新建 Markdown 文档」首实例：启动带 --new 目标目录时，直接弹命名框
@@ -261,7 +351,19 @@ export async function boot() {
   tabsModel.sync(initialPayload.tabs, initialPayload.active_index);
 
   let path = initialPayload.path;
-  const payload = await invoke<FilePayload>("read_file", { path });
+  let payload: FilePayload;
+  try {
+    payload = await invoke<FilePayload>("read_file", { path });
+  } catch {
+    // 窗口登记的文件在 App 关闭期间被外部删除/移动：清登记、退欢迎页、提示。
+    // 否则进红字错误页——那里没有 Esc 链路，返回键也只能退后台
+    await invoke("clear_window_file").catch(() => {});
+    // await 剔除完成再 reload——否则 reload 杀死进行中的 IPC，历史记录删不掉
+    await removeRecent(path);
+    sessionStorage.setItem("oblet.bootError", "文件已被删除或移动，已从最近打开移除");
+    location.reload();
+    return;
+  }
   bootTiming.fileRead = performance.now();
 
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
@@ -467,7 +569,16 @@ export async function boot() {
           LanguageDescription.of({
             name: "mermaid",
             alias: ["mmd"],
-            support: new LanguageSupport(StreamLanguage.define({ token: () => null })),
+            // token 必须消费字符推进 stream（StreamParser 契约），空转会被 CM 判为死循环抛
+            // "Stream parser failed to advance stream"，连带代码块组件挂载失败、mermaid 预览出不来
+            support: new LanguageSupport(
+              StreamLanguage.define({
+                token: (stream) => {
+                  stream.next();
+                  return null;
+                },
+              })
+            ),
           }),
         ],
         // 多主题一期 1C：覆盖默认 oneDark——全 CSS 变量驱动（--ctp-*），
@@ -480,6 +591,11 @@ export async function boot() {
       // 斜杠菜单删减（项配置为 null 即不列出，语法本身不受影响）：
       // 去掉 Quote/Divider/H4-H6/Image/Math，保留 Text、H1-H3、三种列表、Code、Table
       [Crepe.Feature.BlockEdit]: {
+        // 触屏设备编辑器左侧留白窄（约 72px），默认 offset 16 会把 66px 宽的
+        // 手柄推出左屏外（实测 left=-10）；无悬停设备贴边放（offset 0 正好落进留白）
+        blockHandle: {
+          getOffset: () => (noHoverPointer() ? 0 : 16),
+        },
         textGroup: { h4: null, h5: null, h6: null, quote: null, divider: null },
         advancedGroup: { image: null, math: null },
         // v0.7.0：图片入口回归——插入空图片块，渲染为占位框（「设置图片」按钮
@@ -561,9 +677,73 @@ export async function boot() {
 
   // 序列化保真（必须在 create 前的 config 阶段生效）
   crepe.editor.config(tuneSerialization);
+  // 块手柄活动节点过滤修正：Crepe 原版只用 findParent 查祖先链，但 math_inline
+  // 是行内节点不在祖先链上——坐标落在 KaTeX 元素内时 nodeAt 返回 math_inline
+  // 本身，手柄就以公式 span 为基准定位（叠在行文字上而非块左侧）。
+  // 补上“节点本身”判断（selectRootNodeByDom 对 false 会自动上探父块）。
+  // 注意自身判断只针对 math_inline：table/blockquote 是期望的活动节点
+  // （上探终点），否掉会让上探冲出文档根导致手柄永不显示。
+  crepe.editor.config((ctx) => {
+    ctx.set(blockConfig.key, {
+      filterNodes: (pos, node) => {
+        if (node.type.name === "math_inline") return false;
+        if (
+          findParent((n) =>
+            ["table", "blockquote", "math_inline"].includes(n.type.name)
+          )(pos)
+        )
+          return false;
+        return true;
+      },
+    });
+  });
 
   await crepe.create();
+  const editorView = crepe.editor.ctx.get(editorViewCtx);
+  appView = editorView;
   bootTiming.crepeCreated = performance.now();
+  // 移动端选区工具栏与系统浮动操作菜单叠屏（两者都定位在选区上方，系统菜单
+  // 盖住 Crepe 工具栏致其不可点）：floating-ui 每次定位（style 属性变化）后
+  // 把 Crepe 工具栏改到选区下方，系统菜单留上方，两者皆可用。
+  // 注意工具栏 absolute 定位在 .milkdown 容器内（offsetParent 非 body），
+  // 视口坐标必须换算成容器坐标再写 style.top
+  if (IS_MOBILE) {
+    let tries = 0;
+    const armToolbarShift = () => {
+      const tb = document.querySelector<HTMLElement>(".milkdown-toolbar");
+      if (!tb) {
+        // 工具栏元素首次更新时才挂载，等它出现
+        if (tries++ < 60) window.setTimeout(armToolbarShift, 250);
+        return;
+      }
+      let adjusting = false;
+      const adjust = () => {
+        if (adjusting || tb.dataset.show !== "true") return;
+        const { from, to } = editorView.state.selection;
+        if (from === to) return;
+        const rect = posToDOMRect(editorView, from, to);
+        const desiredClient = Math.min(
+          rect.bottom + 8,
+          window.innerHeight - tb.offsetHeight - 8
+        );
+        const parentTop = tb.offsetParent instanceof HTMLElement
+          ? tb.offsetParent.getBoundingClientRect().top
+          : 0;
+        const desired = desiredClient - parentTop;
+        const cur = parseFloat(tb.style.top || "0");
+        if (Number.isFinite(cur) && Math.abs(cur - desired) > 2) {
+          adjusting = true;
+          tb.style.top = `${desired}px`;
+          adjusting = false;
+        }
+      };
+      new MutationObserver(adjust).observe(tb, {
+        attributes: true,
+        attributeFilter: ["style", "data-show"],
+      });
+    };
+    armToolbarShift();
+  }
   if (payload.readonly) crepe.setReadonly(true);
   // 末尾空段落不落地：trailing 插件为"文末可点击"在列表/表格/代码块结尾后
   // 自动补一个空段落，序列化会多出 EOF 空行——既污染原文，又击穿 flushSave
@@ -939,19 +1119,23 @@ export async function boot() {
     vault: () => void exportToVault(path, crepe.getMarkdown()),
     // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
     // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
-    print: doPrint,
+    // D9：移动端 window.print() 链路在 Android WebView 行为不同，初版隐藏入口
+    print: IS_MOBILE ? undefined : doPrint,
     // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
     rename: () => void doRename(),
     // v0.7.0 转换图片为相对路径（assets/）
     localizeImages: () => void localizeImages(),
   });
-  // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键
-  registerCommand({
-    id: "print",
-    title: "导出为 PDF",
-    defaultCombo: "Ctrl+P",
-    run: doPrint,
-  });
+  // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键。
+  // 移动端不注册（D9 初版隐藏导出 PDF）
+  if (!IS_MOBILE) {
+    registerCommand({
+      id: "print",
+      title: "导出为 PDF",
+      defaultCombo: "Ctrl+P",
+      run: doPrint,
+    });
+  }
   // CDP 冒烟钩子：打印挂载逻辑本体（repro-print-hl 验证用）
   (
     (window as unknown as Record<string, unknown>).__oblet as Record<string, unknown>

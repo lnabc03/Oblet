@@ -1,7 +1,10 @@
-// 设置持久化：./data/settings.json（exe 同级，绿色版）
+// 设置持久化：桌面 = ./data/settings.json（exe 同级，绿色版）；移动端 = app 私有数据目录
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use tauri::AppHandle;
+#[cfg(mobile)]
+use tauri::Manager;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct EditorSetting {
@@ -57,6 +60,9 @@ pub struct EditorSetting {
     // 主题身份（多主题二期）：None/"anuppuccin" = AnuPpuccin（默认）；其余为主题注册表 id
     #[serde(default)]
     pub theme_id: Option<String>,
+    // 最近打开文件（应用菜单「最近打开」，安卓入口）：新路径置顶去重，封顶 10；None = 无记录
+    #[serde(default)]
+    pub recent_files: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -66,7 +72,9 @@ pub struct Settings {
     pub editor: EditorSetting,
 }
 
-fn data_dir() -> Result<PathBuf, String> {
+// 桌面：exe 同级 data/（绿色版核心设计）；移动端：app 私有数据目录（/data/data/<id>/files）
+#[cfg(desktop)]
+fn data_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     Ok(exe
         .parent()
@@ -74,13 +82,18 @@ fn data_dir() -> Result<PathBuf, String> {
         .join("data"))
 }
 
-fn settings_path() -> Result<PathBuf, String> {
-    Ok(data_dir()?.join("settings.json"))
+#[cfg(mobile)]
+fn data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path().app_data_dir().map_err(|e| e.to_string())
+}
+
+fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(data_dir(app)?.join("settings.json"))
 }
 
 #[tauri::command]
-pub fn get_settings() -> Result<Settings, String> {
-    let p = settings_path()?;
+pub fn get_settings(app: AppHandle) -> Result<Settings, String> {
+    let p = settings_path(&app)?;
     if !p.exists() {
         // 默认值实体化：首次运行即落盘完整默认形，用户可直接看到/手改全部字段
         // 注意：bool 字段都改为 Option<bool>，None = 跟随默认（开），这里显式 None
@@ -94,7 +107,7 @@ pub fn get_settings() -> Result<Settings, String> {
                 ..Default::default()
             },
         };
-        save_settings(s.clone())?;
+        save_settings(app, s.clone())?;
         return Ok(s);
     }
     let text = fs::read_to_string(&p).map_err(|e| e.to_string())?;
@@ -103,8 +116,8 @@ pub fn get_settings() -> Result<Settings, String> {
 }
 
 #[tauri::command]
-pub fn save_settings(settings: Settings) -> Result<(), String> {
-    let dir = data_dir()?;
+pub fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
+    let dir = data_dir(&app)?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let p = dir.join("settings.json");
     let tmp = dir.join(".settings.json.tmp");
@@ -112,4 +125,37 @@ pub fn save_settings(settings: Settings) -> Result<(), String> {
     fs::write(&tmp, text).map_err(|e| e.to_string())?;
     fs::rename(&tmp, &p).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// 记录最近打开文件（置顶去重，封顶 10）。历史是辅助数据，任何失败都静默，不阻断主流程
+pub fn note_recent_file(app: &AppHandle, path: &str) {
+    let Ok(mut s) = get_settings(app.clone()) else {
+        return;
+    };
+    // 移动端 canonicalize 归一拼写（/sdcard 与 /storage/emulated/0 同一文件系统），
+    // 新增与存量条目统一归一后去重；桌面无此问题（且 canonicalize 会带 \\?\ 前缀），跳过
+    #[cfg(mobile)]
+    let canon = |p: &str| {
+        std::fs::canonicalize(p)
+            .map(|c| c.to_string_lossy().to_string())
+            .unwrap_or_else(|_| p.to_string())
+    };
+    #[cfg(not(mobile))]
+    let canon = |p: &str| p.to_string();
+    let path = canon(path);
+    let mut seen = std::collections::HashSet::new();
+    let mut list: Vec<String> = s
+        .editor
+        .recent_files
+        .take()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| canon(&p))
+        .filter(|p| seen.insert(p.clone()))
+        .collect();
+    list.retain(|p| *p != path);
+    list.insert(0, path);
+    list.truncate(10);
+    s.editor.recent_files = Some(list);
+    let _ = save_settings(app.clone(), s);
 }

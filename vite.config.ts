@@ -5,6 +5,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    // tauri android dev 会注入 TAURI_DEV_HOST（局域网 IP），
+    // 设备/模拟器经它访问 dev server；桌面开发时未设置则保持 localhost
+    host: process.env.TAURI_DEV_HOST || false,
     watch: { ignored: ["**/src-tauri/**"] },
   },
   build: {

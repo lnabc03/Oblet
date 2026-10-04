@@ -31,6 +31,8 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// 桌面专属（open_or_focus 建窗登记）：移动端 tab 经 add_tab 自登记
+    #[cfg(desktop)]
     pub fn register(&self, label: &str, path: &str) {
         self.windows
             .lock()
@@ -54,6 +56,8 @@ impl AppState {
     }
 
     /// 按登记路径反查窗口 label（遍历所有 tab 列表）
+    /// 桌面专属（open_or_focus 去重聚焦）
+    #[cfg(desktop)]
     pub fn label_for_path(&self, path: &str) -> Option<String> {
         let target = canonical_key(path);
         self.windows
@@ -149,6 +153,8 @@ impl AppState {
     }
 
     /// 事件去重判定：哈希与上次一致 = 重复事件或自身写入，返回 true 表示应忽略
+    /// 桌面专属（文件监听回调；移动端 v1 不做外部变更监听，D7）
+    #[cfg(desktop)]
     pub fn is_stale_hash(&self, path: &str, hash: u64) -> bool {
         let mut map = self.last_hash.lock().unwrap();
         let key = canonical_key(path);
@@ -160,11 +166,20 @@ impl AppState {
     }
 }
 
-/// 路径归一化键：规范化 + 小写（Windows 不区分大小写）
+/// 路径归一化键：规范化（Windows 另加小写——Windows 不区分大小写；
+/// Android/Linux 文件系统区分大小写，不能小写化，否则 A.md/a.md 撞键）
 fn canonical_key(path: &str) -> String {
-    std::fs::canonicalize(path)
-        .map(|p| p.to_string_lossy().to_lowercase())
-        .unwrap_or_else(|_| path.to_lowercase())
+    let p = std::fs::canonicalize(path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| path.to_string());
+    #[cfg(target_os = "windows")]
+    {
+        p.to_lowercase()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        p
+    }
 }
 
 /// FNV-1a 内容哈希（用于自写事件过滤，非密码学用途）
@@ -178,6 +193,8 @@ pub fn fnv1a(bytes: &[u8]) -> u64 {
 }
 
 /// 由文件路径生成稳定的窗口 label（FNV-1a 哈希，避免路径中的非法字符）
+/// 桌面专属（多窗口 label；移动端单窗口 label 固定 main）
+#[cfg(desktop)]
 pub fn window_label_for(path: &str) -> String {
     let canonical = canonical_key(path);
     format!("file-{:016x}", fnv1a(canonical.as_bytes()))

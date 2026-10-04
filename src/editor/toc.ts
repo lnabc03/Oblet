@@ -6,6 +6,7 @@
 import { $prose } from "@milkdown/utils";
 import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
+import { COARSE_POINTER } from "../platform";
 
 interface TocHeading {
   pos: number;
@@ -83,23 +84,30 @@ export const tocPlugin = $prose(
         let expandTimer: number | undefined;
         let collapseTimer: number | undefined;
 
-        // ---- hover 时序：300ms 展开 / 300ms 缓冲关闭（仅 hover 区触发，进度球除外） ----
-        hoverzoneEl.addEventListener("mouseenter", () => {
-          window.clearTimeout(collapseTimer);
-          if (expanded) return;
-          expandTimer = window.setTimeout(() => {
-            expanded = true;
-            container.classList.add("ob-toc-expanded");
-            scrollActiveIntoPanel();
-          }, EXPAND_DELAY);
-        });
-        hoverzoneEl.addEventListener("mouseleave", () => {
-          window.clearTimeout(expandTimer);
-          collapseTimer = window.setTimeout(() => {
-            expanded = false;
-            container.classList.remove("ob-toc-expanded");
-          }, COLLAPSE_DELAY);
-        });
+        // ---- 展开/收起时序 ----
+        // 桌面：hover 300ms 展开 / 300ms 缓冲关闭（仅 hover 区触发，进度球除外）
+        // 触屏（D14，COARSE_POINTER）：点 bar 指示区展开；点面板项/bar 跳转后收起；点面板外收起
+        const setExpanded = (on: boolean) => {
+          expanded = on;
+          container.classList.toggle("ob-toc-expanded", on);
+          if (on) scrollActiveIntoPanel();
+        };
+        const onDocClick = (e: MouseEvent) => {
+          if (expanded && !container.contains(e.target as Node)) setExpanded(false);
+        };
+        if (COARSE_POINTER) {
+          document.addEventListener("click", onDocClick);
+        } else {
+          hoverzoneEl.addEventListener("mouseenter", () => {
+            window.clearTimeout(collapseTimer);
+            if (expanded) return;
+            expandTimer = window.setTimeout(() => setExpanded(true), EXPAND_DELAY);
+          });
+          hoverzoneEl.addEventListener("mouseleave", () => {
+            window.clearTimeout(expandTimer);
+            collapseTimer = window.setTimeout(() => setExpanded(false), COLLAPSE_DELAY);
+          });
+        }
 
         // ---- 进度球：单击回顶部；已在顶部（0%）则返回光标所在行 ----
         progressEl.addEventListener("click", () => {
@@ -192,8 +200,16 @@ export const tocPlugin = $prose(
             };
             link(item, bar);
             link(bar, item);
-            item.addEventListener("click", () => jumpTo(i));
-            bar.addEventListener("click", () => jumpTo(i));
+            item.addEventListener("click", () => {
+              jumpTo(i);
+              if (COARSE_POINTER) setExpanded(false);
+            });
+            bar.addEventListener("click", () => {
+              // 触屏：收起态首击 bar 只展开面板不跳转（防误跳）；展开态点击照常跳转并收起
+              if (COARSE_POINTER && !expanded) { setExpanded(true); return; }
+              jumpTo(i);
+              if (COARSE_POINTER) setExpanded(false);
+            });
             itemsEl.appendChild(item);
           });
           container.classList.toggle("ob-toc-empty", headings.length === 0);
@@ -252,6 +268,7 @@ export const tocPlugin = $prose(
           destroy() {
             window.clearTimeout(expandTimer);
             window.clearTimeout(collapseTimer);
+            document.removeEventListener("click", onDocClick);
             container.remove();
           },
         };

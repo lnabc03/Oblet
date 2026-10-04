@@ -26,6 +26,14 @@ export function listCommands(): readonly Command[] {
   return registry.filter((c) => c.remappable !== false);
 }
 
+/** 按 id 触发命令（移动端应用菜单等 UI 入口用）；未注册返回 false */
+export function runCommand(id: string): boolean {
+  const cmd = registry.find((c) => c.id === id);
+  if (!cmd) return false;
+  cmd.run();
+  return true;
+}
+
 // ---------------------------------------------------------------- 组合串规范化
 
 const PUNCT: Record<string, string> = {

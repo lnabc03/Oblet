@@ -15,33 +15,37 @@ import {
   registerCommand,
   setKeymapCaptureActive,
 } from "../commands";
+import { IS_MOBILE } from "../platform";
 
 /** 置顶按钮 SVG 大头针路径（纯色，跟随 currentColor，与 ⚙ 同款设计语言） */
 const PIN_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="3.5" r="2.2"/><line x1="8" y1="5.5" x2="8" y2="14.5"/></svg>`;
 
 export async function initSettingsUI(container: HTMLElement) {
   // ---- 置顶按钮（左上角浮动，纯色 SVG 大头针图标） ----
-  const pinBtn = document.createElement("button");
-  pinBtn.className = "pin-btn";
-  pinBtn.innerHTML = PIN_SVG;
-  pinBtn.title = "窗口置顶 (Alt+P)";
-  let pinned = false;
-  const togglePin = async () => {
-    pinned = !pinned;
-    pinBtn.classList.toggle("pinned", pinned);
-    pinBtn.title = pinned ? "取消置顶 (Alt+P)" : "窗口置顶 (Alt+P)";
-    await getCurrentWindow().setAlwaysOnTop(pinned);
-  };
-  pinBtn.addEventListener("click", togglePin);
-  document.body.appendChild(pinBtn);
+  // 移动端无窗口概念（D8：隐藏窗口控制按钮），按钮与快捷键一并不注册
+  if (!IS_MOBILE) {
+    const pinBtn = document.createElement("button");
+    pinBtn.className = "pin-btn";
+    pinBtn.innerHTML = PIN_SVG;
+    pinBtn.title = "窗口置顶 (Alt+P)";
+    let pinned = false;
+    const togglePin = async () => {
+      pinned = !pinned;
+      pinBtn.classList.toggle("pinned", pinned);
+      pinBtn.title = pinned ? "取消置顶 (Alt+P)" : "窗口置顶 (Alt+P)";
+      await getCurrentWindow().setAlwaysOnTop(pinned);
+    };
+    pinBtn.addEventListener("click", togglePin);
+    document.body.appendChild(pinBtn);
 
-  // Alt+P 快捷键（经命令注册表统一派发，键位可在设置中覆盖）
-  registerCommand({
-    id: "toggle-pin",
-    title: "窗口置顶",
-    defaultCombo: "Alt+P",
-    run: togglePin,
-  });
+    // Alt+P 快捷键（经命令注册表统一派发，键位可在设置中覆盖）
+    registerCommand({
+      id: "toggle-pin",
+      title: "窗口置顶",
+      defaultCombo: "Alt+P",
+      run: togglePin,
+    });
+  }
 
   // Ctrl+T 深浅切换：按当前**解析后**的主题取反并显式落盘（system 模式下同样生效，
   // 切换后脱离跟随；想恢复跟随在设置面板选回）
@@ -77,11 +81,11 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>排版</h3>
         <div class="typo-grid">
           <label>正文字体</label>
-          <input type="text" data-typo="text_font" placeholder="华文中宋">
+          <input type="text" data-typo="text_font" placeholder="${IS_MOBILE ? "sans-serif" : "华文中宋"}">
           <label>等宽字体</label>
-          <input type="text" data-typo="mono_font" placeholder="JetBrainsMonoNL NF">
+          <input type="text" data-typo="mono_font" placeholder="${IS_MOBILE ? "monospace" : "JetBrainsMonoNL NF"}">
           <label>界面字体</label>
-          <input type="text" data-typo="interface_font" placeholder="华文中宋">
+          <input type="text" data-typo="interface_font" placeholder="${IS_MOBILE ? "sans-serif" : "华文中宋"}">
           <label>基础字号</label>
           <input type="number" data-typo="base_font_size" min="12" max="32" placeholder="17">
         </div>
@@ -136,7 +140,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>路径</h3>
         <div class="typo-grid">
           <label>笔记新建至</label>
-          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="默认为用户桌面">
+          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "/storage/emulated/0/Documents" : "默认为用户桌面"}">
           <label>笔记另存至</label>
           <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
         </div>
@@ -147,6 +151,14 @@ export async function initSettingsUI(container: HTMLElement) {
       </div>
     </div>`;
   container.appendChild(overlay);
+
+  // 移动端单 Activity 单窗口，多窗口无意义（D8；Rust 侧 open_or_focus 本就桌面专属）
+  if (IS_MOBILE) {
+    overlay
+      .querySelector('input[data-check="allow_multi_window"]')
+      ?.closest("label")
+      ?.remove();
+  }
 
   const toggle = (show: boolean) =>
     overlay.classList.toggle("hidden", !show);
@@ -179,6 +191,8 @@ export async function initSettingsUI(container: HTMLElement) {
     (e) => {
       if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
         toggle(false);
+        // preventDefault：安卓返回键桥（MainActivity 注入 Esc）以此判断"页面已消费"
+        e.preventDefault();
         e.stopImmediatePropagation();
       }
     },

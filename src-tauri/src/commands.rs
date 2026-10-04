@@ -65,10 +65,16 @@ pub fn get_window_file(state: State<AppState>, window: tauri::Window) -> Option<
 /// 返回更新后的 TabsPayload
 #[tauri::command]
 pub fn add_tab(
+    app: tauri::AppHandle,
     state: State<AppState>,
     window: tauri::Window,
     path: String,
 ) -> Result<TabsPayload, String> {
+    // 打开前校验：文件已被外部删除/移动时直接拒绝（约定错误码 NOT_FOUND），
+    // 不登记窗口状态——登记了前端 reload 后会进错误页且没有 Esc 回退链路
+    if !Path::new(&path).is_file() {
+        return Err("NOT_FOUND".to_string());
+    }
     let label = window.label().to_string();
     let idx = state.add_tab(&label, &path);
     let (tabs, _) = state
@@ -78,9 +84,10 @@ pub fn add_tab(
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
-    window
-        .set_title(&format!("Oblet - {title}"))
-        .map_err(|e| format!("设置标题失败: {e}"))?;
+    // 移动端无窗口标题概念，set_title 可能不受支持——失败不阻断主流程
+    let _ = window.set_title(&format!("Oblet - {title}"));
+    // 最近打开历史（应用菜单入口用）
+    crate::settings::note_recent_file(&app, &tabs[idx]);
     Ok(TabsPayload {
         path: tabs[idx].clone(),
         tabs,
@@ -104,9 +111,8 @@ pub fn remove_tab(
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Oblet");
-    window
-        .set_title(&format!("Oblet - {title}"))
-        .map_err(|e| format!("设置标题失败: {e}"))?;
+    // 移动端无窗口标题概念，set_title 可能不受支持——失败不阻断主流程
+    let _ = window.set_title(&format!("Oblet - {title}"));
     Ok(Some(TabsPayload {
         path: tabs[idx].clone(),
         tabs,
@@ -128,9 +134,8 @@ pub fn switch_tab(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Oblet");
-        window
-            .set_title(&format!("Oblet - {title}"))
-            .map_err(|e| format!("设置标题失败: {e}"))?;
+        // 移动端无窗口标题概念，失败不阻断主流程
+        let _ = window.set_title(&format!("Oblet - {title}"));
     }
     Ok(())
 }
@@ -139,11 +144,12 @@ pub fn switch_tab(
 /// 批次 7.3 起语义变为追加 tab 并切换（不再替换整个窗口内容）
 #[tauri::command]
 pub fn set_window_file(
+    app: tauri::AppHandle,
     state: State<AppState>,
     window: tauri::Window,
     path: String,
 ) -> Result<TabsPayload, String> {
-    add_tab(state, window, path)
+    add_tab(app, state, window, path)
 }
 
 #[tauri::command]
@@ -188,8 +194,15 @@ fn detect_newline(bytes: &[u8]) -> String {
             return "LF".to_string();
         }
     }
-    // 无换行的新文件：Windows 平台默认 CRLF
-    "CRLF".to_string()
+    // 无换行的新文件：Windows 惯例 CRLF，其余平台 LF
+    #[cfg(target_os = "windows")]
+    {
+        "CRLF".to_string()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "LF".to_string()
+    }
 }
 
 /// 原子写入：临时文件 + rename；换行符跟随原文件
@@ -282,18 +295,27 @@ pub fn watch_file(
 // 窗口建为 transparent，效果开启时前端 CSS 让出背景（body.ob-vibrancy 透明链路）
 // dark 跟随当前主题（多主题一期）：Mica 官方双模，浅色主题传 false
 // Acrylic 已按十一轮终审删除（方案留档见打磨清单 4.1，浅色主题适配时或可参考复用）
+// 移动端无此概念：命令保留签名做 no-op，前端调用方无需平台分支
 #[tauri::command]
 pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>, dark: Option<bool>) -> Result<(), String> {
-    let res = match effect.as_deref() {
-        Some("mica") => window_vibrancy::apply_mica(&window, Some(dark.unwrap_or(true))),
-        _ => {
-            // 关：两种都清（mica 互不知晓 acrylic 是否应用过——旧版本可能残留；未应用时 clear 亦安全返回）
-            let a = window_vibrancy::clear_mica(&window);
-            let b = window_vibrancy::clear_acrylic(&window);
-            a.and(b)
-        }
-    };
-    res.map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        let res = match effect.as_deref() {
+            Some("mica") => window_vibrancy::apply_mica(&window, Some(dark.unwrap_or(true))),
+            _ => {
+                // 关：两种都清（mica 互不知晓 acrylic 是否应用过——旧版本可能残留；未应用时 clear 亦安全返回）
+                let a = window_vibrancy::clear_mica(&window);
+                let b = window_vibrancy::clear_acrylic(&window);
+                a.and(b)
+            }
+        };
+        res.map_err(|e| e.to_string())
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (window, effect, dark);
+        Ok(())
+    }
 }
 
 // 保存至 Obsidian Vault（批次 7.1）：把当前 md 原文复制到用户配置的目标文件夹。
@@ -316,7 +338,14 @@ pub fn export_to_vault(
     }
     let dir = PathBuf::from(&target_dir);
     if !dir.is_dir() {
-        return Err(format!("目录不存在: {target_dir}"));
+        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
+        #[cfg(target_os = "android")]
+        let created = fs::create_dir_all(&dir).is_ok();
+        #[cfg(not(target_os = "android"))]
+        let created = false;
+        if !created {
+            return Err(format!("目录不存在: {target_dir}"));
+        }
     }
     let dest = dir.join(&file_name);
     if dest.exists() && !overwrite {
@@ -349,7 +378,14 @@ pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<St
     }
     let d = PathBuf::from(&dir);
     if !d.is_dir() {
-        return Err(format!("目录不存在: {dir}"));
+        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
+        #[cfg(target_os = "android")]
+        let created = fs::create_dir_all(&d).is_ok();
+        #[cfg(not(target_os = "android"))]
+        let created = false;
+        if !created {
+            return Err(format!("目录不存在: {dir}"));
+        }
     }
     let dest = d.join(&file_name);
     if dest.exists() && !overwrite {
@@ -359,11 +395,30 @@ pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<St
     Ok(dest.to_string_lossy().into_owned())
 }
 
-/// 起始页"笔记新建至"默认值：返回用户桌面路径
+/// 起始页"笔记新建至"默认值：Windows 桌面目录 / 其余平台 Documents 目录（安卓 D6 建议默认其下 Oblet 子目录）
 #[tauri::command]
-pub fn get_desktop_dir() -> Result<String, String> {
-    let home = std::env::var("USERPROFILE").map_err(|e| format!("获取用户目录失败: {e}"))?;
-    Ok(format!("{home}\\Desktop"))
+#[allow(unused_variables)]
+pub fn get_desktop_dir(app: tauri::AppHandle) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let home = std::env::var("USERPROFILE").map_err(|e| format!("获取用户目录失败: {e}"))?;
+        Ok(format!("{home}\\Desktop"))
+    }
+    // 安卓：app.path().document_dir() 是应用私有外部目录
+    //（…/Android/data/<id>/files/Documents），文件管理器里极难找；
+    // 已持 MANAGE_EXTERNAL_STORAGE（D0 路线 B），直接给公共 Documents
+    #[cfg(target_os = "android")]
+    {
+        Ok("/storage/emulated/0/Documents".to_string())
+    }
+    #[cfg(all(not(target_os = "windows"), not(target_os = "android")))]
+    {
+        use tauri::Manager;
+        app.path()
+            .document_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .map_err(|e| format!("获取 Documents 目录失败: {e}"))
+    }
 }
 
 /// 重命名文档（v0.6.0）：同目录改名，同步所有窗口 tab 路径与内容哈希
@@ -427,9 +482,8 @@ pub fn rename_file(
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Oblet");
-        window
-            .set_title(&format!("Oblet - {title}"))
-            .map_err(|e| format!("设置标题失败: {e}"))?;
+        // 移动端无窗口标题概念，失败不阻断主流程
+        let _ = window.set_title(&format!("Oblet - {title}"));
     }
 
     state
@@ -450,16 +504,20 @@ pub fn clear_window_file(state: State<AppState>, window: tauri::Window) {
 }
 
 // 外链用系统默认浏览器打开：Tauri webview 对 target=_blank 不做任何处理，
-// 悬浮窗里的网址点击会无响应（七轮反馈）。rundll32 方案零新增依赖。
+// 悬浮窗里的网址点击会无响应（七轮反馈）。Windows 走 rundll32 零新增依赖；
+// 其余平台走 tauri-plugin-opener（Android 经系统 Intent，macOS/Linux 经 open/xdg-open）
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("仅支持打开 http/https 链接".to_string());
     }
+    #[cfg(target_os = "windows")]
     std::process::Command::new("rundll32")
         .args(["url.dll,FileProtocolHandler", &url])
         .spawn()
         .map_err(|e| format!("打开链接失败: {e}"))?;
+    #[cfg(not(target_os = "windows"))]
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| format!("打开链接失败: {e}"))?;
     Ok(())
 }
 

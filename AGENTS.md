@@ -68,7 +68,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - `commands.ts`：命令注册表——快捷键统一入口（settings.json `editor.keymap` 覆盖、window 捕获阶段派发、设置面板改键）
 - `editor/frontmatter.ts`：**序列化保真层收口于此**——frontmatter 节点 + 属性栏 NodeView（键值表格编辑）、`tuneSerialization`（mdast-util-to-markdown 的 rule/bullet/join/handlers 定制 + 表格紧凑输出 + GFM singleTilde 关闭）、任务项空格修剪 remark 插件、`disableEmptyLineBr`
 - `editor/image-block.ts`：**图片块 alt 保真**——`extendSchema` 覆盖上游 image-block schema，alt 独立 attr 原样往返（上游把 ratio 偷渡在 alt 槽位，alt 全灭变 `1.00`）
-- `editor/image-paths.ts`：**图片路径判定共享层**（v0.7.0）——REMOTE/ABS 正则、decodeMaybe、joinResolve、resolveLocalAbs、isAbsoluteLocalSrc、docHasAbsoluteImages；渲染转换（setup.ts toDomUrl）、路径编辑/失败占位（image-edit.ts）、批量转换（localizeImages + contextmenu 置灰）三处共用，避免口径漂移
+- `editor/image-paths.ts`：**图片路径判定共享层**（v0.7.0）——REMOTE/ABS 正则、decodeMaybe、joinResolve、resolveLocalAbs、isAbsoluteLocalSrc、docHasAbsoluteImages；渲染转换（setup.ts toDomUrl）、路径编辑/失败占位（image-edit.ts）、批量转换（localizeImages + contextmenu 置灰）三处共用，避免口径漂移。**D12（安卓适配）起兼作前端路径共享层**：`pathKey`（分隔符统一 `/`，仅 Windows 小写归一）供 tabs.ts 缓存键与 setup.ts samePath 共用；`joinResolve` 输出 POSIX `/` 分隔（Windows API 与 Rust Path 均接受正斜杠）
 - `editor/image-edit.ts`：**块级图片自绘 node view**（v0.7.0，`$view` 按节点 id 追加、后注册者胜，addFeature 晚于 Crepe 特性加载即生效）——三态：空 src 占位框（「设置图片」按钮）/ 正常（operation 编辑按钮 + img + 缩放手柄，类名沿用上游吃 Crepe 主题 CSS）/ 失败占位框（Rust `probe_image_path` 分级原因，「编辑路径」进面板）。编辑面板 = caption 风格双输入条绑 alt（[] 槽位）+ src（() 槽位），Enter/失焦提交、Esc 取消、单事务可撤销，提交时剥包裹引号；caption（title 槽位）只读展示不编辑。行内图刻意不覆盖
 - `editor/plugins.ts`：==高亮== 与 callout 的**装饰器方案**（文档保持原文，渲染时隐藏标记——保真原则的渲染侧体现）
 - `editor/vault.ts`：保存至 Obsidian（复制语义）——`sanitizePathInput` 规整容错（引号/正反斜杠/末尾分隔符随手输入均可）、`EXISTS` → 自绘确认弹窗覆盖
@@ -126,6 +126,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 
 ## 环境备忘
 
+- **仓库真实路径是 `D:\个人文档\PROJECTS\Oblet`**；桌面的 `Oblet`（以及 `PROJECTS`、`RAINOTES` 等）全是符号链接/重解析点。跑任何 `tauri android` 命令必须 cd 到真实路径，否则 cargo-mobile2 的 asset 目录校验 canonicalize 穿透链接后路径字符串对不上，启动即 panic `AssetDirOutsideOfAppRoot { asset_dir: "assets" }`（2026-10 实踩，详见 docs/android-dev-setup.md 第四步警告）
 - `src-tauri/target/` 约 3.6G 属 Rust 调试编译产物常态，已 gitignore，清理用 `cargo clean`（需先关闭运行中的 oblet.exe，否则文件锁导致拒绝访问）。
 - `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
 - `scripts/`（repro-*/verify-* 冒烟）、根目录 `test-*-roundtrip.mjs`、`Oblet-打磨*.md`、本文件均为**本地开发资产**：.gitignore 防回流云端，本地保留可正常跑；CI 发布链路依赖的组包/审计/许可收集脚本在 `.github/`（`npm run pack` / `npm run audit` 即指向那里）。

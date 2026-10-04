@@ -77,6 +77,7 @@ export function promptDialog(
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault(); // 安卓返回键桥以此判定"已消费"
         e.stopPropagation();
         done(null);
       } else if (e.key === "Enter") {
@@ -128,6 +129,7 @@ export function confirmDialog(
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault(); // 安卓返回键桥以此判定"已消费"
         e.stopPropagation();
         done(false);
       } else if (e.key === "Enter") {
