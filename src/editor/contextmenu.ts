@@ -10,7 +10,7 @@ import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { docHasAbsoluteImages } from "./image-paths";
 import { notify } from "../notify";
-import { COARSE_POINTER } from "../platform";
+import { COARSE_POINTER, IS_MOBILE } from "../platform";
 
 /** 导出动作回调（批次 7）：由 setup.ts 注入（插件内拿不到文件路径闭包） */
 let exportHandlers: {
@@ -217,11 +217,15 @@ export function openMenu(x: number, y: number, entries: MenuEntry[]): () => void
 
   document.body.appendChild(menu);
   document.body.classList.add("ob-ctx-open");
-  // 防溢出：先渲染再按实际尺寸收边；贴右缘时子菜单向左展开
+  // 防溢出：先渲染再按实际尺寸收边。子菜单默认向右展开，仅当右侧放不下
+  // 且左侧放得下时才 flip——菜单贴左缘时 flip 会把子菜单甩出屏幕左侧
   const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
+  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+  menu.style.left = `${left}px`;
   menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
-  if (x + rect.width + 180 > window.innerWidth) menu.classList.add("flip");
+  if (left + rect.width + 180 > window.innerWidth && left - 180 >= 0) {
+    menu.classList.add("flip");
+  }
 
   window.addEventListener("pointerdown", onGlobalDown, true);
   window.addEventListener("keydown", onKey, true);
@@ -287,7 +291,9 @@ export const contextMenuPlugin = $prose(
         };
 
         view.dom.addEventListener("contextmenu", onContextMenu);
-        if (COARSE_POINTER) {
+        // 移动端不做长按菜单：功能已由左上角 ☰ 应用菜单完全替代，长按应只
+        // 触发系统文本选择（长按弹自绘菜单与选中工具栏叠屏正是问题 4 之源）
+        if (COARSE_POINTER && !IS_MOBILE) {
           view.dom.addEventListener("pointerdown", onPointerDown);
           view.dom.addEventListener("pointermove", onPointerMove);
           view.dom.addEventListener("pointerup", lpCancel);
@@ -299,7 +305,7 @@ export const contextMenuPlugin = $prose(
             closeMenu?.();
             lpCancel();
             view.dom.removeEventListener("contextmenu", onContextMenu);
-            if (COARSE_POINTER) {
+            if (COARSE_POINTER && !IS_MOBILE) {
               view.dom.removeEventListener("pointerdown", onPointerDown);
               view.dom.removeEventListener("pointermove", onPointerMove);
               view.dom.removeEventListener("pointerup", lpCancel);

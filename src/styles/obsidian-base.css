@@ -176,7 +176,8 @@ body.ob-vibrancy .search-bar input {
 /* ---- 统一通知（toast）---- */
 .toast-container {
   position: fixed;
-  top: 12px;
+  /* 安全区全局避让：顶栏存在时下移（--ob-safe-top 由 MainActivity 注入，沉浸式隐藏后为 0 自动贴顶） */
+  top: calc(12px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -730,7 +731,8 @@ body.ob-code-wrap .markdown-rendered .cm-line {
    命中计数叠在搜索框内右端（VS Code 风格），不占额外列 */
 .search-bar {
   position: fixed;
-  top: 10px;
+  /* 安全区全局避让：顶栏存在时下移 */
+  top: calc(10px + var(--ob-safe-top, env(safe-area-inset-top, 0px)));
   right: 48px; /* 给右上角设置按钮留位 */
   z-index: 40;
   display: flex;
@@ -838,6 +840,7 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   display: flex;
   flex-direction: column;
   min-width: 140px;
+  max-width: min(70vw, 320px); /* 小屏上限，防长条目把菜单撑出屏幕 */
   padding: 4px;
   background: var(--ob-bg-alt);
   border: 1px solid var(--ob-border);
@@ -855,6 +858,9 @@ body.ob-code-wrap .markdown-rendered .cm-line {
   text-align: left;
   cursor: pointer;
   font: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .context-menu button:hover:not(:disabled) {
   background: var(--ob-selection);
@@ -880,6 +886,23 @@ body.ob-code-wrap .markdown-rendered .cm-line {
 .context-menu.flip .context-sub > .context-flyout {
   left: auto;
   right: 100%;
+}
+/* 触屏/窄屏：二级菜单改内联手风琴展开——侧向 flyout 在小屏上无论左右
+   都会跑出屏幕（实踩：☰ 菜单贴左缘时 flip 判定把子菜单甩出屏幕左侧） */
+@media (hover: none), (pointer: coarse), (max-width: 600px) {
+  .context-sub > .context-flyout,
+  .context-menu.flip .context-sub > .context-flyout {
+    position: static;
+    left: auto;
+    right: auto;
+    min-width: 0;
+    box-shadow: none;
+    border: none;
+    border-left: 2px solid var(--ob-border);
+    border-radius: 0;
+    margin: 2px 4px 2px 12px;
+    padding: 0 0 0 4px;
+  }
 }
 
 /* ---- 设置浮层 ---- */

@@ -15,7 +15,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import org.json.JSONObject
 
@@ -58,6 +60,7 @@ class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    applyImmersive()
 
     // D0 路线 B：所有文件访问权限。首次冷启动未授权 → 跳系统设置页引导（一次性成本）
     if (savedInstanceState == null && !Environment.isExternalStorageManager()) {
@@ -98,6 +101,24 @@ class MainActivity : TauriActivity() {
 
     handleOpenIntent(intent)
     startSafeAreaLoop()
+  }
+
+  // 沉浸式：进入应用即尝试隐藏状态栏（顶缘下滑可临时唤出）。
+  // 动机：WebView 的 env(safe-area-inset-top) 在 boot 后很晚才生效，顶部浮层避让
+  // 不可靠；隐藏顶栏是根治，隐藏失败的 ROM 上由 CSS 的 --ob-safe-top 全局避让兜底。
+  // 隐藏后 WindowInsets top=0，--ob-safe-top 随之归零，布局自动贴顶，无需额外处理。
+  private fun applyImmersive() {
+    WindowCompat.getInsetsController(window, window.decorView).apply {
+      systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      hide(WindowInsetsCompat.Type.statusBars())
+    }
+  }
+
+  // 从系统设置页（权限引导）等返回时系统可能已恢复状态栏，重获焦点时重新隐藏
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) applyImmersive()
   }
 
   // launchMode=singleTask：App 已在运行时，从文件管理器再点 .md 走这里
@@ -141,11 +162,26 @@ class MainActivity : TauriActivity() {
         WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
       val navMask =
         WindowInsetsCompat.Type.navigationBars() or WindowInsetsCompat.Type.displayCutout()
-      safeTop = Math.round(insets.getInsets(mask).top / density)
-      safeBottom = Math.round(insets.getInsets(navMask).bottom / density)
+      // getInsets 不随隐藏归零（隐藏只翻 isVisible 标志），必须可见才算占位，
+      // 否则状态栏已隐藏时布局仍留着安全区（顶部空出一条）
+      safeTop =
+        if (insets.isVisible(WindowInsetsCompat.Type.statusBars())) {
+          Math.round(insets.getInsets(mask).top / density)
+        } else {
+          0
+        }
+      safeBottom =
+        if (insets.isVisible(WindowInsetsCompat.Type.navigationBars())) {
+          Math.round(insets.getInsets(navMask).bottom / density)
+        } else {
+          0
+        }
       injectSafeArea()
       insets
     }
+    // setOnApplyWindowInsetsListener 不保证立刻收到当前值：onCreate 里的沉浸式
+    // hide 可能已把 insets 改过一轮，主动请求一次重派发拿到最新状态
+    ViewCompat.requestApplyInsets(webView)
     // WebView 重建（进程回收等）后若有未投递路径，重新尝试
     tryDeliver()
   }
