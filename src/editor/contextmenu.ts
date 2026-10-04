@@ -64,10 +64,18 @@ const ITEMS: Item[] = [
   },
   {
     label: "粘贴",
-    // execCommand("paste") 在 webview 里不可用；走异步剪贴板 API，失败时引导快捷键
+    // execCommand("paste") 在 webview 里不可用；走异步剪贴板 API，失败时引导快捷键。
+    // 安卓 WebView 的 navigator.clipboard.readText 恒抛 NotAllowedError（无浏览器式
+    // 剪贴板权限模型）——移动端改走 MainActivity 的 ObletNative JS 桥直读系统剪贴板
     run: (v) => {
-      navigator.clipboard
-        .readText()
+      const bridge = (
+        window as unknown as { ObletNative?: { readClipboard?: () => string } }
+      ).ObletNative;
+      const read: Promise<string> =
+        IS_MOBILE && bridge?.readClipboard
+          ? Promise.resolve(bridge.readClipboard())
+          : navigator.clipboard.readText();
+      read
         .then((text) => {
           if (text) v.dispatch(v.state.tr.insertText(text));
         })
@@ -290,9 +298,13 @@ export const contextMenuPlugin = $prose(
           if (Math.abs(e.clientX - lpX) > 10 || Math.abs(e.clientY - lpY) > 10) lpCancel();
         };
 
-        view.dom.addEventListener("contextmenu", onContextMenu);
-        // 移动端不做长按菜单：功能已由左上角 ☰ 应用菜单完全替代，长按应只
-        // 触发系统文本选择（长按弹自绘菜单与选中工具栏叠屏正是问题 4 之源）
+        // 移动端彻底不弹自绘菜单：Android WebView 长按 contenteditable 也会派发
+        // contextmenu 事件（仅拆 pointer 长按链不够，菜单仍被它拉起，与系统文本
+        // 选择的浮动操作条叠屏冲突）——contextmenu 与长按入口双双不挂，长按只走
+        // 系统选中+浮动操作菜单；菜单功能由左上角 ☰ 应用菜单承担
+        if (!IS_MOBILE) {
+          view.dom.addEventListener("contextmenu", onContextMenu);
+        }
         if (COARSE_POINTER && !IS_MOBILE) {
           view.dom.addEventListener("pointerdown", onPointerDown);
           view.dom.addEventListener("pointermove", onPointerMove);
@@ -304,7 +316,9 @@ export const contextMenuPlugin = $prose(
           destroy() {
             closeMenu?.();
             lpCancel();
-            view.dom.removeEventListener("contextmenu", onContextMenu);
+            if (!IS_MOBILE) {
+              view.dom.removeEventListener("contextmenu", onContextMenu);
+            }
             if (COARSE_POINTER && !IS_MOBILE) {
               view.dom.removeEventListener("pointerdown", onPointerDown);
               view.dom.removeEventListener("pointermove", onPointerMove);

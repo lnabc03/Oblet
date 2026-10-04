@@ -333,7 +333,14 @@ pub fn export_to_vault(
     }
     let dir = PathBuf::from(&target_dir);
     if !dir.is_dir() {
-        return Err(format!("目录不存在: {target_dir}"));
+        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
+        #[cfg(target_os = "android")]
+        let created = fs::create_dir_all(&dir).is_ok();
+        #[cfg(not(target_os = "android"))]
+        let created = false;
+        if !created {
+            return Err(format!("目录不存在: {target_dir}"));
+        }
     }
     let dest = dir.join(&file_name);
     if dest.exists() && !overwrite {
@@ -366,7 +373,14 @@ pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<St
     }
     let d = PathBuf::from(&dir);
     if !d.is_dir() {
-        return Err(format!("目录不存在: {dir}"));
+        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
+        #[cfg(target_os = "android")]
+        let created = fs::create_dir_all(&d).is_ok();
+        #[cfg(not(target_os = "android"))]
+        let created = false;
+        if !created {
+            return Err(format!("目录不存在: {dir}"));
+        }
     }
     let dest = d.join(&file_name);
     if dest.exists() && !overwrite {
@@ -385,7 +399,14 @@ pub fn get_desktop_dir(app: tauri::AppHandle) -> Result<String, String> {
         let home = std::env::var("USERPROFILE").map_err(|e| format!("获取用户目录失败: {e}"))?;
         Ok(format!("{home}\\Desktop"))
     }
-    #[cfg(not(target_os = "windows"))]
+    // 安卓：app.path().document_dir() 是应用私有外部目录
+    //（…/Android/data/<id>/files/Documents），文件管理器里极难找；
+    // 已持 MANAGE_EXTERNAL_STORAGE（D0 路线 B），直接给公共 Documents
+    #[cfg(target_os = "android")]
+    {
+        Ok("/storage/emulated/0/Documents".to_string())
+    }
+    #[cfg(all(not(target_os = "windows"), not(target_os = "android")))]
     {
         use tauri::Manager;
         app.path()

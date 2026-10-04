@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { currentEditorSettings } from "../settings/typography";
 import { confirmDialog, notify } from "../notify";
 import { FS_CASE_INSENSITIVE } from "./image-paths";
+import { IS_MOBILE } from "../platform";
 
 /** 规整用户随手输入的路径：去首尾空白与成对引号、分隔符归一为平台惯例
  * （Windows `\`；其余平台 `/`——照 Windows 习惯输入 `\` 也容错）、去末尾分隔符 */
@@ -22,6 +23,13 @@ export function sanitizePathInput(raw: string): string {
   if (s === "") return "";
   // 盘符根被削成 "C:" 时补回（C: 在 Windows 上是"当前目录"相对语义，不是根）
   if (FS_CASE_INSENSITIVE && /^[a-zA-Z]:$/.test(s)) s += "\\";
+  // 安卓文件管理器常展示伪路径（"内部存储/Documents"、"sdcard/…"），照抄会报
+  // "目录不存在"：剥伪前缀、归一 sdcard 拼写；相对路径按内部存储根补全
+  if (IS_MOBILE && s) {
+    s = s.replace(/^(内部共享存储空间|内部存储|手机存储|本机)\//, "");
+    if (s === "sdcard" || s.startsWith("sdcard/")) s = `/storage/emulated/0${s.slice(6)}`;
+    if (!s.startsWith("/")) s = `/storage/emulated/0/${s}`;
+  }
   return s;
 }
 

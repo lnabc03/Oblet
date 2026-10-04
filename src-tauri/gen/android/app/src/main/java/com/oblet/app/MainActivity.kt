@@ -29,6 +29,10 @@ class MainActivity : TauriActivity() {
   private var pendingOpenPath: String? = null
   private var delivering = false
 
+  // 物理键盘 Alt 按下状态（自追踪，不依赖 KeyEvent metaState——部分机型/布局下
+  // Alt 修饰位会被字符映射消耗，isAltPressed 不可靠）
+  private var altDown = false
+
   // 安全区（CSS px = 物理 px / density）。-1 = 尚未收到 insets
   // 不能依赖 env(safe-area-inset-*)：WebView 的 env() 在 boot 后很晚才从 0 变成真值
   //（实测模拟器 reload 后 1 分钟+ 才生效），用户感知为"刚进入应用按钮被状态栏盖住"
@@ -49,11 +53,21 @@ class MainActivity : TauriActivity() {
       }
     }
 
-  /** JS 桥：前端 window.ObletNative.pickFile() → SAF 选择器 */
+  /** JS 桥：前端 window.ObletNative（pickFile → SAF 选择器；readClipboard → 系统剪贴板） */
   private inner class ObletJsBridge {
     @android.webkit.JavascriptInterface
     fun pickFile() {
       runOnUiThread { openFileLauncher.launch(arrayOf("*/*")) }
+    }
+
+    // WebView 的 navigator.clipboard.readText 在安卓无浏览器式权限模型，恒抛
+    // NotAllowedError；前台应用直读系统剪贴板是合法路径（系统会弹"已粘贴"提示）
+    @android.webkit.JavascriptInterface
+    fun readClipboard(): String {
+      val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+      val clip = cm.primaryClip ?: return ""
+      if (clip.itemCount == 0) return ""
+      return clip.getItemAt(0).coerceToText(this@MainActivity)?.toString() ?: ""
     }
   }
 
@@ -138,6 +152,33 @@ class MainActivity : TauriActivity() {
     ) {
       webView?.evaluateJavascript(
         "window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))",
+        null,
+      )
+      return true
+    }
+    // Alt+1~6（标题快捷键）：用户实机上该组合到不了 WebView 命令表（部分键盘/布局
+    // 把 Alt+数字翻译为特殊字符或丢失修饰位；模拟器 Generic.kcm 则原生可达——行为
+    // 依设备而异）。统一在派发入口拦截保证确定性：自追踪 Alt 按下状态（不依赖
+    // metaState，部分机型修饰位会被字符映射消耗），注入规范化 KeyboardEvent
+    //（code=DigitN + altKey，前端命令表按 code 匹配），消费事件阻止字符落进文档
+    if (
+      event.keyCode == android.view.KeyEvent.KEYCODE_ALT_LEFT ||
+      event.keyCode == android.view.KeyEvent.KEYCODE_ALT_RIGHT
+    ) {
+      if (event.action == android.view.KeyEvent.ACTION_DOWN) altDown = true
+      else if (event.action == android.view.KeyEvent.ACTION_UP) altDown = false
+      return super.dispatchKeyEvent(event)
+    }
+    if (
+      altDown &&
+      event.action == android.view.KeyEvent.ACTION_DOWN &&
+      event.repeatCount == 0 &&
+      event.keyCode >= android.view.KeyEvent.KEYCODE_1 &&
+      event.keyCode <= android.view.KeyEvent.KEYCODE_6
+    ) {
+      val digit = event.keyCode - android.view.KeyEvent.KEYCODE_1 + 1
+      webView?.evaluateJavascript(
+        "window.dispatchEvent(new KeyboardEvent('keydown',{key:'$digit',code:'Digit$digit',altKey:true,bubbles:true,cancelable:true}))",
         null,
       )
       return true

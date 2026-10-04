@@ -50,6 +50,12 @@ body,
   --crepe-shadow-2: var(--ob-shadow-2);
 }
 
+/* 安卓 WebView 点按可点元素时画蓝色高亮框（-webkit-tap-highlight-color 默认色），
+ * 视觉噪音且与设计语言不符：全局关闭（桌面端无此行为，无副作用） */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* AnuPpuccin Style Settings 扩展变量（原 oblet-theme.json cssVariables） */
 body {
   --anp-cursor: pointer;
