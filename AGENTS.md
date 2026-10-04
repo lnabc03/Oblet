@@ -109,7 +109,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - **exe 被运行实例锁定**：tauri build 后往 release/Oblet/ 拷贝报 Device or resource busy 时，复制为 `oblet-new.exe` 再 `mv -f` 原子改名绕过。`npm run tauri build` 末尾 MSI bundling（light.exe）失败不影响 exe 本体产出。
 - **导出自绘弹窗的 promise 会阻塞**：`exportToVault` 等 `confirmDialog` 点击才 resolve——测试脚本里不能 `await` 后再点弹窗（死等），要先挂起 promise、点击、再 await。
 - **打印导出**：Mica 开着先临时关（摘 `ob-vibrancy` 类 + `set_window_effect(null)`，双 rAF 后 `window.print()`，`afterprint` 恢复 + 30s 超时）；打印下 `.markdown-rendered` 必须 `overflow: visible` 否则只出第一页。
-- **Tab 切换三坑**（详见 打磨清单 Bug 修复记录）：① 缓存键污染——`updatePaths` 改变 `tabs[active]` 指向，必须先用 `model.get(oldActivePath)` 保存当前状态、用路径比较而非索引比较做 guard；② `path` 闭包变量不同步——`switchToTab` 后需通过 `cb.setPath(targetPath)` 同步，否则拖入判断/Esc 关 tab 会找错文件；③ 滚动残留——长→短文档切后空白，用 PM 原生 `scrollIntoView()` 在事务中滚到位，前置 `scrollTop=0` + 强制重排。
+- **Tab 切换三坑**：① 缓存键污染——`updatePaths` 改变 `tabs[active]` 指向，必须先用 `model.get(oldActivePath)` 保存当前状态、用路径比较而非索引比较做 guard；② `path` 闭包变量不同步——`switchToTab` 后需通过 `cb.setPath(targetPath)` 同步，否则拖入判断/Esc 关 tab 会找错文件；③ 滚动残留——长→短文档切后空白，用 PM 原生 `scrollIntoView()` 在事务中滚到位，前置 `scrollTop=0` + 强制重排。
 - **浮层触发的 `tr.scrollIntoView()` 不可靠**：从编辑器外浮层（TOC 面板）点击派发的 `setSelection(...).scrollIntoView()` 只落光标不滚动。改用 search.ts 验证过的模式：dispatch 后 rAF 里 `v.domAtPos(pos)` 取 DOM，原生 `el.scrollIntoView({block})`（TOC 跳转/进度球回光标均走此路径）。
 - **`--ctp-*` 变量是 RGB 三元组**（`203, 166, 247`），不是颜色值：裸写 `color: var(--ctp-mauve)` 会得到 `color: 203, 166, 247` 无效声明被整体丢弃（曾致 CM 高亮全灭）。一切消费必须 `rgb()/rgba()` 包裹（cm-theme.ts、obsidian-base.css 的毛玻璃 fallback 同理）。
 - **clip-path 揭示动画与 box-shadow 互斥**：TOC 面板的 clip-path 会把投影裁成同尺寸方框影——带 clip-path 动画的浮层不要挂 box-shadow。
@@ -145,8 +145,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 
 - **仓库真实路径是 `D:\个人文档\PROJECTS\Oblet`**；桌面的 `Oblet`（以及 `PROJECTS`、`RAINOTES` 等）全是符号链接/重解析点。跑任何 `tauri android` 命令必须 cd 到真实路径，否则 cargo-mobile2 的 asset 目录校验 canonicalize 穿透链接后路径字符串对不上，启动即 panic `AssetDirOutsideOfAppRoot { asset_dir: "assets" }`（2026-10 实踩，详见 docs/android-dev-setup.md 第四步警告）
 - `src-tauri/target/` 约 3.6G 属 Rust 调试编译产物常态，已 gitignore，清理用 `cargo clean`（需先关闭运行中的 oblet.exe，否则文件锁导致拒绝访问）。
-- `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
-- `scripts/`（repro-*/verify-* 冒烟）、根目录 `test-*-roundtrip.mjs`、`Oblet-打磨*.md`、本文件均为**本地开发资产**：.gitignore 防回流云端，本地保留可正常跑；CI 发布链路依赖的组包/审计/许可收集脚本在 `.github/`（`npm run pack` / `npm run audit` 即指向那里）。
+- `ref/`、scripts/（repro-*/verify-* 冒烟）、根目录 `test-*-roundtrip.mjs` 等历史本地资产已于 2026-10 清理（不在本机/不入库）；CI 发布链路依赖的组包/审计/许可收集脚本在 `.github/`（`npm run pack` / `npm run audit` 即指向那里）。打磨清单/排查方案等历史文档已删，git 历史可查。
 - **安卓调试环境**：模拟器 `oblet_dev`（API 34 x86_64）；CDP 经 `adb forward tcp:9222` 连 WebView；不练真机 adb，实体机测试由用户自装 APK；每次修复必须在模拟器实测（截图/CDP）。
 - 回复与文档一律使用简体中文。
 
