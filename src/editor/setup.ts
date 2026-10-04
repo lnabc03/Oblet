@@ -27,6 +27,7 @@ import {
   currentEditorSettings,
   getSettings,
   initTypography,
+  saveSettings,
   switchTypography,
 } from "../settings/typography";
 import { initSettingsUI } from "../settings/ui";
@@ -190,6 +191,20 @@ export async function boot() {
     await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
   }
 
+  /** 从最近打开剔除路径（文件被外部删除后历史记录自愈） */
+  const removeRecent = async (p: string) => {
+    try {
+      const s = await getSettings();
+      const list = s.editor.recent_files ?? [];
+      const next = list.filter((x) => !samePath(x, p));
+      if (next.length === list.length) return;
+      s.editor.recent_files = next;
+      await saveSettings(s);
+    } catch {
+      /* 历史记录是辅助数据，失败静默 */
+    }
+  };
+
   // ---- 打开路径到 tab（桌面 add-tab 事件与安卓 Intent 桥共用同一链路） ----
   const openPathInTab = async (newPath: string) => {
     if (!newPath) return;
@@ -206,12 +221,20 @@ export async function boot() {
       }
       return;
     }
-    // 空状态（编辑器未初始化）：先登记 tab 再 reload 走正常启动
+    // 空状态（编辑器未初始化）：先登记 tab 再 reload 走正常启动。
+    // 登记失败（文件已被外部删除等）停留起始页：不 reload、报错、剔除最近记录——
+    // 若带病 reload，boot 读文件失败会进无 Esc 链路的红字错误页
     if (!tabCallbacks) {
       try {
         await invoke<TabsPayload>("add_tab", { path: newPath });
       } catch (e) {
-        notify(`打开失败：${e}`, "error");
+        if (String(e) === "NOT_FOUND") {
+          notify("文件已被删除或移动，已从最近打开移除", "warn");
+          void removeRecent(newPath);
+        } else {
+          notify(`打开失败：${e}`, "error");
+        }
+        return;
       }
       location.reload();
       return;
@@ -221,7 +244,12 @@ export async function boot() {
       tabArrows.show(result.tabs.length >= 2);
       await switchToTab(tabsModel, result.tabs, result.active_index, tabCallbacks);
     } catch (e) {
-      notify(`打开失败：${e}`, "error");
+      if (String(e) === "NOT_FOUND") {
+        notify("文件已被删除或移动，已从最近打开移除", "warn");
+        void removeRecent(newPath);
+      } else {
+        notify(`打开失败：${e}`, "error");
+      }
     }
   };
 
@@ -244,6 +272,12 @@ export async function boot() {
   });
 
   if (!initialPayload) {
+    // boot 期打开失败（文件被外部删除）跨 reload 的提示
+    const bootErr = sessionStorage.getItem("oblet.bootError");
+    if (bootErr) {
+      sessionStorage.removeItem("oblet.bootError");
+      notify(bootErr, "warn");
+    }
     // 重置窗口标题（Esc 退回起始页后避免残留旧文件名）
     await getCurrentWindow().setTitle("Oblet").catch(() => {});
 
@@ -315,7 +349,19 @@ export async function boot() {
   tabsModel.sync(initialPayload.tabs, initialPayload.active_index);
 
   let path = initialPayload.path;
-  const payload = await invoke<FilePayload>("read_file", { path });
+  let payload: FilePayload;
+  try {
+    payload = await invoke<FilePayload>("read_file", { path });
+  } catch {
+    // 窗口登记的文件在 App 关闭期间被外部删除/移动：清登记、退欢迎页、提示。
+    // 否则进红字错误页——那里没有 Esc 链路，返回键也只能退后台
+    await invoke("clear_window_file").catch(() => {});
+    // await 剔除完成再 reload——否则 reload 杀死进行中的 IPC，历史记录删不掉
+    await removeRecent(path);
+    sessionStorage.setItem("oblet.bootError", "文件已被删除或移动，已从最近打开移除");
+    location.reload();
+    return;
+  }
   bootTiming.fileRead = performance.now();
 
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。

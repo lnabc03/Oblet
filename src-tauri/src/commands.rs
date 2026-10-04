@@ -70,6 +70,11 @@ pub fn add_tab(
     window: tauri::Window,
     path: String,
 ) -> Result<TabsPayload, String> {
+    // 打开前校验：文件已被外部删除/移动时直接拒绝（约定错误码 NOT_FOUND），
+    // 不登记窗口状态——登记了前端 reload 后会进错误页且没有 Esc 回退链路
+    if !Path::new(&path).is_file() {
+        return Err("NOT_FOUND".to_string());
+    }
     let label = window.label().to_string();
     let idx = state.add_tab(&label, &path);
     let (tabs, _) = state
