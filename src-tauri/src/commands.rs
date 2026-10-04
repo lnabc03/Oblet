@@ -338,14 +338,9 @@ pub fn export_to_vault(
     }
     let dir = PathBuf::from(&target_dir);
     if !dir.is_dir() {
-        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
-        #[cfg(target_os = "android")]
-        let created = fs::create_dir_all(&dir).is_ok();
-        #[cfg(not(target_os = "android"))]
-        let created = false;
-        if !created {
-            return Err(format!("目录不存在: {target_dir}"));
-        }
+        // 手输子目录是常态：不存在则尽力创建（原仅安卓，v0.8.0 桌面同步——
+        // 桌面路径手输成本同样高，报错不如直接建好）
+        fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败: {target_dir}: {e}"))?;
     }
     let dest = dir.join(&file_name);
     if dest.exists() && !overwrite {
@@ -364,7 +359,7 @@ pub fn export_to_vault(
     Ok(dest.to_string_lossy().into_owned())
 }
 
-/// 起始页"新建 Markdown 笔记"：在目标目录创建空 .md 文件，返回完整路径。
+/// 起始页"新建 Markdown 文件"：在目标目录创建空 .md 文件，返回完整路径。
 /// 同名冲突返回约定错误码 EXISTS，由前端确认覆盖后带 overwrite=true 重试。
 #[tauri::command]
 pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<String, String> {
@@ -378,14 +373,8 @@ pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<St
     }
     let d = PathBuf::from(&dir);
     if !d.is_dir() {
-        // 安卓：文件管理器常不显示真实路径，手输子目录是常态——不存在则尽力创建
-        #[cfg(target_os = "android")]
-        let created = fs::create_dir_all(&d).is_ok();
-        #[cfg(not(target_os = "android"))]
-        let created = false;
-        if !created {
-            return Err(format!("目录不存在: {dir}"));
-        }
+        // 手输子目录是常态：不存在则尽力创建（原仅安卓，v0.8.0 桌面同步）
+        fs::create_dir_all(&d).map_err(|e| format!("创建目录失败: {dir}: {e}"))?;
     }
     let dest = d.join(&file_name);
     if dest.exists() && !overwrite {

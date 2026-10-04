@@ -10,7 +10,7 @@ export interface AppMenuHandlers {
   getView: () => EditorView | null;
   /** 「打开文件…」：走原生 SAF 选择器（无桥时该项不显示） */
   openFile: () => void;
-  /** 「新建笔记」 */
+  /** 「新建文件」 */
   newNote: () => void;
   /** 「最近打开」子项点击 */
   openPath: (path: string) => void;
@@ -56,7 +56,7 @@ export function initAppMenu(h: AppMenuHandlers) {
       })),
     });
 
-    entries.push({ label: "新建笔记", enabled: true, run: () => h.newNote() });
+    entries.push({ label: "新建文件", enabled: true, run: () => h.newNote() });
 
     const view = h.getView();
     if (view) {

@@ -16,6 +16,7 @@ import {
   setKeymapCaptureActive,
 } from "../commands";
 import { IS_MOBILE } from "../platform";
+import { notify } from "../notify";
 
 /** 置顶按钮 SVG 大头针路径（纯色，跟随 currentColor，与 ⚙ 同款设计语言） */
 const PIN_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="3.5" r="2.2"/><line x1="8" y1="5.5" x2="8" y2="14.5"/></svg>`;
@@ -139,10 +140,12 @@ export async function initSettingsUI(container: HTMLElement) {
       <div class="settings-section">
         <h3>路径</h3>
         <div class="typo-grid">
-          <label>笔记新建至</label>
+          <label>文件新建至</label>
           <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "/storage/emulated/0/Documents" : "默认为用户桌面"}">
-          <label>笔记另存至</label>
+          <label>文件另存至</label>
           <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
+          <label>最近打开</label>
+          <button type="button" class="clear-recents-btn">清空历史</button>
         </div>
       </div>
       <div class="settings-section">
@@ -325,6 +328,14 @@ export async function initSettingsUI(container: HTMLElement) {
           } catch { /* 忽略 */ }
         }
       });
+    });
+
+  // 清空最近打开历史（recent_files 由 add_tab 全平台登记，欢迎页/应用菜单消费）
+  overlay
+    .querySelector(".clear-recents-btn")
+    ?.addEventListener("click", async () => {
+      await switchTypography({ recent_files: [] });
+      notify("最近打开记录已清空", "info");
     });
 
   // 排版输入：change（失焦/回车）即保存并应用；留空 = 清除覆盖

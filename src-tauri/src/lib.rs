@@ -316,6 +316,8 @@ pub fn run() {
     }));
     builder
         .plugin(tauri_plugin_opener::init())
+        // 桌面「打开文件」欢迎页按钮的原生文件对话框（与移动端 SAF 入口对齐）
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_window_file,

@@ -148,8 +148,9 @@ body.ob-vibrancy .search-bar input {
   letter-spacing: 0.08em;
   opacity: 0.4;
 }
+/* 欢迎页按钮（全平台一致的纯文字样式）：无边框，主题色文字，hover 淡底 */
 .empty-new-note {
-  border: 1px solid var(--ob-border);
+  border: none;
   background: transparent;
   color: var(--ob-accent);
   border-radius: 6px;
@@ -157,13 +158,12 @@ body.ob-vibrancy .search-bar input {
   font-size: 0.88em;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 .empty-new-note:hover {
-  border-color: var(--ob-accent);
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
 }
-/* 移动端欢迎页按钮组：列布局 + stretch，让「新建」与「打开|最近」两行左右两端对齐
+/* 欢迎页按钮组（全平台一致）：列布局 + stretch，让「新建」与「打开|最近」两行左右两端对齐
  *（inline-flex 收缩到最宽行——新建按钮的宽度，分段行随之拉齐） */
 .empty-actions {
   display: inline-flex;
@@ -175,24 +175,24 @@ body.ob-vibrancy .search-bar input {
 /* 「打开文件 | 最近打开」分段入口：无外框（边框观感违和），仅中缝竖线分隔两个半区 */
 .empty-seg {
   display: flex;
+  /* space-between 把两按钮文字顶到容器两端；0 16px 内边距与「新建」按钮的
+   * padding 对齐——两行文字边缘精确对齐（去框后对齐以文字边缘为准） */
+  justify-content: space-between;
+  padding: 0 16px;
   color: var(--ob-accent);
   font-size: 0.88em;
 }
 .empty-seg button {
-  flex: 1;
   border: none;
   background: transparent;
   color: inherit;
   font-family: inherit;
   font-size: inherit;
-  padding: 5px 16px;
+  padding: 5px 0;
   cursor: pointer;
   transition: background 0.15s;
 }
-/* 移动端欢迎页按钮统一去框（纯文字入口，跟随主题色；桌面端 .empty-new-note 保留原边框样式） */
-.empty-actions .empty-new-note {
-  border: none;
-}
+/* 欢迎页按钮统一无框（基座 .empty-new-note 已无边框，此条留作结构说明锚点） */
 .empty-seg button:hover {
   background: rgba(var(--ctp-mauve, 150, 110, 220), 0.08);
 }
@@ -201,6 +201,21 @@ body.ob-vibrancy .search-bar input {
   font-size: 0.8em;
   letter-spacing: 0.08em;
   opacity: 0.55;
+}
+/* 设置面板「清空历史」按钮：复用 keymap-combo 视觉语言 */
+.clear-recents-btn {
+  border: 1px solid var(--ob-border);
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.88em;
+  font-family: inherit;
+  cursor: pointer;
+  justify-self: start;
+}
+.clear-recents-btn:hover {
+  border-color: var(--ob-accent);
 }
 
 /* 只读横幅（持久状态指示，瞬态提示一律走 toast） */

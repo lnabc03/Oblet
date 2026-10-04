@@ -1,6 +1,7 @@
 // Oblet 编辑器装配（Crepe 底座）与文件生命周期
 // 流程：取窗口文件 → 读文件 → 建 Crepe → 防抖自动保存 / Ctrl+S → 外部变更监听
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
@@ -147,10 +148,10 @@ export async function boot() {
   // tabCallbacks 在编辑器创建后赋值；空状态路径中为 null
   let tabCallbacks: Parameters<typeof switchToTab>[3] | null = null;
 
-  // 新建 Markdown 笔记统一入口（起始页按钮 + 右键「新建 Markdown 文档」shell 命令共用）。
+  // 新建 Markdown 文件统一入口（起始页按钮 + 右键「新建 Markdown 文档」shell 命令共用）。
   // dir 非空 = 右键传入的目标目录（%V）；为空 = 走设置 new_note_dir → 桌面兜底。
   async function createNoteIn(dir: string) {
-    const name = await promptDialog("新建 Markdown 笔记", "输入文件名（不含 .md）", "创建");
+    const name = await promptDialog("新建 Markdown 文件", "输入文件名（不含 .md）", "创建");
     if (!name) return;
     // 净化：去非法字符、确保以 .md 结尾
     const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
@@ -292,25 +293,34 @@ export async function boot() {
     empty.innerHTML = `
       <img class="empty-logo" src="${logoUrl}" alt="Oblet">
       <p class="empty-title">Oblet</p>
-      ${IS_MOBILE ? "" : `<p class="muted">双击任意 .md 文件即可编辑，或将文件拖入窗口</p>`}
-      ${IS_MOBILE ? `<div class="empty-actions">
+      <div class="empty-actions">
       <button class="empty-new-note">新建 Markdown 文件</button>
       <div class="empty-seg">
       <button class="empty-open-file">打开文件</button><button class="empty-recent">最近打开</button>
-      </div></div>` : `<p><button class="empty-new-note">新建 Markdown 文件</button></p>`}
+      </div></div>
       <p class="empty-version">v${version}</p>
       <p class="empty-author">弋鹓 | lnabc03</p>`;
     app.appendChild(empty);
-    // "新建 Markdown 笔记"按钮 → 走统一入口（默认目录：设置 new_note_dir → 桌面）
+    // "新建 Markdown 文件"按钮 → 走统一入口（默认目录：设置 new_note_dir → 桌面）
     empty.querySelector(".empty-new-note:not(.empty-open-file):not(.empty-recent)")?.addEventListener("click", async () => {
       await createNoteIn("");
     });
-    // 移动端欢迎页双入口（样式同新建按钮）：打开文件走 SAF 选择器；
-    // 最近打开在按钮下方弹最近列表（与 ☰ 菜单同数据源）
-    empty.querySelector(".empty-open-file")?.addEventListener("click", () => {
-      (
-        window as unknown as { ObletNative?: { pickFile?: () => void } }
-      ).ObletNative?.pickFile?.();
+    // 「打开文件」：移动端走 SAF 选择器（ObletNative 桥）；桌面走原生文件对话框
+    //（tauri-plugin-dialog）。「最近打开」在按钮下方弹最近列表（与 ☰ 菜单同数据源）
+    empty.querySelector(".empty-open-file")?.addEventListener("click", async () => {
+      if (IS_MOBILE) {
+        (
+          window as unknown as { ObletNative?: { pickFile?: () => void } }
+        ).ObletNative?.pickFile?.();
+        return;
+      }
+      const picked = await open({
+        multiple: false,
+        filters: [
+          { name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] },
+        ],
+      });
+      if (typeof picked === "string") void openPathInTab(picked);
     });
     empty.querySelector(".empty-recent")?.addEventListener("click", async (e) => {
       // currentTarget 只在同步派发期有效，await 后变 null——先取坐标再 await

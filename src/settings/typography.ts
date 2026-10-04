@@ -34,7 +34,7 @@ export interface EditorSettings {
   keymap?: Record<string, string> | null;
   /** 另存目标文件夹（批次 7.1）：填到目标目录；null = 未配置 */
   vault_dir?: string | null;
-  /** 起始页"新建 Markdown 笔记"落盘目录：null/空 = 桌面（启动时 get_desktop_dir 兜底） */
+  /** 起始页"新建 Markdown 文件"落盘目录：null/空 = 桌面（启动时 get_desktop_dir 兜底） */
   new_note_dir?: string | null;
   /** 多窗口编辑（批次 7.3）：null/false = 单窗口多 tab 模式（默认）；true = 每文件一窗口 */
   allow_multi_window?: boolean | null;

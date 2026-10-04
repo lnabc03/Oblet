@@ -1,4 +1,5 @@
-# tag 触发（v*）：Windows 构建 → 绿色 zip + 单 exe → 上传到 GitHub Release
+# tag 触发（v*）：Windows 构建 → 绿色 zip + 单 exe；Ubuntu 构建 → 安卓 arm64 APK
+# 三个发行物全部上传到 GitHub Release
 # 缓存：sccache（Rust 编译单元级） + rust-cache（依赖 registry/target） + npm cache
 name: Release
 
@@ -69,4 +70,61 @@ jobs:
             release/Oblet-*-win-x64.zip
             release/Oblet-*-win-x64.exe
           body_path: release/release-notes.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # 安卓 arm64 APK：gen/android 工程已入库，ubuntu-latest 预装 Android SDK/JDK17
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust (aarch64-android target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-all-crates: true
+
+      # NDK 版本对齐本地开发（27.2.x）；runner 预装 SDK 的 ndk 目录可能无此版本
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      - name: Build APK (arm64 release)
+        run: npm run tauri android build -- --apk --target aarch64
+
+      # 侧载分发必须签名：CI 现场生成 debug 密钥签名（与本地 debug 签名同性质；
+      # 将来若上架/正式签名，换 secrets 里的真实 keystore 即可）
+      - name: Sign APK with CI debug key
+        run: |
+          keytool -genkeypair -v -keystore ci-debug.keystore -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android -dname "CN=Android Debug,O=Oblet CI,C=CN"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          VER=$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8')).version")
+          mkdir -p release
+          "$BT/apksigner" sign --ks ci-debug.keystore --ks-pass pass:android --key-pass pass:android \
+            --out "release/Oblet-${VER}-android-arm64.apk" \
+            src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+          "$BT/apksigner" verify "release/Oblet-${VER}-android-arm64.apk"
+
+      # 第二 job 上传同一 release：action-gh-release 对已存在的 tag release 追加文件
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/Oblet-*-android-arm64.apk
           token: ${{ secrets.GITHUB_TOKEN }}
