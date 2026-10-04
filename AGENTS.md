@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目定位
 
-Oblet：轻量、快速的独立 Markdown 编辑器（Windows），双击 .md 即编辑，默认单窗口多 Tab。技术栈 Tauri 2 (Rust) + Vite 8 + TypeScript 7 + Milkdown 7.22.1（Crepe 底座）。主题为原生多主题（白名单固化 6 款，各深/浅双模）：AnuPpuccin（默认）/ Atom / GitHub / Minimal / Nord / Things，全部由蒸馏器从 Obsidian 主题生成（`src/styles/theme-*.css`），不做运行时主题导入、不兼容任意 Obsidian 主题。详见《Oblet-技术设计文档.md》与《多主题支持调研报告.md》。
+Oblet：轻量、快速的独立 Markdown 编辑器（Windows / Android，v0.8.0 起双端），双击 .md 即编辑，默认单窗口多 Tab。技术栈 Tauri 2 (Rust) + Vite 8 + TypeScript 7 + Milkdown 7.22.1（Crepe 底座）。主题为原生多主题（白名单固化 6 款，各深/浅双模）：AnuPpuccin（默认）/ Atom / GitHub / Minimal / Nord / Things，全部由蒸馏器从 Obsidian 主题生成（`src/styles/theme-*.css`），不做运行时主题导入、不兼容任意 Obsidian 主题。详见《Oblet-技术设计文档.md》与《多主题支持调研报告.md》。
 
 **第一原则：序列化保真。** 保存不得对 md 原文做任何侵入性修改（不改写未编辑区域：不加行尾 `\`、不把 `---` 写成 `***`、不插 `<br />`、不注入转义实体、不擅增删空行）。与 Obsidian 双向编辑同一文件时必须无损。任何违反都视为 bug。
 
@@ -15,6 +15,11 @@ npm run tauri dev        # 开发（自动起 vite :1420 + cargo run）
 npm run build            # 前端构建（tsc && vite build，含类型检查）
 npm run tauri build      # 产出绿色版 exe
 cd src-tauri && cargo check   # Rust 快速检查
+
+# 安卓（adb 不在 PATH，全路径 C:\Users\wjs_R\AppData\Local\Android\Sdk\platform-tools\adb.exe）
+set "CARGO_TARGET_DIR=C:\Users\wjs_R\oblet-android-target"    # 安卓交叉编译独立产物目录（不污染桌面 target）
+npm run tauri android dev                              # 模拟器热重载（先杀 1420 残留 vite）
+npm run tauri android build -- --apk --target aarch64  # arm64 release APK（apksigner debug 签名后交付）
 
 # 序列化回归测试（独立脚本，非测试框架；改序列化逻辑后必跑，需全部 PASS）
 node scripts/test-break-roundtrip.mjs   # 换行/hr/转义/frontmatter 往返
@@ -29,7 +34,7 @@ node .github/extract-release-notes.mjs   # 从 CHANGELOG 提取当前版本段 �
 #   ① 版本号 5 处全改：Cargo.toml + Cargo.lock(oblet) + tauri.conf.json + package.json + package-lock.json（顶部两处）
 #   ② CHANGELOG.md 顶部加 "## [x.y.z] - 日期" 段（extract-release-notes 找不到标题会退出）
 #   ③ 提交拆两个 commit：feat 代码 + "chore: 版本号升至 vX.Y.Z"
-#   ④ git tag vX.Y.Z && git push origin vX.Y.Z  → 触发 CI 自动发版（正文自动带 changelog）
+#   ④ git tag vX.Y.Z && git push origin vX.Y.Z  → 触发 CI 自动发版三件套：win-x64 zip + 单 exe + 安卓 arm64 APK（正文自动带 changelog；APK 为 CI 现场 debug 签名）
 
 # 组件配置冒烟（jsdom，改 Crepe featureConfig 后跑）
 node scripts/verify-languages.mjs   # 代码块语言列表注入 + 浮层弹出交互
@@ -53,17 +58,19 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 
 **Rust 侧（src-tauri/src/）**——所有文件 IO 只走这里，前端不碰文件系统：
 
-- `lib.rs`：窗口管理（label = 路径 FNV-1a 哈希）、单实例（重复打开聚焦已有窗口/追加 Tab）、notify 文件监听（目录引用计数：同目录多 tab 只 watch 一次）
+- `lib.rs`：窗口管理（label = 路径 FNV-1a 哈希）、单实例（重复打开聚焦已有窗口/追加 Tab）、notify 文件监听（目录引用计数：同目录多 tab 只 watch 一次）。桌面专属逻辑以 `cfg(desktop)`/`cfg(mobile)` 隔离（desktop_setup 收监听+argv+建窗；移动端窗口由 Activity 建、文件入口走 Intent → MainActivity 解析投递）
 - `commands.rs`：`read_file`（BOM 剥离、CRLF/LF 探测、非 UTF-8 只读）、`write_file`（临时文件 + rename 原子写入，换行符跟随原文件）、`watch_file`（监听父目录按文件名过滤，兼容 rename 式保存）、`export_to_vault`（复制到 Vault 目标目录：file_name 拒收路径分隔符防逃逸、同名返回约定错误码 `EXISTS` 由前端弹确认、原子写）、`save_image_asset`（粘贴/拖入图片落盘 assets/，同名 -1 后缀）、`probe_image_path`（图片加载失败原因分级：魔数判别格式）、`localize_image_assets`（批量转相对路径：同名同内容复用、异内容后缀、逐源去重）、`add_tab`/`remove_tab`/`switch_tab`（Tab 切换系统：追加/移除/切换标签页，返回 TabsPayload 同步前端）
 - `state.rs`：AppState（`windows: HashMap<label, (Vec<String>, usize)>` 窗口→(路径列表, 活跃索引)、内容哈希缓存）。**自写过滤靠 FNV-1a 哈希**：读写都记哈希，监听事件哈希一致即忽略——Windows 下 rename 覆盖保存会对目标发 Remove 事件，绝不能见 Remove 就通知重载。`add_tab` 去重：路径已在列表中则返回已有索引。
-- `settings.rs`：`./data/settings.json`（exe 同级，绿色版），存排版/编辑器覆盖 + Obsidian `vault_dir`
+- `settings.rs`：`./data/settings.json`（exe 同级，绿色版；移动端存 app 私有数据目录），存排版/编辑器覆盖 + Obsidian `vault_dir` + 最近打开 `recent_files`（add_tab 全平台登记，置顶去重封顶 10）
 
 **前端（src/）**：
 
+- `platform.ts`：**平台判定唯一来源**（IS_MOBILE / COARSE_POINTER）——新功能先想双端，UI 分叉走这里；欢迎页/按钮样式全平台一致（2026-10 用户批示，不做平台分叉样式）
 - `main.ts`：CSS 顺序敏感——Crepe → obsidian-base.css → theme-*.css ×6（全部带 `body.ob-t-<id>` 门控前缀，共存互不泄漏）→ toc.css（后者覆盖前者 fallback）
 - `editor/setup.ts`：Crepe 装配 + 文件生命周期（防抖自动保存、外部变更重载、拖入换文件）+ 导出动作装配（`setExportHandlers` 注入右键菜单；导出 PDF 跟随当前深浅模式 + 打印前全量挂载代码块）+ `window.__oblet` 自动化验证钩子（含 testSetTheme）+ Tab 切换集成（`tabCallbacks` 桥接 setup 闭包到 tabs.ts）
 - `editor/cm-theme.ts`：**代码块高亮主题**——自绘 CM theme 全 CSS 变量驱动，二期改为 `--ob-hl-*` 语义变量链（`var(--ob-hl-keyword, rgb(var(--ctp-mauve, …)))`：主题文件直供字面值 → AnuPpuccin 走 ctp fallback → mocha 三元组兜底），替代 Crepe 默认 oneDark，深浅/换主题零重配置自动跟随
 - `editor/mermaid.ts`：**Mermaid 图表预览**——code_block(language=mermaid) 经 Crepe 代码块 `renderPreview` 钩子出 SVG（KaTeX 同通道，latex 特性 wrap 后非 latex 语言落此；crepe 加载顺序 code-mirror 先于 latex，互不顶掉）。mermaid 懒加载（rolldown 分包，无 mermaid 块零开销）；themeVariables 每次渲染读 body computed `--ob-*` → 6 主题×深浅自动跟随；body 类 MutationObserver 触发全量重渲染（注册表 content→applies，封顶 120）；`securityLevel: 'strict'` + 面板 SVG 感知 DOMPurify 双保险；语法错误画兜底框；打印前 `whenMermaidIdle()` 防 Loading 占位。验证 `node scripts/repro-mermaid.mjs`（出图/变色/保真）；全图类型扫描 `node scripts/verify-diagrams.mjs`（对 ref/图表验收文档.md 逐块断言）
+- `editor/appmenu.ts`：移动端 ☰ 应用菜单（触屏入口替代物，与右键菜单共用 openMenu/ITEMS）
 - `editor/tabs.ts`：**Tab 切换系统核心**——`TabState` 缓存（Map<路径, 内容/光标/滚动>）、箭头 UI（`createTabArrows`）、`switchToTab` 核心流程（路径比较 guard + updatePaths 前保存所有当前状态 + PM 原生 scrollIntoView 恢复光标）。关键规则：所有"保存当前状态"操作必须用 `model.get(oldActivePath)` 路径键访问且在 `updatePaths` 之前完成
 - `commands.ts`：命令注册表——快捷键统一入口（settings.json `editor.keymap` 覆盖、window 捕获阶段派发、设置面板改键）
 - `editor/frontmatter.ts`：**序列化保真层收口于此**——frontmatter 节点 + 属性栏 NodeView（键值表格编辑）、`tuneSerialization`（mdast-util-to-markdown 的 rule/bullet/join/handlers 定制 + 表格紧凑输出 + GFM singleTilde 关闭）、任务项空格修剪 remark 插件、`disableEmptyLineBr`
@@ -120,6 +127,16 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - **自绘 node view 里 SVG 图标必须套 `span.milkdown-icon`**（inline-flex，reset.css 提供）：裸 svg 是 inline 元素、基线对齐，在圆形按钮底里 glyph 会掉出圆圈几十 px（实踩：用户看到"圆圈 + 气泡两个按钮"）。Crepe 图标字符串带前后空白，innerHTML 前先 trim
 - **img error/load 事件不冒泡**，若在视图层统一监听必须挂祖先的捕获阶段；自绘 node view 里直接往 img 上挂 listener 更省事。失败占位框用「隐藏 img + 兄弟占位」而非替换 DOM，修复后 load 摘除占位
 
+- **cmd 里 `node -e` 内联脚本会被静默吞掉**（多行/含引号场景输出消失、写盘落空却 exit 0 假象）——改文件一律 `node %TEMP%\patch.mjs target old new`（old/new 放 `%TEMP%\obp\`，LF 写即可，自动跟随目标行尾）或独立 .mjs 脚本
+- **cmd 同行 `set X=...&&` 后续命令读不到 X**（解析期展开）：用 `set "X=..."& call 命令` 延迟展开；powershell 在 cmd 里被锤坏不可用
+- **adb 三坑**：① forward 会留死套接字（模拟器重启后转发还在、连接即断）——删掉重建，CDP fetch 加 `AbortSignal.timeout`；② devtools socket 真名是 `webview_devtools_remote_<pid>`（`adb shell cat /proc/net/unix` 查），不是固定名；③ aapt/apksigner 不认中文路径——dump APK 先 copy 到 %TEMP% ASCII 路径
+- **findstr 的 `\|` 不表"或"**（空格分隔才是 OR），且对 UTF-8 中文内容经常哑火——查证用 node 读文件
+- **sendevent 键码**：Alt 是 56（58 是 CapsLock）
+- **`tauri android build` 包装进程假死**：APK 已产出但 android-studio-script 挂住不退——对产物时间戳确认后直接 cancel 后台任务，别傻等
+- **安卓权限随安装态失效**：dev/release 切换装卸、`pm clear` 后 MANAGE_EXTERNAL_STORAGE 丢授权——必须 `adb shell appops set com.oblet.app MANAGE_EXTERNAL_STORAGE allow` 再 force-stop 重启，否则文件全部读不了（曾致"全体打不开"假象）
+- **桌面 CDP 冒烟**：`set WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` 起 `tauri dev`；合成 contextmenu 必须派发到 `.ProseMirror`（view.dom），派到 `.milkdown` 是祖先、事件不下沉
+- **安卓返回键"已消费"判定靠 preventDefault**：MainActivity 注入合成 Esc，dispatchEvent 返回 false 才认为页面消费（否则退后台）——所有浮层 Esc handler 必须 `preventDefault()`；window 捕获层同相位按注册序触发（这条链曾藏"菜单开着按 Esc 连带关 tab"的隐性 bug，v0.8.0 已修）
+
 ## 已知合理规范化（不是 bug）
 
 首次保存产生一批渲染等价的 AST 归一化（空格/列表符/围栏符/标题格式/转义字符等），之后往返字节级不变。表格统一输出紧凑形态（`| a | b |` + `|---|---|`）：已是紧凑写法的手写表格零 diff，padding 对齐过的表格首次保存归一化。详见《技术设计文档》第 5 节。低优先级转义噪音（词内 `*`、空括号、单反引号等）不修。
@@ -130,5 +147,6 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - `src-tauri/target/` 约 3.6G 属 Rust 调试编译产物常态，已 gitignore，清理用 `cargo clean`（需先关闭运行中的 oblet.exe，否则文件锁导致拒绝访问）。
 - `ref/` 是参考素材（历史主题、测试文档），不参与运行时。
 - `scripts/`（repro-*/verify-* 冒烟）、根目录 `test-*-roundtrip.mjs`、`Oblet-打磨*.md`、本文件均为**本地开发资产**：.gitignore 防回流云端，本地保留可正常跑；CI 发布链路依赖的组包/审计/许可收集脚本在 `.github/`（`npm run pack` / `npm run audit` 即指向那里）。
+- **安卓调试环境**：模拟器 `oblet_dev`（API 34 x86_64）；CDP 经 `adb forward tcp:9222` 连 WebView；不练真机 adb，实体机测试由用户自装 APK；每次修复必须在模拟器实测（截图/CDP）。
 - 回复与文档一律使用简体中文。
 
