@@ -199,8 +199,19 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  /** content/file URI → /sdcard 真实路径（D5：解析不了的来源返回 null，上层提示） */
+  /** content/file URI → /sdcard 真实路径（D5：解析不了的来源返回 null，上层提示）。
+   *  出口统一 canonicalize：/sdcard 与 /storage/emulated/0 是同一文件系统的两个拼写，
+   *  不归一会让同文件在历史/tab 里去重失效 */
   private fun resolveToPath(uri: Uri): String? {
+    val raw = resolveRaw(uri) ?: return null
+    return try {
+      File(raw).canonicalPath
+    } catch (_: Exception) {
+      raw
+    }
+  }
+
+  private fun resolveRaw(uri: Uri): String? {
     when (uri.scheme) {
       "file" -> return uri.path
       "content" -> {}

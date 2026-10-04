@@ -132,9 +132,29 @@ pub fn note_recent_file(app: &AppHandle, path: &str) {
     let Ok(mut s) = get_settings(app.clone()) else {
         return;
     };
-    let mut list = s.editor.recent_files.take().unwrap_or_default();
-    list.retain(|p| p != path);
-    list.insert(0, path.to_string());
+    // 移动端 canonicalize 归一拼写（/sdcard 与 /storage/emulated/0 同一文件系统），
+    // 新增与存量条目统一归一后去重；桌面无此问题（且 canonicalize 会带 \\?\ 前缀），跳过
+    #[cfg(mobile)]
+    let canon = |p: &str| {
+        std::fs::canonicalize(p)
+            .map(|c| c.to_string_lossy().to_string())
+            .unwrap_or_else(|_| p.to_string())
+    };
+    #[cfg(not(mobile))]
+    let canon = |p: &str| p.to_string();
+    let path = canon(path);
+    let mut seen = std::collections::HashSet::new();
+    let mut list: Vec<String> = s
+        .editor
+        .recent_files
+        .take()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| canon(&p))
+        .filter(|p| seen.insert(p.clone()))
+        .collect();
+    list.retain(|p| *p != path);
+    list.insert(0, path);
     list.truncate(10);
     s.editor.recent_files = Some(list);
     let _ = save_settings(app.clone(), s);
