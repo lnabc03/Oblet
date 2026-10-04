@@ -95,12 +95,14 @@ jobs:
           workspaces: src-tauri
           cache-all-crates: true
 
-      # NDK 版本对齐本地开发（27.2.x）；runner 预装 SDK 的 ndk 目录可能无此版本
+      # NDK 版本对齐本地开发（27.2.x）；sdkmanager 不在 PATH，用绝对路径
       - name: Install Android NDK
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "ndk;27.2.12479018"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null
+          "$SDKMANAGER" "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
       - run: npm ci
 
