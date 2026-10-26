@@ -1,10 +1,11 @@
 mod commands;
 mod settings;
 mod state;
+mod text_encoding;
 
-use state::AppState;
 #[cfg(desktop)]
 use notify::EventKind;
+use state::AppState;
 #[cfg(desktop)]
 use state::{fnv1a, window_label_for};
 #[cfg(desktop)]
@@ -19,7 +20,9 @@ const MD_ICON_BYTES: &[u8] = include_bytes!("../icons/md.ico");
 /// 首次启动时将内嵌的 md.ico 释放到 exe 同级目录
 #[cfg(windows)]
 fn ensure_md_icon() {
-    let Ok(exe) = std::env::current_exe() else { return };
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
     let Some(dir) = exe.parent() else { return };
     let dest = dir.join("md.ico");
     if !dest.exists() {
@@ -31,9 +34,7 @@ fn ensure_md_icon() {
 #[cfg(desktop)]
 fn read_allow_multi_window() -> bool {
     let exe = std::env::current_exe().ok();
-    let path = exe.and_then(|p| {
-        Some(p.parent()?.join("data").join("settings.json"))
-    });
+    let path = exe.and_then(|p| Some(p.parent()?.join("data").join("settings.json")));
     let path = match path {
         Some(p) if p.exists() => p,
         _ => return false, // 首次运行无设置文件，默认单窗口
@@ -43,8 +44,7 @@ fn read_allow_multi_window() -> bool {
         Err(_) => return false,
     };
     // 简单解析：找 "allow_multi_window":true（不做完整 JSON 解析，避免引入 serde 依赖到主模块）
-    text.contains("\"allow_multi_window\": true")
-        || text.contains("\"allow_multi_window\":true")
+    text.contains("\"allow_multi_window\": true") || text.contains("\"allow_multi_window\":true")
 }
 
 /// 打开文件对应窗口；已打开则聚焦。
@@ -132,14 +132,26 @@ fn open_or_focus(app: &AppHandle, path: &str) {
     }
 }
 
-/// 从命令行参数中提取第一个 .md 文件路径（相对路径基于 cwd 解析）
+/// 桌面首实例与单实例转发共用的文档扩展名规则。
 #[cfg(desktop)]
-fn md_arg_from(argv: &[String], cwd: &str) -> Option<String> {
+fn is_supported_document_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            ["md", "markdown", "mdown", "mkd", "txt"]
+                .iter()
+                .any(|supported| extension.eq_ignore_ascii_case(supported))
+        })
+}
+
+/// 从命令行参数中提取第一个受支持文档路径（相对路径基于 cwd 解析）
+#[cfg(desktop)]
+fn document_arg_from(argv: &[String], cwd: &str) -> Option<String> {
     argv.iter().skip(1).find_map(|arg| {
-        if !arg.to_lowercase().ends_with(".md") {
+        let p = PathBuf::from(arg);
+        if !is_supported_document_path(&p) {
             return None;
         }
-        let p = PathBuf::from(arg);
         let abs = if p.is_absolute() {
             p
         } else {
@@ -169,77 +181,75 @@ fn new_dir_arg_from(argv: &[String]) -> Option<String> {
 fn desktop_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // 文件监听器：外部变更（如 Obsidian 保存）→ 通知对应窗口重载
     let handle = app.handle().clone();
-    match notify::recommended_watcher(
-        move |res: Result<notify::Event, notify::Error>| {
-            let Ok(event) = res else { return };
-            if !matches!(
-                event.kind,
-                EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
-            ) {
-                return;
-            }
-            // 编辑器保存常伴随一串事件，稍作去抖再读盘
-            std::thread::sleep(std::time::Duration::from_millis(100));
+    match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+        let Ok(event) = res else { return };
+        if !matches!(
+            event.kind,
+            EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+        ) {
+            return;
+        }
+        // 编辑器保存常伴随一串事件，稍作去抖再读盘
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
-            let norm = |p: &Path| {
-                p.to_string_lossy()
-                    .trim_start_matches(r"\\?\")
-                    .replace('/', "\\")
-                    .to_lowercase()
-            };
-            let state = handle.state::<AppState>();
-            let watched: Vec<(String, Vec<PathBuf>)> = state
-                .watched
-                .lock()
-                .unwrap()
+        let norm = |p: &Path| {
+            p.to_string_lossy()
+                .trim_start_matches(r"\\?\")
+                .replace('/', "\\")
+                .to_lowercase()
+        };
+        let state = handle.state::<AppState>();
+        let watched: Vec<(String, Vec<PathBuf>)> = state
+            .watched
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(k, dirs)| (k.clone(), dirs.iter().cloned().collect()))
+            .collect();
+
+        for (label, dirs) in watched {
+            // 事件路径是否命中该窗口监听的任一目录
+            if !event
+                .paths
                 .iter()
-                .map(|(k, dirs)| (k.clone(), dirs.iter().cloned().collect()))
-                .collect();
-
-            for (label, dirs) in watched {
-                // 事件路径是否命中该窗口监听的任一目录
-                if !event.paths.iter().any(|ep| {
-                    dirs.iter().any(|d| {
-                        ep.starts_with(d)
-                    })
-                }) {
-                    continue;
-                }
-                // 检查事件中涉及的 .md 文件是否在该窗口的 tab 列表中
-                let windows = state.windows.lock().unwrap();
-                let tab_paths: Vec<String> = windows
-                    .get(&label)
-                    .map(|(tabs, _)| tabs.clone())
-                    .unwrap_or_default();
-                drop(windows);
-                // 找到受影响的 tab 文件（事件路径与该 tab 路径匹配）
-                let affected: Vec<&String> = tab_paths
-                    .iter()
-                    .filter(|tp| {
-                        let norm_tp = norm(&PathBuf::from(tp));
-                        event.paths.iter().any(|ep| norm(ep) == norm_tp)
-                    })
-                    .collect();
-                if affected.is_empty() {
-                    continue;
-                }
-                // 检查哈希过滤：所有受影响的文件哈希都与记录一致则跳过
-                let all_stale = affected.iter().all(|tp| {
-                    if let Ok(bytes) = std::fs::read(tp) {
-                        state.is_stale_hash(tp, fnv1a(&bytes))
-                    } else {
-                        false // 读不到 = 真被删，放行
-                    }
-                });
-                if all_stale {
-                    continue;
-                }
-                if let Some(win) = handle.get_webview_window(&label) {
-                    let _ = win.emit(&format!("file-changed:{label}"), ());
-                }
+                .any(|ep| dirs.iter().any(|d| ep.starts_with(d)))
+            {
+                continue;
             }
-        },
-    ) {
+            // 检查事件中涉及的 .md 文件是否在该窗口的 tab 列表中
+            let windows = state.windows.lock().unwrap();
+            let tab_paths: Vec<String> = windows
+                .get(&label)
+                .map(|(tabs, _)| tabs.clone())
+                .unwrap_or_default();
+            drop(windows);
+            // 找到受影响的 tab 文件（事件路径与该 tab 路径匹配）
+            let affected: Vec<&String> = tab_paths
+                .iter()
+                .filter(|tp| {
+                    let norm_tp = norm(&PathBuf::from(tp));
+                    event.paths.iter().any(|ep| norm(ep) == norm_tp)
+                })
+                .collect();
+            if affected.is_empty() {
+                continue;
+            }
+            // 检查哈希过滤：所有受影响的文件哈希都与记录一致则跳过
+            let all_stale = affected.iter().all(|tp| {
+                if let Ok(bytes) = std::fs::read(tp) {
+                    state.is_stale_hash(tp, fnv1a(&bytes))
+                } else {
+                    false // 读不到 = 真被删，放行
+                }
+            });
+            if all_stale {
+                continue;
+            }
+            if let Some(win) = handle.get_webview_window(&label) {
+                let _ = win.emit(&format!("file-changed:{label}"), ());
+            }
+        }
+    }) {
         Ok(w) => {
             *app.state::<AppState>().watcher.lock().unwrap() = Some(w);
         }
@@ -251,7 +261,7 @@ fn desktop_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_default();
 
-    if let Some(path) = md_arg_from(&argv, &cwd) {
+    if let Some(path) = document_arg_from(&argv, &cwd) {
         open_or_focus(app.handle(), &path);
     } else {
         // 右键「新建 Markdown 文档」首实例：记录目标目录，前端 boot 后读取弹命名框
@@ -259,16 +269,13 @@ fn desktop_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
             *app.state::<AppState>().pending_new_dir.lock().unwrap() = Some(dir);
         }
         // 无参数启动：开一个空窗口（同 open_or_focus：初始隐藏 + 3s 兜底）
-        let win = WebviewWindowBuilder::new(
-            app.handle(),
-            "main",
-            WebviewUrl::App("index.html".into()),
-        )
-        .title("Oblet")
-        .inner_size(960.0, 720.0)
-        .transparent(true)
-        .visible(false)
-        .build()?;
+        let win =
+            WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("index.html".into()))
+                .title("Oblet")
+                .inner_size(960.0, 720.0)
+                .transparent(true)
+                .visible(false)
+                .build()?;
         let _ = state::FIRST_WINDOW_BUILT_MS.set(state::epoch_ms());
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_secs(3));
@@ -292,7 +299,7 @@ pub fn run() {
     #[cfg(all(not(debug_assertions), desktop))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
         // 第二实例启动：唤醒已有窗口或新开窗口
-        if let Some(path) = md_arg_from(&argv, &cwd) {
+        if let Some(path) = document_arg_from(&argv, &cwd) {
             open_or_focus(app, &path);
         } else if let Some(dir) = new_dir_arg_from(&argv) {
             // 右键「新建 Markdown 文档」：通知前台窗口弹命名框（定向 emit 避免多窗口重复弹）
@@ -360,4 +367,33 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(all(test, desktop))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn document_argument_supports_all_markdown_and_txt_extensions() {
+        let cwd = std::env::current_dir().unwrap();
+        let cwd = cwd.to_string_lossy();
+        for extension in ["md", "markdown", "mdown", "mkd", "txt", "MD", "TXT"] {
+            let argv = vec!["oblet.exe".to_string(), format!("note.{extension}")];
+            let path = document_arg_from(&argv, &cwd).unwrap();
+            assert!(Path::new(&path).is_absolute());
+            assert!(path.ends_with(&format!("note.{extension}")));
+        }
+    }
+
+    #[test]
+    fn document_argument_ignores_flags_and_unsupported_extensions() {
+        let argv = vec![
+            "oblet.exe".to_string(),
+            "--new".to_string(),
+            r"C:\work".to_string(),
+            "note.html".to_string(),
+            "note".to_string(),
+        ];
+        assert_eq!(document_arg_from(&argv, r"C:\work"), None);
+    }
 }
