@@ -1,0 +1,231 @@
+/* TXT 纯文本编辑器：仅消费 --ob-*，不引入 Markdown/Crepe 结构样式。 */
+.ob-plaintext-host {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: var(--ob-text);
+  background: transparent;
+}
+
+.ob-plaintext-editor.cm-editor {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+  color: var(--ob-text);
+  background: transparent;
+  font-size: var(--ob-font-size, 16px);
+}
+
+.ob-plaintext-editor.cm-editor.cm-focused {
+  outline: none;
+}
+
+.ob-plaintext-editor .cm-scroller {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: var(--ob-font);
+  line-height: 1.75;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ob-plaintext-editor .cm-content {
+  min-height: 100%;
+  padding: 0;
+  caret-color: var(--ob-text);
+}
+
+.ob-plaintext-editor .cm-line {
+  padding: 0;
+}
+
+.ob-plaintext-editor .cm-content[contenteditable="false"] {
+  cursor: default;
+}
+
+.ob-plaintext-editor .cm-cursor,
+.ob-plaintext-editor .cm-dropCursor {
+  border-left-color: var(--ob-text);
+}
+
+.ob-plaintext-editor .cm-selectionBackground,
+.ob-plaintext-editor.cm-focused .cm-selectionBackground,
+.ob-plaintext-editor ::selection {
+  background: var(--ob-selection);
+}
+
+.ob-plaintext-editor .cm-selectionMatch {
+  background: var(--ob-accent-soft, rgba(150, 110, 220, 0.25));
+}
+
+/* CM 搜索面板与 Oblet 浮层共用配色和控件语言。 */
+.ob-plaintext-editor .cm-panels,
+.ob-plaintext-editor .cm-panels.cm-panels-top,
+.ob-plaintext-editor .cm-panels.cm-panels-bottom {
+  box-sizing: border-box;
+  color: var(--ob-text);
+  background: var(--ob-bg-alt);
+  border-color: var(--ob-border);
+}
+
+.ob-plaintext-editor .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  font-family: var(--font-interface, var(--ob-font));
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.ob-plaintext-editor .cm-search .cm-textfield {
+  box-sizing: border-box;
+  flex: 1 1 150px;
+  min-width: 110px;
+  min-height: 30px;
+  padding: 4px 8px;
+  color: var(--ob-text);
+  background: var(--ob-bg);
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  outline: none;
+  font: inherit;
+}
+
+.ob-plaintext-editor .cm-search .cm-button {
+  min-height: 30px;
+  padding: 4px 9px;
+  color: var(--ob-text);
+  background: var(--ob-bg-low);
+  background-image: none;
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  outline: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ob-plaintext-editor .cm-search .cm-button:hover {
+  background: var(--ob-hover);
+  border-color: var(--ob-accent);
+}
+
+.ob-plaintext-editor .cm-search .cm-textfield:focus-visible,
+.ob-plaintext-editor .cm-search .cm-button:focus-visible,
+.ob-plaintext-editor .cm-search [name="close"]:focus-visible {
+  outline: 1px solid var(--ob-accent);
+  border-color: var(--ob-accent);
+}
+
+.ob-plaintext-editor .cm-search label {
+  color: var(--ob-text-mut);
+  white-space: nowrap;
+}
+
+.ob-plaintext-editor .cm-search input[type="checkbox"] {
+  accent-color: var(--ob-accent);
+}
+
+.ob-plaintext-editor .cm-search [name="close"] {
+  margin-left: auto;
+  color: var(--ob-text-mut);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ob-plaintext-editor .cm-searchMatch {
+  background: var(--ob-accent-soft, rgba(150, 110, 220, 0.28));
+  outline: 1px solid var(--ob-accent);
+}
+
+.ob-plaintext-editor .cm-searchMatch-selected {
+  background: var(--ob-selection);
+}
+
+/* 既有文档容器负责滚动，版心与 ProseMirror 一致。 */
+.markdown-rendered .ob-plaintext-host {
+  height: auto;
+  min-height: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.markdown-rendered .ob-plaintext-host .ob-plaintext-editor {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.markdown-rendered .ob-plaintext-host .cm-scroller {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+/* 触屏搜索控件扩大点击区域，正文仍沿用用户排版字号。 */
+@media (hover: none), (pointer: coarse), (max-width: 600px) {
+  .ob-plaintext-editor .cm-panel.cm-search {
+    gap: 8px;
+    padding: 10px 8px;
+    font-size: 1em;
+  }
+
+  .ob-plaintext-editor .cm-search .cm-textfield,
+  .ob-plaintext-editor .cm-search .cm-button {
+    min-height: 38px;
+  }
+
+  .ob-plaintext-editor .cm-search [name="close"] {
+    min-width: 38px;
+    min-height: 38px;
+  }
+}
+
+/* 打印放开所有滚动裁剪，并保留空格、Tab、换行和软换行。 */
+@media print {
+  .ob-plaintext-host,
+  .markdown-rendered .ob-plaintext-host {
+    height: auto;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .ob-plaintext-editor.cm-editor,
+  .markdown-rendered .ob-plaintext-host .ob-plaintext-editor {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .ob-plaintext-editor .cm-scroller,
+  .markdown-rendered .ob-plaintext-host .cm-scroller {
+    height: auto;
+    min-height: 0;
+    overflow: visible !important;
+  }
+
+  .ob-plaintext-editor .cm-content {
+    min-height: 0;
+    white-space: pre-wrap !important;
+    white-space: break-spaces !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .ob-plaintext-editor .cm-panels,
+  .ob-plaintext-editor .cm-cursorLayer,
+  .ob-plaintext-editor .cm-selectionLayer {
+    display: none !important;
+  }
+}
