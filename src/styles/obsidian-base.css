@@ -1467,12 +1467,3 @@ body {
 body.ob-ctx-open .milkdown-toolbar {
   display: none !important;
 }
-
-/* 双编辑器共享 .markdown-rendered 滚动宿主，只显示活动文档类型。 */
-.ob-editor-hidden {
-  display: none !important;
-}
-/* TXT 没有 Markdown 标题树；隐藏但保留 PM TOC，切回时由 replaceAll 自然刷新。 */
-body.ob-doc-text .ob-toc {
-  display: none !important;
-}

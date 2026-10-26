@@ -9,7 +9,6 @@ import "./styles/theme-github.css";
 import "./styles/theme-minimal.css";
 import "./styles/theme-nord.css";
 import "./styles/theme-things.css";
-import "./styles/plaintext.css";
 import "./styles/html.css";
 import "./styles/toc.css"; // 悬浮 TOC（主题变量就绪后加载）
 import { invoke } from "@tauri-apps/api/core";

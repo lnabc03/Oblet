@@ -4,17 +4,10 @@ import type { EditorView } from "@milkdown/prose/view";
 import { IS_MOBILE } from "../platform";
 import { runCommand } from "../commands";
 import { editorMenuEntries, openMenu, type MenuEntry } from "./contextmenu";
-import type { DocumentKind } from "./adapter";
 
 export interface AppMenuHandlers {
   /** 编辑器存活时返回其 view（起始页为 null，此时不展示编辑区命令） */
   getView: () => EditorView | null;
-  /** 当前文档类型；起始页为 null */
-  getDocumentKind: () => DocumentKind | null;
-  hasEditor: () => boolean;
-  openSearch: () => void;
-  rename: () => void;
-  print: () => void;
   /** 「打开文件…」：走原生 SAF 选择器（无桥时该项不显示） */
   openFile: () => void;
   /** 「新建文件」 */
@@ -69,17 +62,13 @@ export function initAppMenu(h: AppMenuHandlers) {
     if (view) {
       entries.push({ label: "", enabled: false, divider: true });
       entries.push(...editorMenuEntries(view));
-    } else if (h.getDocumentKind() === "text") {
-      entries.push({ label: "", enabled: false, divider: true });
-      entries.push({ label: "导出为 PDF", enabled: true, run: () => h.print() });
-      entries.push({ label: "重命名文档", enabled: true, run: () => h.rename() });
     }
 
     entries.push({ label: "", enabled: false, divider: true });
     entries.push({
       label: "搜索替换",
-      enabled: h.hasEditor(),
-      run: () => h.openSearch(),
+      enabled: !!view,
+      run: () => runCommand("search"),
     });
     entries.push({
       label: "切换深色/浅色",

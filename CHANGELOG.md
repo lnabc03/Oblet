@@ -5,20 +5,7 @@
 ## [0.9.0] - 2026-10-26
 
 ### 新增
-- **TXT 纯文本编辑（Windows / Android）**：独立 CodeMirror 6 编辑器，不经过 Markdown 解析与序列化；支持打开、编辑、自动保存、混合 Tab、外部变更重载、检索、重命名和 PDF。仅支持 `.txt`，不主动新增默认文件关联。
-- **编码识别与保真**：UTF-8 / UTF-8 BOM 可编辑且 BOM 写回；UTF-16 LE/BE BOM 与可靠识别的 GBK/GB18030 正确解码后只读；未知编码明确提示可能不完整并禁止写回。
-- **GitHub README 安全渲染兼容**：常见块级与行内 HTML、图片、表格、可折叠 details/summary 及 details 内 Markdown 直接渲染。HTML 原文始终为事实源，支持块级与行内源码编辑；DOMPurify 白名单、危险协议阻断、相对图片解析、HTTP/HTTPS 与相对 `.md` 链接分派。
-- **Android 系统打印**：Markdown 与 TXT 均可经 `PrintManager` 导出 PDF。
-
-### 变更
-- 编辑器抽象为 Markdown / TXT 双实现，共享文件生命周期；Ctrl+F 按活动文档类型路由，移动端菜单同步提供搜索、重命名与 PDF。
-- TXT 检索改用与 Markdown 完全相同的自绘浮条（同一份 DOM、样式与查询/替换交互），不再使用 CodeMirror 默认搜索面板。
-- Tab 缓存记录编码与 BOM；切换前先用旧路径完成自动保存，选择丢弃时恢复磁盘基线，避免延迟保存串档。
-
-### 修复
-- 重命名文档保留原扩展名，不再把非 `.md` 文件强制改成 Markdown。
-- HTML 与 Markdown 行内标记混嵌时的原始嵌套次序保真，避免 ProseMirror mark 排序改写源码。
-- **TXT 选区被 CodeMirror 浅色默认覆盖**：深色主题下白字压浅蓝/浅灰底难以辨认；选区、活动行与检索高亮统一跟随 `--ob-*` 主题变量。
+- **GitHub README 风格安全 HTML 渲染**：常见块级与行内 HTML、图片、表格、可折叠 details/summary 以及 details 内 Markdown 直接渲染。HTML 原文始终是事实源，支持块级与行内源码编辑；DOMPurify 白名单、危险协议阻断、相对图片解析、HTTP/HTTPS 与相对 `.md` 链接分派。不执行脚本，不把渲染后的 DOM 写回文件。
 
 ## [0.8.0] - 2026-10-04
 

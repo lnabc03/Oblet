@@ -38,16 +38,34 @@ async function editInlineHtml(view: EditorView) {
   const source = getHtmlInlineSource(view, pos);
   if (!source) return;
   if (typeof source.value === "string") {
-    const value = await promptDialog("编辑行内 HTML", "输入完整的单标签源码", "保存", "取消", source.value);
+    const value = await promptDialog(
+      "编辑行内 HTML",
+      "输入完整的单标签源码",
+      "保存",
+      "取消",
+      source.value,
+    );
     if (value == null) return;
     if (!updateHtmlInlineSource(view, pos, { value })) {
       notify("仅支持有效的 img、br 或 wbr 单标签", "warn");
     }
     return;
   }
-  const open = await promptDialog("编辑行内 HTML 开始标签", "例如 <a href=\"https://…\">", "继续", "取消", source.open ?? "");
+  const open = await promptDialog(
+    "编辑行内 HTML 开始标签",
+    '例如 <a href="https://…">',
+    "继续",
+    "取消",
+    source.open ?? "",
+  );
   if (open == null) return;
-  const close = await promptDialog("编辑行内 HTML 结束标签", "输入与开始标签配对的结束标签", "保存", "取消", source.close ?? "");
+  const close = await promptDialog(
+    "编辑行内 HTML 结束标签",
+    "输入与开始标签配对的结束标签",
+    "保存",
+    "取消",
+    source.close ?? "",
+  );
   if (close == null) return;
   if (!updateHtmlInlineSource(view, pos, { open, close })) {
     notify("开始与结束标签必须配对，且不能改变标签类型", "warn");
@@ -129,7 +147,8 @@ const ITEMS: Item[] = [
   {
     label: "编辑 HTML 源码",
     run: (v) => void editInlineHtml(v),
-    enabled: (v) => v.editable && getHtmlInlineSource(v, v.state.selection.from) !== null,
+    enabled: (v) =>
+      v.editable && getHtmlInlineSource(v, v.state.selection.from) !== null,
     hide: (v) => getHtmlInlineSource(v, v.state.selection.from) === null,
   },
   {

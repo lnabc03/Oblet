@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.print.PrintManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
@@ -69,20 +68,6 @@ class MainActivity : TauriActivity() {
       val clip = cm.primaryClip ?: return ""
       if (clip.itemCount == 0) return ""
       return clip.getItemAt(0).coerceToText(this@MainActivity)?.toString() ?: ""
-    }
-
-    /** 系统打印/PDF：WebView 的 window.print() 在 Android 没有桌面式打印链路。 */
-    @android.webkit.JavascriptInterface
-    fun printDocument() {
-      runOnUiThread {
-        val wv = webView ?: return@runOnUiThread
-        val printManager = getSystemService(PrintManager::class.java)
-        printManager.print(
-          "Oblet",
-          wv.createPrintDocumentAdapter("Oblet"),
-          null,
-        )
-      }
     }
   }
 

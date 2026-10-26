@@ -3,7 +3,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Android-0078D4)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-轻量、快速的独立 Markdown / TXT 编辑器（Windows / Android）。双击任意 `.md` 文件即开即编辑，支持单窗口多标签页，不需要库（vault）、不需要登录、不收集任何数据。
+轻量、快速的独立 Markdown 编辑器（Windows / Android）。双击任意 `.md` 文件即开即编辑，支持单窗口多标签页，不需要库（vault）、不需要登录、不收集任何数据。
 
 内置 6 款白名单复刻主题（AnuPpuccin / Minimal / Things / GitHub / Atom / Nord），每款均支持深色 / 浅色 / 跟随系统。第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
@@ -29,8 +29,7 @@
 - Callout：13 类 Obsidian 风格提示块，右键菜单一键创建、切换、回退
 - 高亮：`==文本==` 语法，渲染时隐藏标记
 - 检索与替换：全文档高亮、循环跳转、逐个或全部替换
-- TXT 纯文本：独立 CodeMirror 编辑器，不把 `#`、列表或 HTML 当作 Markdown；支持编辑、检索、混合 Tab、自动保存与 PDF
-- GitHub 风格 HTML：常见块级与行内 HTML、可折叠 details 及其中 Markdown 安全渲染；原文保真，支持源码编辑、相对图片与链接
+- **GitHub README 风格 HTML**：常见块级与行内 HTML、图片、表格、details/summary 及 details 内 Markdown 直接渲染；原文始终是事实源，支持块级与行内源码编辑，脚本与危险协议被阻断
 
 ### 文件与窗口
 
@@ -42,8 +41,7 @@
 - 自动保存：500ms 防抖，原子写入，换行符跟随原文件
 - 外部变更监听：文件被外部修改时自动重载，有未保存内容则提示，绝不静默覆盖
 - 只读保护：非 UTF-8 文件以只读方式打开，绝不乱码写回
-- 编码保真：UTF-8 BOM 与 CRLF/LF 跟随原文件；UTF-16、可靠识别的 GBK 正确解码并只读
-- 导出：Markdown 可保存至 Obsidian Vault 文件夹；Markdown / TXT 均可导出为 PDF（Windows / Android）
+- 导出：保存至 Obsidian Vault 文件夹，或导出为 PDF（桌面端）
 - 窗口置顶：置顶态按钮高亮主题色（桌面端）
 - 绿色便携：单 exe 解压即用，设置存于 exe 同级 `data/settings.json`
 
@@ -53,7 +51,6 @@
 - 系统打通：`.md` 文件「打开方式」注册、返回键逐级关闭弹层/标签页、沉浸式全屏、物理键盘快捷键（Esc、Alt+1~6）
 - 触屏交互：长按选区工具栏自动避让系统复制/粘贴菜单、块手柄跟随光标、目录点按展开
 - 文件链路：系统文件选择器打开、新建文件默认落 `Documents/`、目录不存在自动创建
-- 系统打印：经 Android `PrintManager` 输出 PDF；`.md` 与 `.txt` 均可打开编辑，TXT 不新增主动文件关联
 
 ### 外观
 
@@ -69,7 +66,7 @@
 
 1. 从 [Releases](https://github.com/lnabc03/Oblet/releases) 下载 `Oblet-x.y.z-win-x64.zip`，解压到任意位置（或下载单文件 `Oblet-x.y.z-win-x64.exe`）
 2. 注册右键集成（可选）：以管理员身份运行 `register-md.bat`，将 `.md` 关联到 Oblet 并注册右键新建菜单；`unregister-md.bat` 一键撤销
-3. 双击任意 `.md` 文件，或将 `.md` / `.txt` 文件拖入 Oblet 窗口（TXT 也可经欢迎页「打开文件」选择，不主动注册默认打开方式）
+3. 双击任意 `.md` 文件，或将文件拖入 Oblet 窗口
 
 首次运行 Windows 可能弹出"Windows 已保护你的电脑"：因为 exe 没有付费代码签名证书。点击"更多信息"→"仍要运行"即可。源码全部公开，可自行构建验证。
 
@@ -79,7 +76,7 @@
 
 1. 从 [Releases](https://github.com/lnabc03/Oblet/releases) 下载 `Oblet-x.y.z-android-arm64.apk`，侧载安装
 2. 首次启动按引导授予「所有文件访问」权限（读取 `/sdcard` 上的 md 文件所需；不授权则只能编辑应用私有目录）
-3. 从文件管理器点任意 `.md` 选择 Oblet 打开，或在欢迎页使用「打开文件 / 最近打开 / 新建 Markdown 文件」选择 `.md` / `.txt`
+3. 从文件管理器点任意 `.md` 选择 Oblet 打开，或在欢迎页使用「打开文件 / 最近打开 / 新建 Markdown 文件」
 
 APK 使用 CI 现场生成的 debug 密钥签名（侧载分发性质），安装时系统提示「未知来源」属正常；覆盖安装若提示签名不一致，请先卸载旧版（编辑内容在你的 md 文件里，不受影响）。
 

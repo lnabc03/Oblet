@@ -35,11 +35,12 @@ import { initSettingsUI } from "../settings/ui";
 import { initAppMenu } from "./appmenu";
 import { IS_MOBILE } from "../platform";
 import { noHoverPointer, obletPlugins } from "./plugins";
+import { searchPlugin } from "./search";
 import {
-  closeMarkdownSearch,
-  searchPlugin,
-  setPlaintextSearchHandler,
-} from "./search";
+  configureHtml,
+  configureHtmlRuntime,
+  htmlPlugins,
+} from "./html";
 import { tocPlugin } from "./toc";
 import { contextMenuPlugin, openMenu, setExportHandlers, type MenuEntry } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
@@ -47,7 +48,7 @@ import { toolbarConfig, toggleCallout, toggleHighlight } from "./toolbar";
 import { obletCmTheme } from "./cm-theme";
 import { renderMermaidPreview, whenMermaidIdle } from "./mermaid";
 import { confirmDialog, notify, promptDialog } from "../notify";
-import { registerCommand, runCommand } from "../commands";
+import { registerCommand } from "../commands";
 const logoUrl = "/logo.png";
 import {
   disableEmptyLineBr,
@@ -75,30 +76,12 @@ import {
   type TabsModel,
   type TabArrows,
 } from "./tabs";
-import {
-  documentKindForPath,
-  isSupportedDocumentPath,
-  MARKDOWN_EXTENSIONS,
-  TEXT_EXTENSIONS,
-  type DocumentIOMeta,
-  type DocumentKind,
-  type EditorAdapter,
-} from "./adapter";
-import { createMarkdownAdapter } from "./markdown-adapter";
-import { createPlainTextEditor, type PlainTextEditor } from "./plaintext";
-import {
-  configureHtml,
-  configureHtmlRuntime,
-  htmlPlugins,
-} from "./html";
 
 interface FilePayload {
   content: string;
   newline: string;
   readonly: boolean;
   readonly_reason: string | null;
-  encoding: string;
-  bom: boolean;
 }
 
 interface TabsPayload {
@@ -152,33 +135,8 @@ export async function boot() {
   // 移动端应用菜单（左上角 ☰，appmenu.ts）：触屏上长按右键与选中工具栏互相干扰，
   // 给打开/最近/新建/设置等提供显性常驻入口；appView 在编辑器创建后回填（起始页为 null）
   let appView: EditorView | null = null;
-  let activeDocumentKind: DocumentKind | null = null;
-  const plainTextControls = { search: () => {}, closeSearch: () => {} };
-  let markdownDom: HTMLElement | null = null;
-  let markdownEditorView: EditorView | null = null;
-  let plainHost: HTMLElement | null = null;
-  let plainEditor: PlainTextEditor | null = null;
-  function syncActiveEditor() {
-    const kind = documentKindForPath(path);
-    activeDocumentKind = kind;
-    const text = kind === "text";
-    markdownDom?.classList.toggle("ob-editor-hidden", text);
-    plainHost?.classList.toggle("ob-editor-hidden", !text);
-    document.body.classList.toggle("ob-doc-text", text);
-    host.classList.toggle("ob-plaintext-active", text);
-    appView = text ? null : markdownEditorView;
-    setPlaintextSearchHandler(text ? () => plainEditor?.openSearch() : null);
-  }
   initAppMenu({
     getView: () => appView,
-    getDocumentKind: () => activeDocumentKind,
-    hasEditor: () => activeDocumentKind !== null,
-    openSearch: () => {
-      if (activeDocumentKind === "text") plainTextControls.search();
-      else if (activeDocumentKind === "markdown") runCommand("search");
-    },
-    rename: () => void doRename(),
-    print: () => doPrint(),
     openFile: () =>
       (
         window as unknown as { ObletNative?: { pickFile?: () => void } }
@@ -256,10 +214,6 @@ export async function boot() {
   // ---- 打开路径到 tab（桌面 add-tab 事件与安卓 Intent 桥共用同一链路） ----
   const openPathInTab = async (newPath: string) => {
     if (!newPath) return;
-    if (!isSupportedDocumentPath(newPath)) {
-      notify("仅支持 Markdown（.md 等）与 .txt 文件", "warn");
-      return;
-    }
     // 去重：已在列表中则仅切换
     const existingIdx = tabsModel.paths.findIndex(
       (p) => samePath(p, newPath)
@@ -368,8 +322,7 @@ export async function boot() {
       const picked = await open({
         multiple: false,
         filters: [
-          { name: "Markdown", extensions: [...MARKDOWN_EXTENSIONS] },
-          { name: "文本文档", extensions: [...TEXT_EXTENSIONS] },
+          { name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] },
         ],
       });
       if (typeof picked === "string") void openPathInTab(picked);
@@ -392,10 +345,10 @@ export async function boot() {
     const pendingDir = await invoke<string | null>("take_pending_new_dir").catch(() => null);
     if (pendingDir) void createNoteIn(pendingDir);
 
-    // 空窗口拖入受支持文档
+    // 空窗口拖入 .md
     await getCurrentWindow().onDragDropEvent(async (e) => {
       if (e.payload.type !== "drop") return;
-      const md = e.payload.paths.find((p) => isSupportedDocumentPath(p));
+      const md = e.payload.paths.find((p) => p.toLowerCase().endsWith(".md"));
       if (!md) return;
       try {
         const result = await invoke<TabsPayload>("add_tab", { path: md });
@@ -413,7 +366,6 @@ export async function boot() {
   tabsModel.sync(initialPayload.tabs, initialPayload.active_index);
 
   let path = initialPayload.path;
-  activeDocumentKind = documentKindForPath(path);
   let payload: FilePayload;
   try {
     payload = await invoke<FilePayload>("read_file", { path });
@@ -427,8 +379,6 @@ export async function boot() {
     location.reload();
     return;
   }
-  payload.encoding ??= "utf8";
-  payload.bom ??= false;
   bootTiming.fileRead = performance.now();
 
   /** 图片 DOM src 解析：远程原样；本地绝对/相对路径转 asset 协议。
@@ -473,22 +423,17 @@ export async function boot() {
   let pendingSave = false;
   let suppressSave = false; // replaceAll 期间不触发自动保存
   let saveTimer: number | undefined;
-  let markdownAdapter: EditorAdapter | null = null;
-  let plainTextAdapter: EditorAdapter | null = null;
-  const activeEditor = () =>
-    documentKindForPath(path) === "text" ? plainTextAdapter : markdownAdapter;
   // 内容与磁盘一致的判定基准（getMarkdown 总是 LF，比较前归一化）
   let lastContent = payload.content.replace(/\r\n/g, "\n");
 
   /** 立即保存；返回是否成功（只读视为成功——无需保存） */
   const flushSave = async (): Promise<boolean> => {
-    const editor = activeEditor();
-    if (payload.readonly || !editor) return true;
+    if (payload.readonly || !crepe) return true;
     if (saving) {
       pendingSave = true;
       return true;
     }
-    const md = editor.getContent();
+    const md = crepe.getMarkdown();
     // 内容与磁盘一致：不写回（未编辑不写回的最后防线）
     if (md === lastContent) {
       dirty = false;
@@ -496,13 +441,7 @@ export async function boot() {
     }
     saving = true;
     try {
-      await invoke("write_file", {
-        path,
-        content: md,
-        newline: payload.newline,
-        encoding: payload.encoding,
-        bom: payload.bom,
-      });
+      await invoke("write_file", { path, content: md, newline: payload.newline });
       lastContent = md;
       dirty = false;
       return true;
@@ -530,35 +469,32 @@ export async function boot() {
 
   // ---- tab 切换桥接（闭包暴露给 tabs.ts 的 switchToTab） ----
   tabCallbacks = {
-    getEditor: activeEditor,
+    getCrepe: () => crepe,
     getSuppressSave: () => suppressSave,
     setSuppressSave: (v: boolean) => { suppressSave = v; },
     getDirty: () => dirty,
     setDirty: (v: boolean) => { dirty = v; },
     getLastContent: () => lastContent,
     setLastContent: (v: string) => { lastContent = v; },
-    getPayload: (): DocumentIOMeta => ({
-      newline: payload.newline,
-      readonly: payload.readonly,
-      readonly_reason: payload.readonly_reason,
-      encoding: payload.encoding,
-      bom: payload.bom,
-    }),
-    setPayload: (p: DocumentIOMeta) => {
+    getPayload: () => ({ newline: payload.newline, readonly: payload.readonly, readonly_reason: payload.readonly_reason }),
+    setPayload: (p: { newline: string; readonly: boolean; readonly_reason: string | null }) => {
       payload.newline = p.newline;
       payload.readonly = p.readonly;
       payload.readonly_reason = p.readonly_reason;
-      payload.encoding = p.encoding;
-      payload.bom = p.bom;
     },
     updateBanner,
-    setPath: (p: string) => {
-      path = p;
-      syncActiveEditor();
-    },
+    setPath: (p: string) => { path = p; },
     clearSearch: () => {
-      plainTextControls.closeSearch();
-      closeMarkdownSearch();
+      // 清空搜索高亮状态（如果搜索插件暴露了清理方法）
+      // searchPlugin 暂无公开 clear API，通过关闭搜索浮层来清理
+      document.querySelector(".ob-search")?.remove();
+      document.querySelectorAll(".ob-search-highlight").forEach((el) => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ""), el);
+          parent.normalize();
+        }
+      });
     },
   };
 
@@ -568,8 +504,6 @@ export async function boot() {
     newline: payload.newline,
     readonly: payload.readonly,
     readonly_reason: payload.readonly_reason,
-    encoding: payload.encoding,
-    bom: payload.bom,
     dirty: false,
   });
 
@@ -629,16 +563,12 @@ export async function boot() {
     id: "save-vault",
     title: "另存",
     defaultCombo: "Ctrl+O",
-    run: () => {
-      if (documentKindForPath(path) === "markdown") {
-        void exportToVault(path, crepe.getMarkdown());
-      }
-    },
+    run: () => void exportToVault(path, crepe.getMarkdown()),
   });
 
   const crepe = new Crepe({
     root: host,
-    defaultValue: activeDocumentKind === "text" ? "" : payload.content,
+    defaultValue: payload.content,
     features: {
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.TopBar]: false,
@@ -792,34 +722,7 @@ export async function boot() {
 
   await crepe.create();
   const editorView = crepe.editor.ctx.get(editorViewCtx);
-  markdownEditorView = editorView;
-  markdownDom = host.querySelector<HTMLElement>(":scope > .milkdown");
-  markdownAdapter = createMarkdownAdapter(crepe, editorView, host);
-  plainHost = document.createElement("div");
-  host.appendChild(plainHost);
-  plainEditor = createPlainTextEditor(
-    plainHost,
-    activeDocumentKind === "text" ? payload.content.replace(/\r\n/g, "\n") : "",
-    payload.readonly,
-    () => {
-      if (documentKindForPath(path) === "text" && !suppressSave && !payload.readonly) {
-        scheduleSave();
-      }
-    },
-  );
-  plainTextControls.search = plainEditor.openSearch;
-  plainTextControls.closeSearch = plainEditor.closeSearch;
-  const textEditor = plainEditor;
-  plainTextAdapter = {
-    kind: "text",
-    getContent: textEditor.getContent,
-    replaceContent: textEditor.replaceContent,
-    setReadonly: textEditor.setReadonly,
-    getSelection: textEditor.getSelection,
-    restoreSelection: textEditor.restoreSelection,
-    focus: textEditor.focus,
-  };
-  syncActiveEditor();
+  appView = editorView;
   bootTiming.crepeCreated = performance.now();
   // 移动端选区工具栏与系统浮动操作菜单叠屏（两者都定位在选区上方，系统菜单
   // 盖住 Crepe 工具栏致其不可点）：floating-ui 每次定位（style 属性变化）后
@@ -896,7 +799,7 @@ export async function boot() {
   // 格式化快捷键（十轮 #4）：经命令注册表统一派发（捕获阶段拦截 + preventDefault，
   // PM 收不到按键，不会与 Milkdown 内置 Mod-b/Mod-i 重复触发）；默认组合可在设置中覆盖。
   // 只读文件全部静默放行（命令会真实改文档，不能靠 PM editable 挡）
-  const editable = () => documentKindForPath(path) === "markdown" && !payload.readonly;
+  const editable = () => !payload.readonly;
   registerCommand({
     id: "bold",
     title: "加粗",
@@ -956,7 +859,6 @@ export async function boot() {
     title: "选中当前行",
     defaultCombo: "Ctrl+D",
     run: () => {
-      if (documentKindForPath(path) !== "markdown") return;
       crepe.editor.action((ctx) => {
         const view = ctx.get(editorViewCtx);
         const { $from, $to } = view.state.selection;
@@ -1011,15 +913,6 @@ export async function boot() {
         view.focus();
       }),
     getMarkdown: () => crepe.getMarkdown(),
-    getContent: () => activeEditor()?.getContent() ?? "",
-    documentKind: () => documentKindForPath(path),
-    /** TXT 选区冒烟：段内字符偏移，聚焦后由 CM 绘制真实选区层 */
-    selectPlainTextRange: (from: number, to: number) => {
-      if (!plainEditor) return false;
-      plainEditor.restoreSelection({ from, to });
-      plainEditor.focus();
-      return true;
-    },
     /** 主题切换冒烟（多主题一期）：走正式保存+广播链路 */
     testSetTheme: (mode: "dark" | "light" | "system" | null) =>
       switchTypography({ theme_mode: mode }),
@@ -1082,13 +975,6 @@ export async function boot() {
     if (e.key !== "Escape") return;
     // 二次保险：弹窗/提示框打开时不抢
     if (document.querySelector(".ob-confirm-overlay")) return;
-    if (activeDocumentKind === "text" && plainEditor?.isSearchOpen()) {
-      e.preventDefault();
-      e.stopPropagation();
-      plainTextControls.closeSearch();
-      plainEditor?.focus();
-      return;
-    }
     e.preventDefault();
     e.stopPropagation();
     (async () => {
@@ -1157,29 +1043,19 @@ export async function boot() {
   };
   const doPrint = () => {
     void (async () => {
-      if (documentKindForPath(path) === "markdown") {
-        await mountAllCodeBlocks();
-        await whenMermaidIdle();
-      }
-      if (IS_MOBILE) {
-        const printDocument = (
-          window as unknown as { ObletNative?: { printDocument?: () => void } }
-        ).ObletNative?.printDocument;
-        if (printDocument) printDocument();
-        else notify("当前环境不支持系统打印", "warn");
-      } else {
-        window.print();
-      }
+      await mountAllCodeBlocks();
+      await whenMermaidIdle(); // mermaid 渲染是异步的，挂载完再等图表出图，否则打印页是 Loading 占位
+      window.print();
     })();
   };
-  // 重命名当前文档：预填原文件名（去扩展名），Rust 保留原扩展名并同步
+  // v0.6.0 重命名当前文档：预填原文件名（去 .md），Rust rename_file 落盘并同步
   // 所有窗口 tab 路径与内容哈希，本地迁移缓存 key + path 闭包，监听自动适配（目录不变）
   const doRename = async () => {
     const oldName =
-      path.replace(/\\/g, "/").split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
+      path.replace(/\\/g, "/").split("/").pop()?.replace(/\.md$/i, "") ?? "";
     const name = await promptDialog(
       "重命名文档",
-      "输入新文件名（不含扩展名）",
+      "输入新文件名（不含 .md）",
       "重命名",
       "取消",
       oldName
@@ -1262,68 +1138,16 @@ export async function boot() {
   };
   setExportHandlers({
     // 7.1 保存至 Vault：复制语义以编辑器当前内容为准（getMarkdown 与 Ctrl+S 同源）
-    vault: () => {
-      if (documentKindForPath(path) === "markdown") {
-        void exportToVault(path, crepe.getMarkdown());
-      }
-    },
+    vault: () => void exportToVault(path, crepe.getMarkdown()),
     // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
     // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
     // D9：移动端 window.print() 链路在 Android WebView 行为不同，初版隐藏入口
-    print: doPrint,
+    print: IS_MOBILE ? undefined : doPrint,
     // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
     rename: () => void doRename(),
     // v0.7.0 转换图片为相对路径（assets/）
     localizeImages: () => void localizeImages(),
   });
-
-  // TXT 桌面右键：复用自绘菜单，剪贴板与选区操作走真实 CM 事务。
-  const desktopPlainHost = plainHost;
-  const desktopPlainEditor = plainEditor;
-  if (!IS_MOBILE && desktopPlainHost && desktopPlainEditor) {
-    desktopPlainHost.addEventListener("contextmenu", (event) => {
-      if (documentKindForPath(path) !== "text") return;
-      event.preventDefault();
-      const selection = desktopPlainEditor.getSelection();
-      const hasSelection = selection.from !== selection.to;
-      const canEdit = !payload.readonly;
-      const focusAnd = (action: () => void) => {
-        desktopPlainEditor.focus();
-        action();
-      };
-      openMenu(event.clientX, event.clientY, [
-        {
-          label: "复制",
-          enabled: hasSelection,
-          run: () => focusAnd(() => document.execCommand("copy")),
-        },
-        {
-          label: "剪切",
-          enabled: hasSelection && canEdit,
-          run: () => focusAnd(() => document.execCommand("cut")),
-        },
-        {
-          label: "粘贴",
-          enabled: canEdit,
-          run: () => {
-            void navigator.clipboard.readText()
-              .then((text) => {
-                if (text) desktopPlainEditor.insertText(text);
-              })
-              .catch(() => notify("无法读取剪贴板，请用 Ctrl+V 粘贴", "warn"));
-          },
-        },
-        {
-          label: "全选",
-          enabled: true,
-          run: () => desktopPlainEditor.selectAll(),
-        },
-        { label: "", enabled: false, divider: true },
-        { label: "导出为 PDF", enabled: true, run: () => doPrint() },
-        { label: "重命名文档", enabled: true, run: () => void doRename() },
-      ]);
-    });
-  }
   // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键。
   // 移动端不注册（D9 初版隐藏导出 PDF）
   if (!IS_MOBILE) {
@@ -1372,25 +1196,19 @@ export async function boot() {
         return;
       }
       payload.newline = fresh.newline;
-      payload.encoding = fresh.encoding;
-      payload.bom = fresh.bom;
-      payload.readonly = fresh.readonly;
-      payload.readonly_reason = fresh.readonly_reason;
       lastContent = fresh.content.replace(/\r\n/g, "\n");
       suppressSave = true;
-      activeEditor()?.replaceContent(fresh.content);
+      crepe.editor.action(replaceAll(fresh.content));
       suppressSave = false;
-      activeEditor()?.setReadonly(fresh.readonly);
-      updateBanner();
     } else {
       notify("文件已被外部修改，当前有未保存内容，未自动重载。", "warn");
     }
   });
 
-  // ---- 拖入文档：追加到 tab 列表并切换 ----
+  // ---- 拖入 .md：追加到 tab 列表并切换（批次 7.3） ----
   await getCurrentWindow().onDragDropEvent(async (e) => {
     if (e.payload.type !== "drop") return;
-    const md = e.payload.paths.find((p) => isSupportedDocumentPath(p));
+    const md = e.payload.paths.find((p) => p.toLowerCase().endsWith(".md"));
     if (!md || samePath(md, path)) return;
 
     // 去重：已在列表中则仅切换

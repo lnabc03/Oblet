@@ -1,10 +1,14 @@
-// 双编辑器单当前文档方案：切 tab 经适配层替换内容，undo 不跨 tab 保留
+// Tab 切换系统（批次 7.3 多文档单窗口）
+// 单 Crepe 实例方案：切 tab 即 replaceAll 换内容，undo 不跨 tab 保留
 import { invoke } from "@tauri-apps/api/core";
+import { replaceAll, $prose } from "@milkdown/utils";
+import { editorViewCtx } from "@milkdown/core";
+import { Plugin, PluginKey, TextSelection } from "@milkdown/prose/state";
+import type { Crepe } from "@milkdown/crepe";
 import { confirmDialog, notify } from "../notify";
 import { currentEditorSettings } from "../settings/typography";
 
 import { pathKey } from "./image-paths";
-import type { DocumentIOMeta, EditorAdapter } from "./adapter";
 
 // ---- 类型 ----
 
@@ -14,8 +18,6 @@ export interface TabState {
   newline: string;
   readonly: boolean;
   readonly_reason: string | null;
-  encoding: string;
-  bom: boolean;
   dirty: boolean;
   /** 切出时保存的光标位置（from），切回时恢复 */
   cursorFrom?: number;
@@ -38,8 +40,8 @@ const ARROW_RIGHT_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentCol
 // ---- 回调接口：setup.ts 注入闭包 ----
 
 export interface TabsCallbacks {
-  /** 当前活动编辑器（起始页尚未创建时为 null） */
-  getEditor: () => EditorAdapter | null;
+  /** 当前 Crepe 实例引用（可能为 null，起始页尚未创建） */
+  getCrepe: () => Crepe | null;
   /** 获取/设置 suppressSave 标志 */
   getSuppressSave: () => boolean;
   setSuppressSave: (v: boolean) => void;
@@ -50,8 +52,8 @@ export interface TabsCallbacks {
   getLastContent: () => string;
   setLastContent: (v: string) => void;
   /** 获取/设置 payload */
-  getPayload: () => DocumentIOMeta;
-  setPayload: (p: DocumentIOMeta) => void;
+  getPayload: () => { newline: string; readonly: boolean; readonly_reason: string | null };
+  setPayload: (p: { newline: string; readonly: boolean; readonly_reason: string | null }) => void;
   /** 更新只读横幅 */
   updateBanner: () => void;
   /** 清空搜索高亮状态 */
@@ -73,8 +75,6 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
         newline: "CRLF",
         readonly: false,
         readonly_reason: null,
-        encoding: "utf8",
-        bom: false,
         dirty: false,
       });
     }
@@ -118,8 +118,6 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
             newline: "CRLF",
             readonly: false,
             readonly_reason: null,
-            encoding: "utf8",
-            bom: false,
             dirty: false,
           });
         }
@@ -144,8 +142,6 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
             newline: "CRLF",
             readonly: false,
             readonly_reason: null,
-            encoding: "utf8",
-            bom: false,
             dirty: false,
           });
         }
@@ -179,8 +175,6 @@ export function createTabsModel(initialTabs: string[], activeIndex: number) {
           newline: "CRLF",
           readonly: false,
           readonly_reason: null,
-          encoding: "utf8",
-          bom: false,
           dirty: false,
         });
       }
@@ -267,57 +261,53 @@ export async function switchToTab(
     return;
   }
 
-  const editor = cb.getEditor();
-  if (!editor) return;
+  const crepe = cb.getCrepe();
+  if (!crepe) return;
 
   // ⚠️ 以下所有"保存当前状态"操作必须在 updatePaths 之前完成——
   // updatePaths 会改变 tabs[active] 指向，导致缓存键污染。
 
   // 1. 保存当前光标/滚动位置（用 oldActivePath 定位缓存键）
   try {
-    const selection = editor.getSelection();
-    const cur = model.get(oldActivePath);
-    if (cur) {
-      cur.cursorFrom = selection.from;
-      cur.cursorTo = selection.to;
-      cur.scrollTop = selection.scrollTop;
+    const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+    if (view) {
+      const sel = view.state.selection;
+      const cur = model.get(oldActivePath);
+      if (cur) {
+        cur.cursorFrom = sel.from;
+        cur.cursorTo = sel.to;
+        cur.scrollTop = (view.dom.parentElement as HTMLElement)?.scrollTop ?? 0;
+      }
     }
   } catch { /* ignore */ }
 
-  let contentForCache = editor.getContent();
-
-  // 2. 脏内容处理：自动保存也必须用旧路径完成，不能把延迟定时器带到新 tab。
+  // 2. 脏内容处理
   if (cb.getDirty() && !cb.getPayload().readonly) {
     const autoSave = currentEditorSettings().auto_save;
-    let shouldSave = autoSave !== false;
-    if (!shouldSave) {
+    if (autoSave === false) {
       const choice = await confirmDialog("有未保存的更改，切换前要保存吗？", "保存", "丢弃");
       if (choice === null) return;
-      shouldSave = choice === true;
-      if (!shouldSave) contentForCache = cb.getLastContent();
-    }
-    if (shouldSave && contentForCache !== cb.getLastContent()) {
-      try {
-        const meta = cb.getPayload();
-        await invoke("write_file", {
-          path: oldActivePath,
-          content: contentForCache,
-          newline: meta.newline,
-          encoding: meta.encoding,
-          bom: meta.bom,
-        });
-      } catch (e) {
-        notify(`保存失败：${e}`, "error");
-        return;
+      if (choice) {
+        cb.setDirty(false);
+        const md = crepe.getMarkdown();
+        const last = cb.getLastContent();
+        if (md !== last) {
+          try {
+            await invoke("write_file", { path: oldActivePath, content: md, newline: cb.getPayload().newline });
+          } catch (e) {
+            notify(`保存失败：${e}`, "error");
+            return;
+          }
+        }
       }
     }
-    cb.setDirty(false);
   }
 
-  // 3. 保存当前 tab 的原文到缓存（key = oldActivePath）
+  // 3. 保存当前 tab 的 markdown 到缓存（key = oldActivePath）
+  const curMd = crepe.getMarkdown();
   const curCache = model.get(oldActivePath);
   if (curCache) {
-    curCache.content = contentForCache;
+    curCache.content = curMd;
     curCache.dirty = cb.getDirty();
   }
 
@@ -330,7 +320,7 @@ export async function switchToTab(
   let tab = model.get(targetPath);
   if (!tab?.content) {
     try {
-      const fresh = await invoke<{ content: string } & DocumentIOMeta>(
+      const fresh = await invoke<{ content: string; newline: string; readonly: boolean; readonly_reason: string | null }>(
         "read_file",
         { path: targetPath }
       );
@@ -341,8 +331,6 @@ export async function switchToTab(
           newline: fresh.newline,
           readonly: fresh.readonly,
           readonly_reason: fresh.readonly_reason,
-          encoding: fresh.encoding,
-          bom: fresh.bom,
           dirty: false,
         };
       } else {
@@ -350,8 +338,6 @@ export async function switchToTab(
         tab.newline = fresh.newline;
         tab.readonly = fresh.readonly;
         tab.readonly_reason = fresh.readonly_reason;
-        tab.encoding = fresh.encoding;
-        tab.bom = fresh.bom;
       }
     } catch (e) {
       notify(`文件已被删除或无法读取：${e}`, "error");
@@ -364,13 +350,11 @@ export async function switchToTab(
   // 6. 切换到目标：先设置 active，再替换内容
   model.setActiveIndex(newIndex);
   cb.setPath(targetPath);
-  const nextEditor = cb.getEditor();
-  if (!nextEditor) return;
 
   // 7. 替换编辑器内容
   cb.setSuppressSave(true);
   try {
-    nextEditor.replaceContent(tab!.content);
+    crepe.editor.action(replaceAll(tab!.content));
   } catch { /* ignore */ }
   cb.setSuppressSave(false);
   cb.setDirty(false);
@@ -379,20 +363,33 @@ export async function switchToTab(
     newline: tab!.newline,
     readonly: tab!.readonly,
     readonly_reason: tab!.readonly_reason,
-    encoding: tab!.encoding,
-    bom: tab!.bom,
   });
-  nextEditor.setReadonly(tab!.readonly);
+  crepe.setReadonly(tab!.readonly);
   cb.updateBanner();
   cb.clearSearch();
 
-  // 8. 由目标编辑器按自身位置模型恢复选区与滚动
+  // 8. 滚动到光标位置（用 PM 原生 scrollIntoView，不跟浏览器抢滚动控制权）
   try {
-    nextEditor.restoreSelection({
-      from: tab!.cursorFrom,
-      to: tab!.cursorTo,
-      scrollTop: tab!.scrollTop,
-    });
+    const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+    if (view) {
+      const doc = view.state.doc;
+      const from = tab!.cursorFrom != null
+        ? Math.min(tab!.cursorFrom, doc.content.size)
+        : 1;
+      const to = tab!.cursorTo != null
+        ? Math.min(tab!.cursorTo, doc.content.size)
+        : from;
+      // 先重置 scrollTop 消除跨文档滚动残留
+      const scrollEl = view.dom.parentElement as HTMLElement;
+      scrollEl.scrollTop = 0;
+      void scrollEl.offsetHeight; // 强制重排：让新文档的 scrollHeight 立即生效
+      // 设光标并让 PM 把光标滚入视口
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.create(doc, from, to))
+          .scrollIntoView()
+      );
+    }
   } catch { /* ignore */ }
 
   // 9. 通知 Rust 侧

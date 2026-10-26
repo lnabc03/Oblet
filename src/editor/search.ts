@@ -8,7 +8,6 @@ import { Decoration, DecorationSet } from "@milkdown/prose/view";
 import type { EditorView } from "@milkdown/prose/view";
 import type { Node as PMNode } from "@milkdown/prose/model";
 import { registerCommand } from "../commands";
-import { createSearchBar, type SearchBar } from "./search-bar";
 
 interface Match {
   from: number;
@@ -25,19 +24,6 @@ interface SearchState {
 const searchKey = new PluginKey<SearchState>("oblet-search");
 
 const CLOSED: SearchState = { open: false, query: "", active: -1, matches: [] };
-
-let plaintextSearchHandler: (() => void) | null = null;
-let markdownSearchCloser: (() => void) | null = null;
-
-/** setup 按活动文档类型注入；TXT 时接管同一 Ctrl+F 命令。 */
-export function setPlaintextSearchHandler(handler: (() => void) | null) {
-  plaintextSearchHandler = handler;
-}
-
-/** 文档切换时由 setup 调用，关闭可能仍打开的 Markdown 检索浮条。 */
-export function closeMarkdownSearch() {
-  markdownSearchCloser?.();
-}
 
 /** 全文档文本扫描（大小写不敏感）。虚拟串方案同高亮插件：
  *  非文本内联节点占一格 ，查询串含  的概率视为零 */
@@ -176,10 +162,61 @@ export const searchPlugin = $prose(() => {
         e.preventDefault();
         e.stopImmediatePropagation();
         dispatchMeta({ type: "close" });
-        v.focus();
       };
       window.addEventListener("keydown", onWinKey, true);
+      const bar = document.createElement("div");
+      bar.className = "search-bar hidden";
+      bar.innerHTML = `
+        <div class="search-row">
+          <span class="search-field">
+            <input type="text" class="search-query" placeholder="搜索…" spellcheck="false">
+            <span class="search-count"></span>
+          </span>
+          <button class="search-prev" title="上一个 (Shift+Enter)">↑</button>
+          <button class="search-next" title="下一个 (Enter)">↓</button>
+          <button class="search-close" title="关闭 (Esc)">✕</button>
+        </div>
+        <div class="search-row">
+          <input type="text" class="search-replace" placeholder="替换为…" spellcheck="false">
+          <button class="replace-one" title="替换当前命中并跳到下一个">替换</button>
+          <button class="replace-all" title="全部替换（一次撤销可整体回退）">全部</button>
+        </div>`;
+      document.body.appendChild(bar);
+
+      const input = bar.querySelector<HTMLInputElement>(".search-query")!;
+      const replaceInput = bar.querySelector<HTMLInputElement>(".search-replace")!;
+      const count = bar.querySelector(".search-count")!;
+      const prevBtn = bar.querySelector<HTMLButtonElement>(".search-prev")!;
+      const nextBtn = bar.querySelector<HTMLButtonElement>(".search-next")!;
+      const closeBtn = bar.querySelector<HTMLButtonElement>(".search-close")!;
+      const replaceOneBtn = bar.querySelector<HTMLButtonElement>(".replace-one")!;
+      const replaceAllBtn = bar.querySelector<HTMLButtonElement>(".replace-all")!;
+
       let wasOpen = false;
+
+      input.addEventListener("input", () =>
+        dispatchMeta({ type: "query", query: input.value })
+      );
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          dispatchMeta({ type: "navigate", delta: e.shiftKey ? -1 : 1 }, true);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          dispatchMeta({ type: "close" });
+          v.focus();
+        }
+      });
+      prevBtn.addEventListener("click", () =>
+        dispatchMeta({ type: "navigate", delta: -1 }, true)
+      );
+      nextBtn.addEventListener("click", () =>
+        dispatchMeta({ type: "navigate", delta: 1 }, true)
+      );
+      closeBtn.addEventListener("click", () => {
+        dispatchMeta({ type: "close" });
+        v.focus();
+      });
 
       // 替换走正常 PM 事务（userEditTracker 会正常标脏、自动保存接管）。
       // 命中区间永不跨块（扫描以 textblock 为单位），纯文本替换安全；
@@ -188,7 +225,7 @@ export const searchPlugin = $prose(() => {
         if (!v.editable) return;
         const s = searchKey.getState(v.state)!;
         if (s.matches.length === 0) return;
-        const text = bar.getReplacement();
+        const text = replaceInput.value;
         const tr = v.state.tr;
         if (all) {
           // 从后往前替换，前面的命中位置不受后面改动影响；单事务 = 单次撤销
@@ -203,19 +240,18 @@ export const searchPlugin = $prose(() => {
         }
         v.dispatch(tr);
       };
-
-      let bar!: SearchBar;
-      bar = createSearchBar({
-        onQuery: (query) => dispatchMeta({ type: "query", query }),
-        onNavigate: (delta) =>
-          dispatchMeta({ type: "navigate", delta }, true),
-        onReplace: (all) => doReplace(all),
-        onClose: (focusEditor) => {
+      replaceOneBtn.addEventListener("click", () => doReplace(false));
+      replaceAllBtn.addEventListener("click", () => doReplace(true));
+      replaceInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doReplace(false);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
           dispatchMeta({ type: "close" });
-          if (focusEditor) v.focus();
-        },
+          v.focus();
+        }
       });
-      markdownSearchCloser = () => dispatchMeta({ type: "close" });
 
       // Ctrl+F（4.4 起经命令注册表统一派发，键位可在设置中覆盖）：
       // 全局捕获已在 commands.ts 派发器内，此处只注册行为；
@@ -225,13 +261,10 @@ export const searchPlugin = $prose(() => {
         title: "检索 / 替换",
         defaultCombo: "Ctrl+F",
         run: () => {
-          if (plaintextSearchHandler) {
-            plaintextSearchHandler();
-            return;
-          }
           const s = searchKey.getState(v.state)!;
           if (s.open) {
-            bar.focusInput();
+            input.focus();
+            input.select();
           } else {
             dispatchMeta({ type: "open" });
           }
@@ -242,34 +275,31 @@ export const searchPlugin = $prose(() => {
       return {
         update(v2) {
           const s = searchKey.getState(v2.state)!;
-          bar.setVisible(s.open);
+          bar.classList.toggle("hidden", !s.open);
           if (s.open && !wasOpen) {
             // 打开时若编辑器有选区，预填为查询词（编辑器惯例）
             const { from, to } = v2.state.selection;
             const selected = v2.state.doc.textBetween(from, to, " ", " ").trim();
-            const query = selected && selected.length <= 100
-              ? selected
-              : bar.getQuery();
-            wasOpen = true;
-            if (query && query !== s.query) {
-              bar.setQuery(query);
-              dispatchMeta({ type: "query", query });
+            if (selected && selected.length <= 100) {
+              input.value = selected;
+              dispatchMeta({ type: "query", query: selected });
             }
-            bar.focusInput();
+            input.focus();
+            input.select();
           }
           wasOpen = s.open;
-          bar.setCount(!s.query
+          count.textContent = !s.query
             ? ""
             : s.matches.length === 0
               ? "无结果"
-              : `${s.active + 1}/${s.matches.length}`);
+              : `${s.active + 1}/${s.matches.length}`;
           // 只读文档或无命中时禁用替换按钮
           const canReplace = v2.editable && s.matches.length > 0;
-          bar.setReplaceEnabled(canReplace);
+          replaceOneBtn.disabled = !canReplace;
+          replaceAllBtn.disabled = !canReplace;
         },
         destroy() {
-          markdownSearchCloser = null;
-          bar.destroy();
+          bar.remove();
           window.removeEventListener("keydown", onWinKey, true);
           view = null;
         },

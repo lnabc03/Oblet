@@ -9,15 +9,11 @@ use tauri::State;
 
 #[derive(Serialize)]
 pub struct FilePayload {
-    /// 文件内容（无法可靠识别编码时为 lossy 转换结果）
+    /// 文件内容（非 UTF-8 时为 lossy 转换结果）
     pub content: String,
     /// 原文件换行符："LF" | "CRLF"
     pub newline: String,
-    /// 逻辑编码："utf8" | "utf16le" | "utf16be" | "gbk" | "unknown"
-    pub encoding: String,
-    /// 原文件是否带 BOM（内容中已剥离）
-    pub bom: bool,
-    /// 是否只读（仅有效 UTF-8 可编辑）
+    /// 是否只读（非 UTF-8 编码时 v1 只读）
     pub readonly: bool,
     /// 只读原因（展示给用户）
     pub readonly_reason: Option<String>,
@@ -58,13 +54,11 @@ pub struct TabsPayload {
 /// 当前窗口的 tab 信息（活跃路径 + 全部 tab 列表 + 索引）
 #[tauri::command]
 pub fn get_window_file(state: State<AppState>, window: tauri::Window) -> Option<TabsPayload> {
-    state
-        .get_tabs(window.label())
-        .map(|(tabs, idx)| TabsPayload {
-            path: tabs.get(idx).cloned().unwrap_or_default(),
-            tabs,
-            active_index: idx,
-        })
+    state.get_tabs(window.label()).map(|(tabs, idx)| TabsPayload {
+        path: tabs.get(idx).cloned().unwrap_or_default(),
+        tabs,
+        active_index: idx,
+    })
 }
 
 /// 追加 tab 到当前窗口并切换到该 tab（批次 7.3）；若路径已在列表中则仅切换。
@@ -83,7 +77,9 @@ pub fn add_tab(
     }
     let label = window.label().to_string();
     let idx = state.add_tab(&label, &path);
-    let (tabs, _) = state.get_tabs(&label).ok_or("窗口未登记")?;
+    let (tabs, _) = state
+        .get_tabs(&label)
+        .ok_or("窗口未登记")?;
     let title = Path::new(&tabs[idx])
         .file_name()
         .and_then(|n| n.to_str())
@@ -159,21 +155,34 @@ pub fn set_window_file(
 #[tauri::command]
 pub fn read_file(state: State<AppState>, path: String) -> Result<FilePayload, String> {
     let bytes = fs::read(&path).map_err(|e| format!("读取文件失败: {e}"))?;
-    // 哈希始终基于磁盘原始 bytes，包括 BOM。
     state.note_hash(&path, fnv1a(&bytes));
 
-    let decoded = crate::text_encoding::decode(&bytes);
-    // 换行符仍以解码后正文的第一个换行为准；UTF-16 不会被零字节干扰。
-    let newline = detect_newline(decoded.content.as_bytes());
+    // 剥离 UTF-8 BOM
+    let bytes = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        &bytes[3..]
+    } else {
+        &bytes[..]
+    };
 
-    Ok(FilePayload {
-        content: decoded.content,
-        newline,
-        encoding: decoded.encoding,
-        bom: decoded.bom,
-        readonly: decoded.readonly,
-        readonly_reason: decoded.readonly_reason,
-    })
+    // 换行符探测：以第一个出现的换行为准
+    let newline = detect_newline(bytes);
+
+    match String::from_utf8(bytes.to_vec()) {
+        Ok(content) => Ok(FilePayload {
+            content,
+            newline,
+            readonly: false,
+            readonly_reason: None,
+        }),
+        Err(_) => Ok(FilePayload {
+            content: String::from_utf8_lossy(bytes).into_owned(),
+            newline,
+            readonly: true,
+            readonly_reason: Some(
+                "该文件不是 UTF-8 编码（可能是 GBK），v1 暂不支持编辑，已只读打开".to_string(),
+            ),
+        }),
+    }
 }
 
 fn detect_newline(bytes: &[u8]) -> String {
@@ -203,36 +212,13 @@ pub fn write_file(
     path: String,
     content: String,
     newline: String,
-    encoding: Option<String>,
-    bom: Option<bool>,
 ) -> Result<(), String> {
-    let output = prepare_write_bytes(&content, &newline, encoding.as_deref(), bom)?;
     let p = Path::new(&path);
     let dir = p.parent().ok_or("非法路径")?;
     let tmp = dir.join(format!(
         ".oblet-tmp-{}",
         p.file_name().and_then(|n| n.to_str()).unwrap_or("untitled")
     ));
-
-    fs::write(&tmp, &output).map_err(|e| format!("写入临时文件失败: {e}"))?;
-    fs::rename(&tmp, p).map_err(|e| {
-        let _ = fs::remove_file(&tmp);
-        format!("落盘失败: {e}")
-    })?;
-    // 记录完整落盘 bytes 的哈希（含 BOM）：文件监听器据此过滤自身写入事件
-    state.note_hash(&path, fnv1a(&output));
-    Ok(())
-}
-
-fn prepare_write_bytes(
-    content: &str,
-    newline: &str,
-    encoding: Option<&str>,
-    bom: Option<bool>,
-) -> Result<Vec<u8>, String> {
-    if encoding.is_some_and(|encoding| encoding != "utf8") {
-        return Err("仅支持写入 UTF-8 编码；非 UTF-8 或未知编码文件必须保持只读".to_string());
-    }
 
     // 先归一化为 LF，再按目标换行符转换
     let normalized = content.replace("\r\n", "\n");
@@ -241,13 +227,15 @@ fn prepare_write_bytes(
     } else {
         normalized
     };
-    let text_bytes = output.as_bytes();
-    let mut bytes = Vec::with_capacity(text_bytes.len() + if bom.unwrap_or(false) { 3 } else { 0 });
-    if bom.unwrap_or(false) {
-        bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
-    }
-    bytes.extend_from_slice(text_bytes);
-    Ok(bytes)
+
+    fs::write(&tmp, output.as_bytes()).map_err(|e| format!("写入临时文件失败: {e}"))?;
+    fs::rename(&tmp, p).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("落盘失败: {e}")
+    })?;
+    // 记录落盘内容哈希：文件监听器据此过滤自身写入事件
+    state.note_hash(&path, fnv1a(output.as_bytes()));
+    Ok(())
 }
 
 /// 监听窗口当前所有 tab 文件所在目录的外部变更（按文件名过滤，
@@ -309,11 +297,7 @@ pub fn watch_file(
 // Acrylic 已按十一轮终审删除（方案留档见打磨清单 4.1，浅色主题适配时或可参考复用）
 // 移动端无此概念：命令保留签名做 no-op，前端调用方无需平台分支
 #[tauri::command]
-pub fn set_window_effect(
-    window: tauri::WebviewWindow,
-    effect: Option<String>,
-    dark: Option<bool>,
-) -> Result<(), String> {
+pub fn set_window_effect(window: tauri::WebviewWindow, effect: Option<String>, dark: Option<bool>) -> Result<(), String> {
     #[cfg(desktop)]
     {
         let res = match effect.as_deref() {
@@ -448,9 +432,16 @@ pub fn rename_file(
     {
         return Err("非法文件名".to_string());
     }
+    let file_name = if clean.to_lowercase().ends_with(".md") {
+        clean.to_string()
+    } else {
+        format!("{clean}.md")
+    };
+
     let old = PathBuf::from(&old_path);
-    let file_name = renamed_file_name(&old, clean);
-    let parent = old.parent().ok_or_else(|| "无法定位父目录".to_string())?;
+    let parent = old
+        .parent()
+        .ok_or_else(|| "无法定位父目录".to_string())?;
     let new_path = parent.join(&file_name);
     let new_path_str = new_path.to_string_lossy().into_owned();
 
@@ -494,23 +485,6 @@ pub fn rename_file(
         .ok_or_else(|| "窗口未登记".to_string())
 }
 
-fn renamed_file_name(old_path: &Path, clean: &str) -> String {
-    // 历史命令只处理 .md；无扩展名的旧路径保留这一默认行为。
-    let old_extension = old_path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .unwrap_or("md");
-    let has_same_extension = Path::new(clean)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case(old_extension));
-    if has_same_extension {
-        clean.to_string()
-    } else {
-        format!("{clean}.{old_extension}")
-    }
-}
-
 /// 清除当前窗口的文件登记（Esc 退回到起始页前调用）并重置标题
 #[tauri::command]
 pub fn clear_window_file(state: State<AppState>, window: tauri::Window) {
@@ -545,8 +519,13 @@ pub fn save_image_asset(
     name: String,
     data: Vec<u8>,
 ) -> Result<String, String> {
-    let path = state.path_for(window.label()).ok_or("窗口未登记文件")?;
-    let dir = Path::new(&path).parent().ok_or("非法路径")?.join("assets");
+    let path = state
+        .path_for(window.label())
+        .ok_or("窗口未登记文件")?;
+    let dir = Path::new(&path)
+        .parent()
+        .ok_or("非法路径")?
+        .join("assets");
     fs::create_dir_all(&dir).map_err(|e| format!("创建 assets 目录失败: {e}"))?;
 
     // Windows 非法字符净化；空名回退 image.png
@@ -627,7 +606,10 @@ pub fn localize_image_assets(
     sources: Vec<String>,
 ) -> Result<Vec<LocalizeItem>, String> {
     let path = state.path_for(window.label()).ok_or("窗口未登记文件")?;
-    let dir = Path::new(&path).parent().ok_or("非法路径")?.join("assets");
+    let dir = Path::new(&path)
+        .parent()
+        .ok_or("非法路径")?
+        .join("assets");
 
     let fail = |source: String, error: String| LocalizeItem {
         source,
@@ -667,11 +649,7 @@ pub fn localize_image_assets(
             _ => (name.clone(), None),
         };
         let make_name = |i: usize| {
-            let base = if i == 0 {
-                stem.clone()
-            } else {
-                format!("{stem}-{i}")
-            };
+            let base = if i == 0 { stem.clone() } else { format!("{stem}-{i}") };
             match &ext {
                 Some(e) => format!("{base}.{e}"),
                 None => base,
@@ -707,61 +685,4 @@ pub fn localize_image_assets(
         }
     }
     Ok(out)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn utf8_bom_is_restored_and_newline_policy_is_unchanged() {
-        let output = prepare_write_bytes("第一行\n第二行", "CRLF", Some("utf8"), Some(true))
-            .expect("UTF-8 BOM 内容应允许写入");
-        let mut expected = vec![0xEF, 0xBB, 0xBF];
-        expected.extend_from_slice("第一行\r\n第二行".as_bytes());
-        assert_eq!(output, expected);
-
-        let legacy_call = prepare_write_bytes("a\r\nb\nc", "LF", None, None)
-            .expect("缺省 encoding/bom 必须兼容旧调用");
-        assert_eq!(legacy_call, b"a\nb\nc");
-        assert!(!legacy_call.starts_with(&[0xEF, 0xBB, 0xBF]));
-    }
-
-    #[test]
-    fn non_utf8_and_unknown_writes_are_explicitly_rejected() {
-        for encoding in ["utf16le", "utf16be", "gbk", "unknown"] {
-            let error = prepare_write_bytes("内容", "LF", Some(encoding), Some(true))
-                .expect_err("非 UTF-8 写入必须被 Rust 命令拒绝");
-            assert!(error.contains("仅支持写入 UTF-8"));
-        }
-    }
-
-    #[test]
-    fn rename_preserves_old_extension_without_duplicating_it() {
-        for extension in ["md", "markdown", "mdown", "mkd", "txt"] {
-            let old_name = format!("folder/old.{extension}");
-            let old_path = Path::new(&old_name);
-            assert_eq!(
-                renamed_file_name(old_path, "renamed"),
-                format!("renamed.{extension}")
-            );
-            assert_eq!(
-                renamed_file_name(old_path, &format!("renamed.{extension}")),
-                format!("renamed.{extension}")
-            );
-        }
-
-        assert_eq!(
-            renamed_file_name(Path::new("old.TXT"), "renamed.Txt"),
-            "renamed.Txt"
-        );
-        assert_eq!(
-            renamed_file_name(Path::new("old.txt"), "renamed.md"),
-            "renamed.md.txt"
-        );
-        assert_eq!(
-            renamed_file_name(Path::new("old_without_extension"), "renamed"),
-            "renamed.md"
-        );
-    }
 }
