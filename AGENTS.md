@@ -144,6 +144,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - **sendevent 键码**：Alt 是 56（58 是 CapsLock）
 - **`tauri android build` 包装进程假死**：APK 已产出但 android-studio-script 挂住不退——对产物时间戳确认后直接 cancel 后台任务，别傻等
 - **安卓权限随安装态失效**：dev/release 切换装卸、`pm clear` 后 MANAGE_EXTERNAL_STORAGE 丢授权——必须 `adb shell appops set com.oblet.app MANAGE_EXTERNAL_STORAGE allow` 再 force-stop 重启，否则文件全部读不了（曾致"全体打不开"假象）
+- **本机 `tauri android build --apk --target aarch64` release 可能卡在 Gradle transforms 搬移**（`mergeUniversalReleaseNativeLibs` / `generateReleaseLintModel`：Could not move temporary workspace to immutable location）。JVM 必须用 `.gradle/gradle.properties` 的 JDK 21（Java 25 报 class major 69），隔离 `GRADLE_USER_HOME`、单 worker 仍可能复现；本地功能验收可改用 `--debug` 构建自动签名的 arm64 APK，CI 标准 release 链不受本机 transforms 问题影响。
 - **桌面 CDP 冒烟**：`set WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` 起 `tauri dev`；合成 contextmenu 必须派发到 `.ProseMirror`（view.dom），派到 `.milkdown` 是祖先、事件不下沉
 - **安卓返回键"已消费"判定靠 preventDefault**：MainActivity 注入合成 Esc，dispatchEvent 返回 false 才认为页面消费（否则退后台）——所有浮层 Esc handler 必须 `preventDefault()`；window 捕获层同相位按注册序触发（这条链曾藏"菜单开着按 Esc 连带关 tab"的隐性 bug，v0.8.0 已修）
 

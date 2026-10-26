@@ -1,6 +1,6 @@
 # Oblet v0.9.0 迭代技术设计：TXT 与 GitHub 风格 HTML
 
-> 状态：实现完成，Windows 验收通过，Android 验收中
+> 状态：实现完成；Windows 全链路验收通过，Android APK 已构建待真机验收
 > 日期：2026-10-26  
 > 基线：v0.8.0  
 > 关联文档：《Oblet-技术设计文档》、`GLOSSARY.md`、ADR 0001、ADR 0002
@@ -243,5 +243,5 @@ Windows release 的 `oblet.exe` 构建成功；MSI 阶段仍为项目已知的 `
 
 ### 9.3 待完成
 
-- Android APK 构建、模拟器安装、权限、TXT/HTML、返回键与系统打印验证。
-- Android 结果确认后更新版本号、CHANGELOG、README 与发版审计。
+- Android 真机安装与功能验收由用户执行，重点检查权限、TXT/HTML、返回键与系统打印。
+- 本机 release Gradle 构建受 transforms 原子搬移失败影响，已交付同版本 debug APK 供功能验收；CI Release 仍使用标准 release 构建链。
