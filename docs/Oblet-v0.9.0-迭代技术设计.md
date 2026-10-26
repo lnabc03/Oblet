@@ -1,6 +1,6 @@
 # Oblet v0.9.0 迭代技术设计：TXT 与 GitHub 风格 HTML
 
-> 状态：已评审，进入实现  
+> 状态：实现完成，Windows 验收通过，Android 验收中
 > 日期：2026-10-26  
 > 基线：v0.8.0  
 > 关联文档：《Oblet-技术设计文档》、`GLOSSARY.md`、ADR 0001、ADR 0002
@@ -214,3 +214,34 @@ Milkdown 已把 CommonMark `html` mdast 节点保存为原始字符串，当前�
 7. 版本升级与发布准备。
 
 实施顺序可按文件所有权并行，但最终保真与双端验收只能在集成完成后进行。
+
+## 9. 实现记录（2026-10-26）
+
+### 9.1 已落地结构
+
+- `adapter.ts`：文档类型、IO 元数据与 `EditorAdapter`；`markdown-adapter.ts` 封装 PM，`plaintext.ts` 提供 CM 纯文本实现。
+- `text_encoding.rs`：UTF-8/BOM、UTF-16 BOM、GBK/GB18030 与 unknown 解码；`commands.rs` 统一编码元数据、BOM 写回和重命名保扩展名。
+- `html.ts`：`html_block`、`html_details`、`html_inline_atom` 与按 HTML 嵌套深度、Markdown phrasing 边界分层的 inline marks，避免 PM mark 固定排序改写原文嵌套次序。
+- details 保存摘要、开闭标签、子节点间隔与 body/close 空白；HTML 与 Markdown 混嵌均只序列化原文，不读取渲染 DOM 回写。
+- `setup.ts` 同时装配两个编辑器，按活动路径切换显隐、命令和 Ctrl+F；Tab 切换先用旧路径保存，丢弃时恢复磁盘基线。
+- Android `ObletNative.printDocument` 使用系统 `PrintManager`，桌面继续使用 `window.print()`。
+
+### 9.2 已执行验证
+
+| 验证 | 结果 |
+| --- | --- |
+| `node scripts/test-plaintext.mjs` | 10/10 PASS |
+| `node scripts/test-html.mjs` | 21/21 PASS，含混嵌保真和真实 README 二轮稳定 |
+| `node scripts/test-break-roundtrip.mjs` | 全部 PASS |
+| `node scripts/test-list-roundtrip.mjs` | 全部 PASS |
+| `cargo test` | 9/9 PASS |
+| `npm run build` / `cargo check` | 通过 |
+| `node scripts/repro-v090.mjs` | 29/29 PASS，真实 WebView2 全流程 |
+| README 视觉检查 | `scripts/.repro/v090/readme.png`，表格、图片、details 与行内链接可读 |
+
+Windows release 的 `oblet.exe` 构建成功；MSI 阶段仍为项目已知的 `light.exe` 失败，不影响本次 CDP 所用 exe。真实验收覆盖 BOM/CRLF、自动保存、外部重载、混合 Tab、TXT 重命名、UTF-16 只读、HTML 全文往返、源码编辑、XSS 和实样零写回。
+
+### 9.3 待完成
+
+- Android APK 构建、模拟器安装、权限、TXT/HTML、返回键与系统打印验证。
+- Android 结果确认后更新版本号、CHANGELOG、README 与发版审计。

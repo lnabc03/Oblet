@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目定位
 
-Oblet：轻量、快速的独立 Markdown 编辑器（Windows / Android，v0.8.0 起双端），双击 .md 即编辑，默认单窗口多 Tab。技术栈 Tauri 2 (Rust) + Vite 8 + TypeScript 7 + Milkdown 7.22.1（Crepe 底座）。主题为原生多主题（白名单固化 6 款，各深/浅双模）：AnuPpuccin（默认）/ Atom / GitHub / Minimal / Nord / Things，全部由蒸馏器从 Obsidian 主题生成（`src/styles/theme-*.css`），不做运行时主题导入、不兼容任意 Obsidian 主题。详见《Oblet-技术设计文档.md》与《多主题支持调研报告.md》。
+Oblet：轻量、快速的独立 Markdown / TXT 编辑器（Windows / Android，v0.8.0 起双端），双击 .md 即编辑，v0.9.0 起支持 TXT 纯文本与 GitHub README 风格原生 HTML 安全渲染，默认单窗口多 Tab。技术栈 Tauri 2 (Rust) + Vite 8 + TypeScript 7 + Milkdown 7.22.1（Crepe 底座）+ CodeMirror 6（TXT）。主题为原生多主题（白名单固化 6 款，各深/浅双模）：AnuPpuccin（默认）/ Atom / GitHub / Minimal / Nord / Things，全部由蒸馏器从 Obsidian 主题生成（`src/styles/theme-*.css`），不做运行时主题导入、不兼容任意 Obsidian 主题。详见《Oblet-技术设计文档.md》《Oblet-v0.9.0-迭代技术设计.md》与《多主题支持调研报告.md》。
 
-**第一原则：序列化保真。** 保存不得对 md 原文做任何侵入性修改（不改写未编辑区域：不加行尾 `\`、不把 `---` 写成 `***`、不插 `<br />`、不注入转义实体、不擅增删空行）。与 Obsidian 双向编辑同一文件时必须无损。任何违反都视为 bug。
+**第一原则：序列化保真。** 保存不得对 Markdown/TXT/HTML 原文做任何侵入性修改（不改写未编辑区域：不加行尾 `\`、不把 `---` 写成 `***`、不插 `<br />`、不注入转义实体、不擅增删空行、不把渲染 DOM 写回）。与 Obsidian 双向编辑同一 Markdown 文件时必须无损。任何违反都视为 bug。
 
 ## 常用命令
 
@@ -24,6 +24,9 @@ npm run tauri android build -- --apk --target aarch64  # arm64 release APK（apk
 # 序列化回归测试（独立脚本，非测试框架；改序列化逻辑后必跑，需全部 PASS）
 node scripts/test-break-roundtrip.mjs   # 换行/hr/转义/frontmatter 往返
 node scripts/test-list-roundtrip.mjs    # 列表/任务列表污染回归
+node scripts/test-plaintext.mjs         # TXT 组件：原文/只读/选区/搜索/菜单
+node scripts/test-html.mjs              # HTML 保真/details/混嵌/链接/XSS/真实 README
+node scripts/repro-v090.mjs             # 真实 WebView2 综合验收（先构建最新 release 且无 oblet.exe 运行）
 
 # 发布组包与出口审计
 npm run pack     # 干净暂存 → release/Oblet-<版本>-win-x64.zip
@@ -60,18 +63,21 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 
 - `lib.rs`：窗口管理（label = 路径 FNV-1a 哈希）、单实例（重复打开聚焦已有窗口/追加 Tab）、notify 文件监听（目录引用计数：同目录多 tab 只 watch 一次）。桌面专属逻辑以 `cfg(desktop)`/`cfg(mobile)` 隔离（desktop_setup 收监听+argv+建窗；移动端窗口由 Activity 建、文件入口走 Intent → MainActivity 解析投递）
 - `commands.rs`：`read_file`（BOM 剥离、CRLF/LF 探测、非 UTF-8 只读）、`write_file`（临时文件 + rename 原子写入，换行符跟随原文件）、`watch_file`（监听父目录按文件名过滤，兼容 rename 式保存）、`export_to_vault`（复制到 Vault 目标目录：file_name 拒收路径分隔符防逃逸、同名返回约定错误码 `EXISTS` 由前端弹确认、原子写）、`save_image_asset`（粘贴/拖入图片落盘 assets/，同名 -1 后缀）、`probe_image_path`（图片加载失败原因分级：魔数判别格式）、`localize_image_assets`（批量转相对路径：同名同内容复用、异内容后缀、逐源去重）、`add_tab`/`remove_tab`/`switch_tab`（Tab 切换系统：追加/移除/切换标签页，返回 TabsPayload 同步前端）
+- `text_encoding.rs`：v0.9.0 编码识别与只读边界——UTF-8/UTF-8 BOM 可编辑且 BOM 写回；UTF-16 LE/BE BOM 与可靠识别的 GBK/GB18030 正确解码只读；unknown 明示可能乱码且禁止写回。`read_file` 返回 `encoding/bom`，`write_file` 仅接收 utf8 并在原文件带 BOM 时恢复。
 - `state.rs`：AppState（`windows: HashMap<label, (Vec<String>, usize)>` 窗口→(路径列表, 活跃索引)、内容哈希缓存）。**自写过滤靠 FNV-1a 哈希**：读写都记哈希，监听事件哈希一致即忽略——Windows 下 rename 覆盖保存会对目标发 Remove 事件，绝不能见 Remove 就通知重载。`add_tab` 去重：路径已在列表中则返回已有索引。
 - `settings.rs`：`./data/settings.json`（exe 同级，绿色版；移动端存 app 私有数据目录），存排版/编辑器覆盖 + Obsidian `vault_dir` + 最近打开 `recent_files`（add_tab 全平台登记，置顶去重封顶 10）
 
 **前端（src/）**：
 
 - `platform.ts`：**平台判定唯一来源**（IS_MOBILE / COARSE_POINTER）——新功能先想双端，UI 分叉走这里；欢迎页/按钮样式全平台一致（2026-10 用户批示，不做平台分叉样式）
-- `main.ts`：CSS 顺序敏感——Crepe → obsidian-base.css → theme-*.css ×6（全部带 `body.ob-t-<id>` 门控前缀，共存互不泄漏）→ toc.css（后者覆盖前者 fallback）
-- `editor/setup.ts`：Crepe 装配 + 文件生命周期（防抖自动保存、外部变更重载、拖入换文件）+ 导出动作装配（`setExportHandlers` 注入右键菜单；导出 PDF 跟随当前深浅模式 + 打印前全量挂载代码块）+ `window.__oblet` 自动化验证钩子（含 testSetTheme）+ Tab 切换集成（`tabCallbacks` 桥接 setup 闭包到 tabs.ts）
+- `main.ts`：CSS 顺序敏感——Crepe → obsidian-base.css → theme-*.css ×6（全部带 `body.ob-t-<id>` 门控前缀，共存互不泄漏）→ plaintext.css / html.css → toc.css（后者覆盖前者 fallback）
+- `editor/adapter.ts` + `markdown-adapter.ts` + `plaintext.ts`：v0.9.0 双编辑器适配——Markdown 走 Crepe/PM，TXT 走独立 CodeMirror 6 原文编辑器；共享 getContent/replaceContent/readonly/选区接口，偏移不互相解释。TXT 不经 Markdown parser/serializer，Ctrl+F 按活动类型路由，只显示当前编辑器。
+- `editor/html.ts`：GitHub README 安全渲染兼容——`html_block` / `html_details` / `html_inline_atom` / 分层 inline marks 保存 HTML 原文；DOMPurify 白名单单向渲染，details 内 Markdown 保持可编辑；源码面板单事务更新，图片复用 toDomUrl，HTTP/HTTPS 与相对 md 链接统一分派。`configureHtml` 注册自定义 mdast handlers，`configureHtmlRuntime` 注入路径；`htmlPlugins` 在 Crepe 特性之后装配。
+- `editor/setup.ts`：Crepe + TXT 双编辑器装配与显隐切换 + 文件生命周期（防抖自动保存、外部变更重载、拖入换文件）+ 导出动作装配（PDF 桌面 window.print / Android PrintManager，打印前全量挂载代码块）+ `window.__oblet` 自动化钩子（含 getContent/documentKind）+ Tab 切换集成（`tabCallbacks` 桥接 setup 闭包到 tabs.ts）
 - `editor/cm-theme.ts`：**代码块高亮主题**——自绘 CM theme 全 CSS 变量驱动，二期改为 `--ob-hl-*` 语义变量链（`var(--ob-hl-keyword, rgb(var(--ctp-mauve, …)))`：主题文件直供字面值 → AnuPpuccin 走 ctp fallback → mocha 三元组兜底），替代 Crepe 默认 oneDark，深浅/换主题零重配置自动跟随
 - `editor/mermaid.ts`：**Mermaid 图表预览**——code_block(language=mermaid) 经 Crepe 代码块 `renderPreview` 钩子出 SVG（KaTeX 同通道，latex 特性 wrap 后非 latex 语言落此；crepe 加载顺序 code-mirror 先于 latex，互不顶掉）。mermaid 懒加载（rolldown 分包，无 mermaid 块零开销）；themeVariables 每次渲染读 body computed `--ob-*` → 6 主题×深浅自动跟随；body 类 MutationObserver 触发全量重渲染（注册表 content→applies，封顶 120）；`securityLevel: 'strict'` + 面板 SVG 感知 DOMPurify 双保险；语法错误画兜底框；打印前 `whenMermaidIdle()` 防 Loading 占位。验证 `node scripts/repro-mermaid.mjs`（出图/变色/保真）；全图类型扫描 `node scripts/verify-diagrams.mjs`（对 ref/图表验收文档.md 逐块断言）
 - `editor/appmenu.ts`：移动端 ☰ 应用菜单（触屏入口替代物，与右键菜单共用 openMenu/ITEMS）
-- `editor/tabs.ts`：**Tab 切换系统核心**——`TabState` 缓存（Map<路径, 内容/光标/滚动>）、箭头 UI（`createTabArrows`）、`switchToTab` 核心流程（路径比较 guard + updatePaths 前保存所有当前状态 + PM 原生 scrollIntoView 恢复光标）。关键规则：所有"保存当前状态"操作必须用 `model.get(oldActivePath)` 路径键访问且在 `updatePaths` 之前完成
+- `editor/tabs.ts`：**Tab 切换系统核心**——`TabState` 缓存（Map<路径, 内容/光标/滚动/编码/BOM>）、箭头 UI、`switchToTab`（路径比较 guard + updatePaths 前保存所有当前状态 + 活动编辑器适配器恢复选区）。关键规则：所有"保存当前状态"操作必须用 `model.get(oldActivePath)` 路径键访问且在 `updatePaths` 之前完成；切 Tab 前先用旧路径保存，选择丢弃时缓存恢复磁盘基线，不能把延迟自动保存带到新 Tab
 - `commands.ts`：命令注册表——快捷键统一入口（settings.json `editor.keymap` 覆盖、window 捕获阶段派发、设置面板改键）
 - `editor/frontmatter.ts`：**序列化保真层收口于此**——frontmatter 节点 + 属性栏 NodeView（键值表格编辑）、`tuneSerialization`（mdast-util-to-markdown 的 rule/bullet/join/handlers 定制 + 表格紧凑输出 + GFM singleTilde 关闭）、任务项空格修剪 remark 插件、`disableEmptyLineBr`
 - `editor/image-block.ts`：**图片块 alt 保真**——`extendSchema` 覆盖上游 image-block schema，alt 独立 attr 原样往返（上游把 ratio 偷渡在 alt 槽位，alt 全灭变 `1.00`）
@@ -88,6 +94,10 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - `settings/typography.ts`：字体/字号覆盖 + **主题模式**（theme_mode: dark/light/system，matchMedia 跟随，Ctrl+T 切换）+ 跨窗口广播（oblet-typography-changed，主题与排版共用）
 
 ## 容易踩的坑（都实际踩过）
+
+- **PM mark 集合不保留 HTML 原始嵌套次序**：不同类型 mark 会按 schema rank 排序，`<em><strong>x</strong></em>` 可被套成 `<strong><em>x</em></strong>`，直接违反 HTML 保真。html.ts 按 HTML 深度与是否跨 Markdown phrasing 边界分层定义 mark 类型/优先级，不能只存 open/close 就以为原文会自然往返。
+- **HTML 渲染与围栏代码是两条链**：README 的原生 HTML 走 html.ts；` ```html ` 仍是代码块，不接 renderPreview。渲染岛必须 DOMPurify 白名单 + 危险协议阻断，details 的开闭/摘要/子节点间隔原文入 attrs；不要把 DOM 规范化结果写回，也不要仅包一层 innerHTML 就宣称 GitHub 兼容。
+- **TXT 不能仅放开扩展名后送进 Crepe**：那会把普通 `#`、列表、HTML 解析并可能改写。双编辑器共享文件生命周期而非文档语义；切 Tab 前必须用旧路径完成保存，否则 500ms 定时器会在新路径上触发。非 UTF-8 仅只读，UTF-8 BOM 要随写回恢复。
 
 - **Crepe 默认装配的 `@milkdown/plugin-trailing`** 会在文末非标题/段落（列表/表格/代码块结尾）后自动补空段落，序列化多出 EOF 空行，击穿"与磁盘一致不写回"防线（仅打开就改写文件）。修复：setup.ts 在 create 后包装 `serializerCtx` 出口统一剥除末尾空段落贡献的换行（解析侧本就不为尾部空行生成节点，往返字节级稳定），并 `clearTimeout(saveTimer)` 清掉 create 期误排上的自动保存。
 - **CRLF 文件的 frontmatter 残留 `\r`**：micromark 的 yaml value 是原文切片不做行尾归一（正文是归一的），一个 `\r` 三连炸——① JS 的 `.` 不匹配 `\r`，`parseFmRows` 正则对值非空行全部失配、键值行降级 fm-raw 单列（"键值挤一格"）；② input value 归一化吃 `\r` 让 commit 误判有改动 → 假保存；③ `getMarkdown()` 混排 `\r\n` 击穿与磁盘一致的比较。修复：parseMarkdown runner 把 value 的 `\r\n?` 归一为 `\n` 再入文档（文档内全 LF，落盘由 Rust 侧按原文件换行符还原），`parseFmRows` 另加防御性剥离。
