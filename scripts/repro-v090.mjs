@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { spawn, execSync } from "node:child_process";
@@ -22,6 +23,7 @@ try {
 
 const dir = resolve("scripts/.repro/v090");
 mkdirSync(resolve(dir, "assets"), { recursive: true });
+rmSync(resolve(dir, "renamed.txt"), { force: true });
 const plainPath = resolve(dir, "plain.txt");
 const htmlPath = resolve(dir, "html.md");
 const linkedPath = resolve(dir, "linked.md");
