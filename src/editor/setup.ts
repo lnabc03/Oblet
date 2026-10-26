@@ -35,7 +35,7 @@ import { initSettingsUI } from "../settings/ui";
 import { initAppMenu } from "./appmenu";
 import { IS_MOBILE } from "../platform";
 import { noHoverPointer, obletPlugins } from "./plugins";
-import { searchPlugin } from "./search";
+import { searchPlugin, setPlaintextSearchHandler } from "./search";
 import { tocPlugin } from "./toc";
 import { contextMenuPlugin, openMenu, setExportHandlers, type MenuEntry } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
@@ -81,6 +81,12 @@ import {
   type EditorAdapter,
 } from "./adapter";
 import { createMarkdownAdapter } from "./markdown-adapter";
+import { createPlainTextEditor, type PlainTextEditor } from "./plaintext";
+import {
+  configureHtml,
+  configureHtmlRuntime,
+  htmlPlugins,
+} from "./html";
 
 interface FilePayload {
   content: string;
@@ -143,7 +149,22 @@ export async function boot() {
   // 给打开/最近/新建/设置等提供显性常驻入口；appView 在编辑器创建后回填（起始页为 null）
   let appView: EditorView | null = null;
   let activeDocumentKind: DocumentKind | null = null;
-  const plainTextControls = { search: () => {} };
+  const plainTextControls = { search: () => {}, closeSearch: () => {} };
+  let markdownDom: HTMLElement | null = null;
+  let markdownEditorView: EditorView | null = null;
+  let plainHost: HTMLElement | null = null;
+  let plainEditor: PlainTextEditor | null = null;
+  function syncActiveEditor() {
+    const kind = documentKindForPath(path);
+    activeDocumentKind = kind;
+    const text = kind === "text";
+    markdownDom?.classList.toggle("ob-editor-hidden", text);
+    plainHost?.classList.toggle("ob-editor-hidden", !text);
+    document.body.classList.toggle("ob-doc-text", text);
+    host.classList.toggle("ob-plaintext-active", text);
+    appView = text ? null : markdownEditorView;
+    setPlaintextSearchHandler(text ? () => plainEditor?.openSearch() : null);
+  }
   initAppMenu({
     getView: () => appView,
     getDocumentKind: () => activeDocumentKind,
@@ -153,6 +174,7 @@ export async function boot() {
       else if (activeDocumentKind === "markdown") runCommand("search");
     },
     rename: () => void doRename(),
+    print: () => doPrint(),
     openFile: () =>
       (
         window as unknown as { ObletNative?: { pickFile?: () => void } }
@@ -230,6 +252,10 @@ export async function boot() {
   // ---- 打开路径到 tab（桌面 add-tab 事件与安卓 Intent 桥共用同一链路） ----
   const openPathInTab = async (newPath: string) => {
     if (!newPath) return;
+    if (!isSupportedDocumentPath(newPath)) {
+      notify("仅支持 Markdown（.md 等）与 .txt 文件", "warn");
+      return;
+    }
     // 去重：已在列表中则仅切换
     const existingIdx = tabsModel.paths.findIndex(
       (p) => samePath(p, newPath)
@@ -407,6 +433,11 @@ export async function boot() {
     const abs = resolveLocalAbs(src, path);
     return abs ? convertFileSrc(abs) : src;
   };
+  configureHtmlRuntime({
+    docPath: () => path,
+    toDomUrl,
+    openPath: (target) => openPathInTab(target),
+  });
   // 图片路径编辑/失败占位插件的文档路径取值器（拖入换文件后闭包 path 更新即跟随）
   setImageEditDocPath(() => path);
 
@@ -517,8 +548,12 @@ export async function boot() {
       payload.bom = p.bom;
     },
     updateBanner,
-    setPath: (p: string) => { path = p; },
+    setPath: (p: string) => {
+      path = p;
+      syncActiveEditor();
+    },
     clearSearch: () => {
+      plainTextControls.closeSearch();
       // 清空搜索高亮状态（如果搜索插件暴露了清理方法）
       // searchPlugin 暂无公开 clear API，通过关闭搜索浮层来清理
       document.querySelector(".ob-search")?.remove();
@@ -608,7 +643,7 @@ export async function boot() {
 
   const crepe = new Crepe({
     root: host,
-    defaultValue: payload.content,
+    defaultValue: activeDocumentKind === "text" ? "" : payload.content,
     features: {
       [Crepe.Feature.AI]: false,
       [Crepe.Feature.TopBar]: false,
@@ -732,11 +767,13 @@ export async function boot() {
       .use(searchPlugin)
       .use(tocPlugin)
       .use(contextMenuPlugin)
+      .use(htmlPlugins)
       .use(disableEmptyLineBr)
   );
 
   // 序列化保真（必须在 create 前的 config 阶段生效）
   crepe.editor.config(tuneSerialization);
+  crepe.editor.config(configureHtml);
   // 块手柄活动节点过滤修正：Crepe 原版只用 findParent 查祖先链，但 math_inline
   // 是行内节点不在祖先链上——坐标落在 KaTeX 元素内时 nodeAt 返回 math_inline
   // 本身，手柄就以公式 span 为基准定位（叠在行文字上而非块左侧）。
@@ -760,8 +797,34 @@ export async function boot() {
 
   await crepe.create();
   const editorView = crepe.editor.ctx.get(editorViewCtx);
+  markdownEditorView = editorView;
+  markdownDom = host.querySelector<HTMLElement>(":scope > .milkdown");
   markdownAdapter = createMarkdownAdapter(crepe, editorView, host);
-  appView = editorView;
+  plainHost = document.createElement("div");
+  host.appendChild(plainHost);
+  plainEditor = createPlainTextEditor(
+    plainHost,
+    activeDocumentKind === "text" ? payload.content.replace(/\r\n/g, "\n") : "",
+    payload.readonly,
+    () => {
+      if (documentKindForPath(path) === "text" && !suppressSave && !payload.readonly) {
+        scheduleSave();
+      }
+    },
+  );
+  plainTextControls.search = plainEditor.openSearch;
+  plainTextControls.closeSearch = plainEditor.closeSearch;
+  const textEditor = plainEditor;
+  plainTextAdapter = {
+    kind: "text",
+    getContent: textEditor.getContent,
+    replaceContent: textEditor.replaceContent,
+    setReadonly: textEditor.setReadonly,
+    getSelection: textEditor.getSelection,
+    restoreSelection: textEditor.restoreSelection,
+    focus: textEditor.focus,
+  };
+  syncActiveEditor();
   bootTiming.crepeCreated = performance.now();
   // 移动端选区工具栏与系统浮动操作菜单叠屏（两者都定位在选区上方，系统菜单
   // 盖住 Crepe 工具栏致其不可点）：floating-ui 每次定位（style 属性变化）后
@@ -953,6 +1016,8 @@ export async function boot() {
         view.focus();
       }),
     getMarkdown: () => crepe.getMarkdown(),
+    getContent: () => activeEditor()?.getContent() ?? "",
+    documentKind: () => documentKindForPath(path),
     /** 主题切换冒烟（多主题一期）：走正式保存+广播链路 */
     testSetTheme: (mode: "dark" | "light" | "system" | null) =>
       switchTypography({ theme_mode: mode }),
@@ -1015,6 +1080,13 @@ export async function boot() {
     if (e.key !== "Escape") return;
     // 二次保险：弹窗/提示框打开时不抢
     if (document.querySelector(".ob-confirm-overlay")) return;
+    if (activeDocumentKind === "text" && plainHost?.querySelector(".cm-panel.cm-search")) {
+      e.preventDefault();
+      e.stopPropagation();
+      plainTextControls.closeSearch();
+      plainEditor?.focus();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     (async () => {
@@ -1083,9 +1155,19 @@ export async function boot() {
   };
   const doPrint = () => {
     void (async () => {
-      await mountAllCodeBlocks();
-      await whenMermaidIdle(); // mermaid 渲染是异步的，挂载完再等图表出图，否则打印页是 Loading 占位
-      window.print();
+      if (documentKindForPath(path) === "markdown") {
+        await mountAllCodeBlocks();
+        await whenMermaidIdle();
+      }
+      if (IS_MOBILE) {
+        const printDocument = (
+          window as unknown as { ObletNative?: { printDocument?: () => void } }
+        ).ObletNative?.printDocument;
+        if (printDocument) printDocument();
+        else notify("当前环境不支持系统打印", "warn");
+      } else {
+        window.print();
+      }
     })();
   };
   // 重命名当前文档：预填原文件名（去扩展名），Rust 保留原扩展名并同步
@@ -1186,12 +1268,60 @@ export async function boot() {
     // 7.2 导出 PDF：跟随当前深浅模式打印（2026-09-09 用户拍板，替代一期的强制浅色——
     // print-color-adjust: exact 已在基座设置，深色底色无需用户开"背景图形"即可上纸）
     // D9：移动端 window.print() 链路在 Android WebView 行为不同，初版隐藏入口
-    print: IS_MOBILE ? undefined : doPrint,
+    print: doPrint,
     // v0.6.0 重命名文档：同目录改名（预填原文件名），Rust 同步 tab 路径/哈希，本地迁移缓存
     rename: () => void doRename(),
     // v0.7.0 转换图片为相对路径（assets/）
     localizeImages: () => void localizeImages(),
   });
+
+  // TXT 桌面右键：复用自绘菜单，剪贴板与选区操作走真实 CM 事务。
+  const desktopPlainHost = plainHost;
+  const desktopPlainEditor = plainEditor;
+  if (!IS_MOBILE && desktopPlainHost && desktopPlainEditor) {
+    desktopPlainHost.addEventListener("contextmenu", (event) => {
+      if (documentKindForPath(path) !== "text") return;
+      event.preventDefault();
+      const selection = desktopPlainEditor.getSelection();
+      const hasSelection = selection.from !== selection.to;
+      const canEdit = !payload.readonly;
+      const focusAnd = (action: () => void) => {
+        desktopPlainEditor.focus();
+        action();
+      };
+      openMenu(event.clientX, event.clientY, [
+        {
+          label: "复制",
+          enabled: hasSelection,
+          run: () => focusAnd(() => document.execCommand("copy")),
+        },
+        {
+          label: "剪切",
+          enabled: hasSelection && canEdit,
+          run: () => focusAnd(() => document.execCommand("cut")),
+        },
+        {
+          label: "粘贴",
+          enabled: canEdit,
+          run: () => {
+            void navigator.clipboard.readText()
+              .then((text) => {
+                if (text) desktopPlainEditor.insertText(text);
+              })
+              .catch(() => notify("无法读取剪贴板，请用 Ctrl+V 粘贴", "warn"));
+          },
+        },
+        {
+          label: "全选",
+          enabled: true,
+          run: () => desktopPlainEditor.selectAll(),
+        },
+        { label: "", enabled: false, divider: true },
+        { label: "导出为 PDF", enabled: true, run: () => doPrint() },
+        { label: "重命名文档", enabled: true, run: () => void doRename() },
+      ]);
+    });
+  }
   // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键。
   // 移动端不注册（D9 初版隐藏导出 PDF）
   if (!IS_MOBILE) {

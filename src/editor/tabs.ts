@@ -284,40 +284,40 @@ export async function switchToTab(
     }
   } catch { /* ignore */ }
 
-  // 2. 脏内容处理
+  let contentForCache = editor.getContent();
+
+  // 2. 脏内容处理：自动保存也必须用旧路径完成，不能把延迟定时器带到新 tab。
   if (cb.getDirty() && !cb.getPayload().readonly) {
     const autoSave = currentEditorSettings().auto_save;
-    if (autoSave === false) {
+    let shouldSave = autoSave !== false;
+    if (!shouldSave) {
       const choice = await confirmDialog("有未保存的更改，切换前要保存吗？", "保存", "丢弃");
       if (choice === null) return;
-      if (choice) {
-        cb.setDirty(false);
-        const content = editor.getContent();
-        const last = cb.getLastContent();
-        if (content !== last) {
-          try {
-            const meta = cb.getPayload();
-            await invoke("write_file", {
-              path: oldActivePath,
-              content,
-              newline: meta.newline,
-              encoding: meta.encoding,
-              bom: meta.bom,
-            });
-          } catch (e) {
-            notify(`保存失败：${e}`, "error");
-            return;
-          }
-        }
+      shouldSave = choice === true;
+      if (!shouldSave) contentForCache = cb.getLastContent();
+    }
+    if (shouldSave && contentForCache !== cb.getLastContent()) {
+      try {
+        const meta = cb.getPayload();
+        await invoke("write_file", {
+          path: oldActivePath,
+          content: contentForCache,
+          newline: meta.newline,
+          encoding: meta.encoding,
+          bom: meta.bom,
+        });
+      } catch (e) {
+        notify(`保存失败：${e}`, "error");
+        return;
       }
     }
+    cb.setDirty(false);
   }
 
   // 3. 保存当前 tab 的原文到缓存（key = oldActivePath）
-  const currentContent = editor.getContent();
   const curCache = model.get(oldActivePath);
   if (curCache) {
-    curCache.content = currentContent;
+    curCache.content = contentForCache;
     curCache.dirty = cb.getDirty();
   }
 

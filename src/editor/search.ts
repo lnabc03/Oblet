@@ -25,6 +25,13 @@ const searchKey = new PluginKey<SearchState>("oblet-search");
 
 const CLOSED: SearchState = { open: false, query: "", active: -1, matches: [] };
 
+let plaintextSearchHandler: (() => void) | null = null;
+
+/** setup 按活动文档类型注入；TXT 时接管同一 Ctrl+F 命令。 */
+export function setPlaintextSearchHandler(handler: (() => void) | null) {
+  plaintextSearchHandler = handler;
+}
+
 /** 全文档文本扫描（大小写不敏感）。虚拟串方案同高亮插件：
  *  非文本内联节点占一格 ，查询串含  的概率视为零 */
 function findMatches(doc: PMNode, query: string): Match[] {
@@ -261,6 +268,10 @@ export const searchPlugin = $prose(() => {
         title: "检索 / 替换",
         defaultCombo: "Ctrl+F",
         run: () => {
+          if (plaintextSearchHandler) {
+            plaintextSearchHandler();
+            return;
+          }
           const s = searchKey.getState(v.state)!;
           if (s.open) {
             input.focus();

@@ -14,6 +14,7 @@ export interface AppMenuHandlers {
   hasEditor: () => boolean;
   openSearch: () => void;
   rename: () => void;
+  print: () => void;
   /** 「打开文件…」：走原生 SAF 选择器（无桥时该项不显示） */
   openFile: () => void;
   /** 「新建文件」 */
@@ -70,6 +71,7 @@ export function initAppMenu(h: AppMenuHandlers) {
       entries.push(...editorMenuEntries(view));
     } else if (h.getDocumentKind() === "text") {
       entries.push({ label: "", enabled: false, divider: true });
+      entries.push({ label: "导出为 PDF", enabled: true, run: () => h.print() });
       entries.push({ label: "重命名文档", enabled: true, run: () => h.rename() });
     }
 

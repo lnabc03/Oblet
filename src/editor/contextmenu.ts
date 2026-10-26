@@ -9,8 +9,9 @@ import type { EditorView } from "@milkdown/prose/view";
 import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
 import { docHasAbsoluteImages } from "./image-paths";
-import { notify } from "../notify";
+import { notify, promptDialog } from "../notify";
 import { COARSE_POINTER, IS_MOBILE } from "../platform";
+import { getHtmlInlineSource, updateHtmlInlineSource } from "./html";
 
 /** 导出动作回调（批次 7）：由 setup.ts 注入（插件内拿不到文件路径闭包） */
 let exportHandlers: {
@@ -28,8 +29,29 @@ interface Item {
   run?: (view: EditorView) => void;
   enabled?: (view: EditorView) => boolean;
   children?: Item[];
-  /** true 时整项不出现（区别于 enabled=false 的置灰）：用于平台级裁剪 */
-  hide?: () => boolean;
+  /** true 时整项不出现（区别于 enabled=false 的置灰）：用于平台或文档语境裁剪 */
+  hide?: (view: EditorView) => boolean;
+}
+
+async function editInlineHtml(view: EditorView) {
+  const pos = view.state.selection.from;
+  const source = getHtmlInlineSource(view, pos);
+  if (!source) return;
+  if (typeof source.value === "string") {
+    const value = await promptDialog("编辑行内 HTML", "输入完整的单标签源码", "保存", "取消", source.value);
+    if (value == null) return;
+    if (!updateHtmlInlineSource(view, pos, { value })) {
+      notify("仅支持有效的 img、br 或 wbr 单标签", "warn");
+    }
+    return;
+  }
+  const open = await promptDialog("编辑行内 HTML 开始标签", "例如 <a href=\"https://…\">", "继续", "取消", source.open ?? "");
+  if (open == null) return;
+  const close = await promptDialog("编辑行内 HTML 结束标签", "输入与开始标签配对的结束标签", "保存", "取消", source.close ?? "");
+  if (close == null) return;
+  if (!updateHtmlInlineSource(view, pos, { open, close })) {
+    notify("开始与结束标签必须配对，且不能改变标签类型", "warn");
+  }
 }
 
 /** 菜单构建的统一输入（openMenu）：enabled 已求值、run 已绑定闭包 */
@@ -105,6 +127,12 @@ const ITEMS: Item[] = [
     enabled: (v) => v.editable && !hasFrontmatter(v.state.doc),
   },
   {
+    label: "编辑 HTML 源码",
+    run: (v) => void editInlineHtml(v),
+    enabled: (v) => v.editable && getHtmlInlineSource(v, v.state.selection.from) !== null,
+    hide: (v) => getHtmlInlineSource(v, v.state.selection.from) === null,
+  },
+  {
     // 批次 7.2：系统打印对话框（用户自定义纸张/边距/缩放）；Mica 临时关闭见 setup.ts
     // D9：移动端无打印链路，setup.ts 不注入 print 处理器 → 整项隐藏（而非置灰）
     label: "导出为 PDF",
@@ -147,7 +175,7 @@ export function editorMenuEntries(view: EditorView): MenuEntry[] {
       : undefined,
     children: item.children?.map(map),
   });
-  return ITEMS.filter((i) => !i.hide?.()).map(map);
+  return ITEMS.filter((i) => !i.hide?.(view)).map(map);
 }
 
 /** 通用自绘菜单：在 (x, y) 处打开 entries，点别处/Esc/滚动/失焦关闭。
