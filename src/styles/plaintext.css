@@ -52,101 +52,32 @@
   border-left-color: var(--ob-text);
 }
 
-.ob-plaintext-editor .cm-selectionBackground,
-.ob-plaintext-editor.cm-focused .cm-selectionBackground,
+/* CM 基础主题给焦点态选区用了 `.cm-editor.<明暗类>.cm-focused >
+   .cm-scroller > .cm-selectionLayer .cm-selectionBackground` 的高特异性选择器
+   （默认浅色 #d7d4f0），普通类名覆盖不了，深色主题下会出现白字压浅底。
+   这里用同等或更高特异性把选区收回到主题变量。 */
+.ob-plaintext-host .ob-plaintext-editor.cm-editor .cm-selectionLayer .cm-selectionBackground,
+.ob-plaintext-host .ob-plaintext-editor.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.ob-plaintext-host .ob-plaintext-editor.cm-editor .cm-selectionBackground,
 .ob-plaintext-editor ::selection {
-  background: var(--ob-selection);
+  background-color: var(--ob-selection);
 }
 
-.ob-plaintext-editor .cm-selectionMatch {
-  background: var(--ob-accent-soft, rgba(150, 110, 220, 0.25));
-}
-
-/* CM 搜索面板与 Oblet 浮层共用配色和控件语言。 */
-.ob-plaintext-editor .cm-panels,
-.ob-plaintext-editor .cm-panels.cm-panels-top,
-.ob-plaintext-editor .cm-panels.cm-panels-bottom {
-  box-sizing: border-box;
+/* minimalSetup 默认给活动行浅蓝底；TXT 跟随“光标所在块”开关与主题 hover 色。 */
+body.anp-current-line .ob-plaintext-editor .cm-activeLine {
   color: var(--ob-text);
-  background: var(--ob-bg-alt);
-  border-color: var(--ob-border);
+  background-color: var(--ob-hover);
 }
 
-.ob-plaintext-editor .cm-panel.cm-search {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 8px;
-  font-family: var(--font-interface, var(--ob-font));
-  font-size: 0.9em;
-  line-height: 1.4;
-}
-
-.ob-plaintext-editor .cm-search .cm-textfield {
-  box-sizing: border-box;
-  flex: 1 1 150px;
-  min-width: 110px;
-  min-height: 30px;
-  padding: 4px 8px;
+.ob-plaintext-editor .cm-matchingBracket {
   color: var(--ob-text);
-  background: var(--ob-bg);
-  border: 1px solid var(--ob-border);
-  border-radius: 6px;
-  outline: none;
-  font: inherit;
-}
-
-.ob-plaintext-editor .cm-search .cm-button {
-  min-height: 30px;
-  padding: 4px 9px;
-  color: var(--ob-text);
-  background: var(--ob-bg-low);
-  background-image: none;
-  border: 1px solid var(--ob-border);
-  border-radius: 6px;
-  outline: none;
-  font: inherit;
-  cursor: pointer;
-}
-
-.ob-plaintext-editor .cm-search .cm-button:hover {
-  background: var(--ob-hover);
-  border-color: var(--ob-accent);
-}
-
-.ob-plaintext-editor .cm-search .cm-textfield:focus-visible,
-.ob-plaintext-editor .cm-search .cm-button:focus-visible,
-.ob-plaintext-editor .cm-search [name="close"]:focus-visible {
-  outline: 1px solid var(--ob-accent);
-  border-color: var(--ob-accent);
-}
-
-.ob-plaintext-editor .cm-search label {
-  color: var(--ob-text-mut);
-  white-space: nowrap;
-}
-
-.ob-plaintext-editor .cm-search input[type="checkbox"] {
-  accent-color: var(--ob-accent);
-}
-
-.ob-plaintext-editor .cm-search [name="close"] {
-  margin-left: auto;
-  color: var(--ob-text-mut);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.ob-plaintext-editor .cm-searchMatch {
-  background: var(--ob-accent-soft, rgba(150, 110, 220, 0.28));
+  background-color: color-mix(in srgb, var(--ob-accent) 26%, var(--ob-bg));
   outline: 1px solid var(--ob-accent);
 }
 
-.ob-plaintext-editor .cm-searchMatch-selected {
-  background: var(--ob-selection);
+.ob-plaintext-editor .cm-nonmatchingBracket {
+  color: var(--ob-text);
+  background-color: var(--ob-selection);
 }
 
 /* 既有文档容器负责滚动，版心与 ProseMirror 一致。 */
@@ -168,25 +99,6 @@
   height: auto;
   min-height: 100%;
   overflow: visible;
-}
-
-/* 触屏搜索控件扩大点击区域，正文仍沿用用户排版字号。 */
-@media (hover: none), (pointer: coarse), (max-width: 600px) {
-  .ob-plaintext-editor .cm-panel.cm-search {
-    gap: 8px;
-    padding: 10px 8px;
-    font-size: 1em;
-  }
-
-  .ob-plaintext-editor .cm-search .cm-textfield,
-  .ob-plaintext-editor .cm-search .cm-button {
-    min-height: 38px;
-  }
-
-  .ob-plaintext-editor .cm-search [name="close"] {
-    min-width: 38px;
-    min-height: 38px;
-  }
 }
 
 /* 打印放开所有滚动裁剪，并保留空格、Tab、换行和软换行。 */

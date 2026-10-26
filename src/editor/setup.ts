@@ -35,7 +35,11 @@ import { initSettingsUI } from "../settings/ui";
 import { initAppMenu } from "./appmenu";
 import { IS_MOBILE } from "../platform";
 import { noHoverPointer, obletPlugins } from "./plugins";
-import { searchPlugin, setPlaintextSearchHandler } from "./search";
+import {
+  closeMarkdownSearch,
+  searchPlugin,
+  setPlaintextSearchHandler,
+} from "./search";
 import { tocPlugin } from "./toc";
 import { contextMenuPlugin, openMenu, setExportHandlers, type MenuEntry } from "./contextmenu";
 import { exportToVault, sanitizePathInput } from "./vault";
@@ -554,16 +558,7 @@ export async function boot() {
     },
     clearSearch: () => {
       plainTextControls.closeSearch();
-      // 清空搜索高亮状态（如果搜索插件暴露了清理方法）
-      // searchPlugin 暂无公开 clear API，通过关闭搜索浮层来清理
-      document.querySelector(".ob-search")?.remove();
-      document.querySelectorAll(".ob-search-highlight").forEach((el) => {
-        const parent = el.parentNode;
-        if (parent) {
-          parent.replaceChild(document.createTextNode(el.textContent || ""), el);
-          parent.normalize();
-        }
-      });
+      closeMarkdownSearch();
     },
   };
 
@@ -1018,6 +1013,13 @@ export async function boot() {
     getMarkdown: () => crepe.getMarkdown(),
     getContent: () => activeEditor()?.getContent() ?? "",
     documentKind: () => documentKindForPath(path),
+    /** TXT 选区冒烟：段内字符偏移，聚焦后由 CM 绘制真实选区层 */
+    selectPlainTextRange: (from: number, to: number) => {
+      if (!plainEditor) return false;
+      plainEditor.restoreSelection({ from, to });
+      plainEditor.focus();
+      return true;
+    },
     /** 主题切换冒烟（多主题一期）：走正式保存+广播链路 */
     testSetTheme: (mode: "dark" | "light" | "system" | null) =>
       switchTypography({ theme_mode: mode }),
@@ -1080,7 +1082,7 @@ export async function boot() {
     if (e.key !== "Escape") return;
     // 二次保险：弹窗/提示框打开时不抢
     if (document.querySelector(".ob-confirm-overlay")) return;
-    if (activeDocumentKind === "text" && plainHost?.querySelector(".cm-panel.cm-search")) {
+    if (activeDocumentKind === "text" && plainEditor?.isSearchOpen()) {
       e.preventDefault();
       e.stopPropagation();
       plainTextControls.closeSearch();

@@ -67,7 +67,6 @@ const { createPlainTextEditor } = await vite.ssrLoadModule("/src/editor/plaintex
 
 const { EditorView } = await import("@codemirror/view");
 const { undo, redo } = await import("@codemirror/commands");
-const { closeSearchPanel } = await import("@codemirror/search");
 
 const activeEditors = [];
 const tests = [];
@@ -97,8 +96,8 @@ function mount(content = "", options = {}) {
   return { editor, host, view, outerScroller };
 }
 
-function searchPanel(editor) {
-  return editor.dom.querySelector(".cm-panel.cm-search");
+function searchBar() {
+  return document.querySelector(".search-bar:not(.hidden)");
 }
 
 test("API、软换行与纯文本原文保真", () => {
@@ -107,7 +106,8 @@ test("API、软换行与纯文本原文保真", () => {
 
   for (const method of [
     "getContent", "replaceContent", "insertText", "setReadonly", "getSelection",
-    "restoreSelection", "selectAll", "focus", "openSearch", "closeSearch", "destroy",
+    "restoreSelection", "selectAll", "focus", "openSearch", "closeSearch",
+    "isSearchOpen", "destroy",
   ]) assert.equal(typeof editor[method], "function", `${method} 应为函数`);
 
   assert.equal(editor.getContent(), original);
@@ -177,7 +177,8 @@ test("只读禁 DOM 编辑与事务变更，程序化重载仍可用", () => {
   assert.equal(edits, 0);
 
   editor.openSearch();
-  assert.ok(searchPanel(editor), "只读仍允许搜索");
+  assert.ok(searchBar(), "只读仍允许搜索");
+  assert.equal(searchBar().querySelector(".replace-one").disabled, true);
   assert.equal(edits, 0);
 
   editor.replaceContent("fresh\t\n");
@@ -231,29 +232,47 @@ test("markdown-rendered 宿主接管滚动，重载保留位置", () => {
   assert.deepEqual(editor.getSelection(), { from: 1, to: 4, scrollTop: 143 });
 });
 
-test("openSearch 与 Ctrl+F 共用 CM 搜索面板", () => {
+test("openSearch 复用 Markdown 自绘检索浮条，查询/跳转/替换一致", () => {
   let edits = 0;
   const { editor, view } = mount("find me\nfind me again", {
     onUserEdit: () => edits++,
   });
 
   assert.equal(editor.openSearch(), undefined);
-  assert.ok(searchPanel(editor));
-  assert.ok(searchPanel(editor).querySelector("[main-field]"));
+  assert.equal(editor.isSearchOpen(), true);
+  assert.ok(searchBar());
+  assert.ok(document.querySelector(".search-row .search-query"));
+  assert.ok(document.querySelector(".search-row .search-count"));
   editor.openSearch();
-  assert.equal(editor.dom.querySelectorAll(".cm-panel.cm-search").length, 1);
+  assert.equal(document.querySelectorAll(".search-bar").length, 1);
 
-  assert.equal(closeSearchPanel(view), true);
-  assert.equal(searchPanel(editor), null);
-  const event = new dom.window.KeyboardEvent("keydown", {
-    key: "f",
-    ctrlKey: true,
+  const query = searchBar().querySelector(".search-query");
+  query.value = "find me";
+  query.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.equal(view.dom.querySelectorAll(".ob-search-match").length, 2);
+  assert.equal(searchBar().querySelector(".search-count").textContent, "1/2");
+
+  searchBar().querySelector(".search-next").click();
+  assert.deepEqual(editor.getSelection(), { from: 8, to: 15, scrollTop: 0 });
+  assert.equal(searchBar().querySelector(".search-count").textContent, "2/2");
+
+  const replace = searchBar().querySelector(".search-replace");
+  replace.value = "found";
+  searchBar().querySelector(".replace-one").click();
+  assert.equal(editor.getContent(), "find me\nfound again");
+  assert.equal(edits, 1, "替换是真实编辑");
+  searchBar().querySelector(".replace-all").click();
+  assert.equal(editor.getContent(), "found\nfound again");
+  assert.equal(edits, 2);
+
+  query.dispatchEvent(new dom.window.KeyboardEvent("keydown", {
+    key: "Escape",
     bubbles: true,
     cancelable: true,
-  });
-  view.contentDOM.dispatchEvent(event);
-  assert.ok(searchPanel(editor), "Ctrl+F 应重新打开搜索面板");
-  assert.equal(edits, 0);
+  }));
+  assert.equal(editor.isSearchOpen(), false);
+  assert.equal(searchBar(), null);
+  assert.equal(document.activeElement, view.contentDOM);
 });
 
 test("菜单插入、全选与关闭搜索", () => {
@@ -279,9 +298,9 @@ test("菜单插入、全选与关闭搜索", () => {
   assert.equal(edits, 2);
 
   editor.openSearch();
-  assert.ok(searchPanel(editor));
+  assert.ok(searchBar());
   assert.equal(editor.closeSearch(), undefined);
-  assert.equal(searchPanel(editor), null);
+  assert.equal(searchBar(), null);
 
   editor.setReadonly(true);
   editor.insertText("禁止");
@@ -316,11 +335,16 @@ test("focus 可调用，destroy 清理且幂等", () => {
   assert.equal(edits, 0);
 });
 
-test("样式覆盖主题变量、外部滚动、触屏与打印空白", () => {
+test("样式覆盖主题变量、外部滚动与打印空白", () => {
   const css = readFileSync(new URL("../src/styles/plaintext.css", import.meta.url), "utf8");
   for (const token of [
-    "var(--ob-text)", "var(--ob-selection)", "var(--ob-bg-alt)",
-    ".markdown-rendered .ob-plaintext-host", "pointer: coarse",
+    "var(--ob-text)", "var(--ob-selection)",
+    "var(--ob-accent)", "var(--ob-bg)", "var(--ob-hover)", ".cm-activeLine",
+    "color-mix(in srgb, var(--ob-accent) 26%, var(--ob-bg))",
+    "body.anp-current-line .ob-plaintext-editor .cm-activeLine",
+    ".cm-selectionLayer .cm-selectionBackground",
+    ".ob-plaintext-host .ob-plaintext-editor.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground",
+    ".markdown-rendered .ob-plaintext-host",
     "@media print", "white-space: break-spaces", "overflow: visible !important",
   ]) assert.ok(css.includes(token), `plaintext.css 缺少 ${token}`);
 });

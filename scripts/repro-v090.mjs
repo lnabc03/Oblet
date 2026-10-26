@@ -148,6 +148,17 @@ check("TXT 不解析 Markdown 且原文完整", initialPlain === plainCrlf.repla
 await sleep(900);
 check("TXT 未编辑不写回", readFileSync(plainPath).equals(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(plainCrlf)])));
 await evaluate(`document.querySelector(".ob-plaintext-editor .cm-content").focus();true`);
+await sleep(100);
+const activeLineColors = await evaluate(`(() => {
+  const line = document.querySelector('.ob-plaintext-editor .cm-activeLine');
+  if (!line) return null;
+  return {
+    background: getComputedStyle(line).backgroundColor,
+    hover: getComputedStyle(document.body).getPropertyValue('--ob-hover').trim(),
+  };
+})()`);
+check("TXT 活动行使用主题高亮而非 CM 默认浅色", !!activeLineColors?.hover && activeLineColors.background !== "rgba(204, 238, 255, 0.267)" && activeLineColors.background !== "rgba(0, 0, 0, 0)", activeLineColors);
+console.log("TXT 活动行颜色:", JSON.stringify(activeLineColors));
 await send("Input.insertText", { text: "新增一行\n" });
 await sleep(1000);
 const savedPlain = readFileSync(plainPath);
@@ -158,16 +169,74 @@ await sleep(1300);
 check("TXT 外部变更自动重载", await evaluate(`window.__oblet.getContent().includes('外部修改') && window.__oblet.documentKind() === 'text'`));
 await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyF',ctrlKey:true,bubbles:true,cancelable:true}));true`);
 await sleep(200);
-check("TXT Ctrl+F 打开 CM 搜索", await evaluate(`!!document.querySelector(".ob-plaintext-editor .cm-panel.cm-search")`));
+check("TXT Ctrl+F 打开共享检索浮条", await evaluate(`!!document.querySelector(".search-bar:not(.hidden) .search-query") && !!document.querySelector(".ob-plaintext-editor")`));
+const searchColors = await evaluate(`(() => {
+  const input = document.querySelector('.search-bar:not(.hidden) .search-query');
+  if (!input) return null;
+  input.value = '不是';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  return new Promise((resolve) => setTimeout(() => {
+    const match = document.querySelector('.ob-plaintext-editor .ob-search-match:not(.ob-search-active)');
+    const selected = document.querySelector('.ob-plaintext-editor .ob-search-active');
+    resolve({
+      matchCount: document.querySelectorAll('.ob-plaintext-editor .ob-search-match').length,
+      matchBg: match ? getComputedStyle(match).backgroundColor : null,
+      selectedBg: selected ? getComputedStyle(selected).backgroundColor : null,
+      countText: document.querySelector('.search-bar:not(.hidden) .search-count')?.textContent ?? null,
+    });
+  }, 100));
+})()`);
+check("TXT 检索复用 Markdown 浮条并以主题色高亮", (searchColors?.matchCount ?? 0) >= 2 && searchColors.matchBg !== "rgba(255, 255, 0, 0.33)" && searchColors.selectedBg !== "rgba(255, 150, 0, 0.4)" && !!searchColors.countText, searchColors);
+console.log("TXT 搜索高亮颜色:", JSON.stringify(searchColors));
+const txtHighlightShot = await send("Page.captureScreenshot", { format: "png" });
+writeFileSync(resolve(dir, "txt-search.png"), Buffer.from(txtHighlightShot.result.data, "base64"));
 const tabsBeforeEsc = await evaluate(`window.__oblet.tabs.count()`);
 await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));true`);
 await sleep(200);
-check("Esc 只关闭搜索不关 Tab", await evaluate(`!document.querySelector(".ob-plaintext-editor .cm-panel.cm-search") && window.__oblet.tabs.count() === ${tabsBeforeEsc}`));
+check("Esc 只关闭搜索不关 Tab", await evaluate(`!document.querySelector(".search-bar:not(.hidden)") && window.__oblet.tabs.count() === ${tabsBeforeEsc}`));
+const selectionColors = await evaluate(`(() => {
+  window.__oblet.selectPlainTextRange(0, 8);
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => {
+    const layer = document.querySelector('.ob-plaintext-editor .cm-selectionLayer .cm-selectionBackground');
+    resolve({
+      background: layer ? getComputedStyle(layer).backgroundColor : null,
+      themed: getComputedStyle(document.body).getPropertyValue('--ob-selection').trim(),
+    });
+  })));
+})()`);
+check(
+  "TXT 用户选区使用主题色而非 CM 默认浅色",
+  !!selectionColors?.background &&
+    selectionColors.background !== "rgb(215, 212, 240)" &&
+    selectionColors.background !== "rgb(217, 217, 217)" &&
+    selectionColors.background !== "rgba(0, 0, 0, 0)",
+  selectionColors,
+);
+console.log("TXT 选区颜色:", JSON.stringify(selectionColors));
+const txtSelectionShot = await send("Page.captureScreenshot", { format: "png" });
+writeFileSync(resolve(dir, "txt-selection.png"), Buffer.from(txtSelectionShot.result.data, "base64"));
 
 // 小型 HTML 全链路：结构、相对图片、XSS、未编辑保真。
 const htmlBytesBefore = readFileSync(htmlPath);
 await openPath(htmlPath, "markdown");
 await sleep(700);
+await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyF',ctrlKey:true,bubbles:true,cancelable:true}));true`);
+await sleep(200);
+const markdownSearch = await evaluate(`(() => {
+  const input = document.querySelector('.search-bar:not(.hidden) .search-query');
+  if (!input) return null;
+  input.value = 'HTML';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  return new Promise((resolve) => setTimeout(() => resolve({
+    visible: !!document.querySelector('.search-bar:not(.hidden)'),
+    matchCount: document.querySelectorAll('.ProseMirror .ob-search-match').length,
+    countText: document.querySelector('.search-bar:not(.hidden) .search-count')?.textContent ?? null,
+    sameUi: !!document.querySelector('.search-bar .search-query') && !!document.querySelector('.search-bar .search-replace'),
+  }), 100));
+})()`);
+check("Markdown 搜索同样复用共享浮条", !!markdownSearch?.visible && markdownSearch.matchCount >= 1 && !!markdownSearch.countText && markdownSearch.sameUi, markdownSearch);
+await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));true`);
+await sleep(100);
 const htmlRoundtrip = await evaluate(`window.__oblet.getContent()`);
 check("HTML 全文与 details 空白字节级往返", htmlRoundtrip === htmlSource, htmlRoundtrip);
 check("HTML 块与 details 容器渲染", await evaluate(`document.querySelectorAll(".ob-html-block").length >= 3 && !!document.querySelector(".ob-html-details-native")`));
