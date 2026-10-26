@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "node scripts/test-html-lexer.mjs && node scripts/test-paths.mjs && node scripts/test-html.mjs && node scripts/test-break-roundtrip.mjs && node scripts/test-list-roundtrip.mjs",
+    "test:html": "node scripts/test-html-lexer.mjs && node scripts/test-html.mjs",
     "tauri": "tauri",
     "pack": "node .github/pack-zip.mjs",
     "audit": "node .github/audit-zip.mjs"

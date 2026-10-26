@@ -199,3 +199,28 @@ pub fn window_label_for(path: &str) -> String {
     let canonical = canonical_key(path);
     format!("file-{:016x}", fnv1a(canonical.as_bytes()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::fnv1a;
+    #[cfg(desktop)]
+    use super::window_label_for;
+
+    #[test]
+    fn fnv1a_matches_known_vectors() {
+        assert_eq!(fnv1a(b""), 0xcbf29ce484222325);
+        assert_eq!(fnv1a(b"a"), 0xaf63dc4c8601ec8c);
+        assert_eq!(fnv1a(b"foobar"), 0x85944171f73967e8);
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn window_label_is_stable_and_path_specific() {
+        let a = window_label_for("C:\\oblet-test\\a.md");
+        let b = window_label_for("C:\\oblet-test\\b.md");
+        assert_eq!(a, window_label_for("C:\\oblet-test\\a.md"));
+        assert_ne!(a, b);
+        assert_eq!(a.len(), "file-".len() + 16);
+        assert!(a.starts_with("file-"));
+    }
+}

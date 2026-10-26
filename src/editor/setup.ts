@@ -64,6 +64,7 @@ import { imageBlockFidelity } from "./image-block";
 import { imageBlockView, imagePanelEscGuard, setImageEditDocPath } from "./image-edit";
 import { imageBlockSchema } from "@milkdown/components/image-block";
 import {
+  baseNameOf,
   decodeMaybe,
   isAbsoluteLocalSrc,
   pathKey,
@@ -333,7 +334,7 @@ export async function boot() {
       const recents = (await getSettings()).editor.recent_files ?? [];
       const entries: MenuEntry[] = recents.length
         ? recents.map((p) => ({
-            label: p.split("/").pop() || p,
+            label: baseNameOf(p) || p,
             enabled: true,
             run: () => void openPathInTab(p),
           }))
@@ -507,44 +508,34 @@ export async function boot() {
     dirty: false,
   });
 
+  /** 按相对位置切标签：命令与箭头 UI 共用，空列表时静默忽略。 */
+  const switchTabBy = (delta: number) => {
+    if (!tabCallbacks || tabsModel.count === 0) return;
+    const target =
+      (tabsModel.activeIndex + delta + tabsModel.count) % tabsModel.count;
+    void switchToTab(tabsModel, tabsModel.paths, target, tabCallbacks).then(() => {
+      tabArrows.show(tabsModel.count >= 2);
+    });
+  };
+
   // 注册 tab 导航快捷键
   registerCommand({
     id: "next-tab",
     title: "切换到下一个标签页",
     defaultCombo: "Alt+ArrowRight",
-    run: () => {
-      const next = (tabsModel.activeIndex + 1) % tabsModel.count;
-      void switchToTab(tabsModel, tabsModel.paths, next, tabCallbacks!).then(() => {
-        tabArrows.show(tabsModel.count >= 2);
-      });
-    },
+    run: () => switchTabBy(1),
   });
 
   registerCommand({
     id: "prev-tab",
     title: "切换到上一个标签页",
     defaultCombo: "Alt+ArrowLeft",
-    run: () => {
-      const prev = (tabsModel.activeIndex - 1 + tabsModel.count) % tabsModel.count;
-      void switchToTab(tabsModel, tabsModel.paths, prev, tabCallbacks!).then(() => {
-        tabArrows.show(tabsModel.count >= 2);
-      });
-    },
+    run: () => switchTabBy(-1),
   });
 
   // 箭头点击事件
-  tabArrows.onLeftClick(() => {
-    const prev = (tabsModel.activeIndex - 1 + tabsModel.count) % tabsModel.count;
-    void switchToTab(tabsModel, tabsModel.paths, prev, tabCallbacks!).then(() => {
-      tabArrows.show(tabsModel.count >= 2);
-    });
-  });
-  tabArrows.onRightClick(() => {
-    const next = (tabsModel.activeIndex + 1) % tabsModel.count;
-    void switchToTab(tabsModel, tabsModel.paths, next, tabCallbacks!).then(() => {
-      tabArrows.show(tabsModel.count >= 2);
-    });
-  });
+  tabArrows.onLeftClick(() => switchTabBy(-1));
+  tabArrows.onRightClick(() => switchTabBy(1));
   tabArrows.show(tabsModel.count >= 2);
 
   // Ctrl+S 立即保存（4.4 起经命令注册表统一派发，键位可在设置中覆盖）
@@ -1051,8 +1042,7 @@ export async function boot() {
   // v0.6.0 重命名当前文档：预填原文件名（去 .md），Rust rename_file 落盘并同步
   // 所有窗口 tab 路径与内容哈希，本地迁移缓存 key + path 闭包，监听自动适配（目录不变）
   const doRename = async () => {
-    const oldName =
-      path.replace(/\\/g, "/").split("/").pop()?.replace(/\.md$/i, "") ?? "";
+    const oldName = baseNameOf(path).replace(/\.md$/i, "");
     const name = await promptDialog(
       "重命名文档",
       "输入新文件名（不含 .md）",

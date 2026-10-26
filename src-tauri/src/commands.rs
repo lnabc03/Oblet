@@ -205,6 +205,16 @@ fn detect_newline(bytes: &[u8]) -> String {
     }
 }
 
+/// 落盘前把内部 LF 还原为目标文件换行符；纯函数，便于单测。
+fn apply_newline(content: &str, newline: &str) -> String {
+    let normalized = content.replace("\r\n", "\n");
+    if newline == "CRLF" {
+        normalized.replace('\n', "\r\n")
+    } else {
+        normalized
+    }
+}
+
 /// 原子写入：临时文件 + rename；换行符跟随原文件
 #[tauri::command]
 pub fn write_file(
@@ -220,13 +230,7 @@ pub fn write_file(
         p.file_name().and_then(|n| n.to_str()).unwrap_or("untitled")
     ));
 
-    // 先归一化为 LF，再按目标换行符转换
-    let normalized = content.replace("\r\n", "\n");
-    let output = if newline == "CRLF" {
-        normalized.replace('\n', "\r\n")
-    } else {
-        normalized
-    };
+    let output = apply_newline(&content, &newline);
 
     fs::write(&tmp, output.as_bytes()).map_err(|e| format!("写入临时文件失败: {e}"))?;
     fs::rename(&tmp, p).map_err(|e| {
@@ -685,4 +689,29 @@ pub fn localize_image_assets(
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_newline, detect_newline};
+
+    #[test]
+    fn detect_newline_uses_first_newline() {
+        assert_eq!(detect_newline(b"a\r\nb\nc"), "CRLF");
+        assert_eq!(detect_newline(b"a\nb\r\nc"), "LF");
+    }
+
+    #[test]
+    fn detect_newline_defaults_by_platform_for_single_line() {
+        let expected = if cfg!(target_os = "windows") { "CRLF" } else { "LF" };
+        assert_eq!(detect_newline(b"no newline"), expected);
+    }
+
+    #[test]
+    fn apply_newline_normalizes_mixed_input_to_target() {
+        assert_eq!(apply_newline("a\nb\n", "CRLF"), "a\r\nb\r\n");
+        assert_eq!(apply_newline("a\r\nb\r\n", "CRLF"), "a\r\nb\r\n");
+        assert_eq!(apply_newline("a\r\nb\n", "LF"), "a\nb\n");
+        assert_eq!(apply_newline("a\nb", "LF"), "a\nb");
+    }
 }

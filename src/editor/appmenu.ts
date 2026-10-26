@@ -4,6 +4,7 @@ import type { EditorView } from "@milkdown/prose/view";
 import { IS_MOBILE } from "../platform";
 import { runCommand } from "../commands";
 import { editorMenuEntries, openMenu, type MenuEntry } from "./contextmenu";
+import { baseNameOf } from "./image-paths";
 
 export interface AppMenuHandlers {
   /** 编辑器存活时返回其 view（起始页为 null，此时不展示编辑区命令） */
@@ -50,7 +51,7 @@ export function initAppMenu(h: AppMenuHandlers) {
       label: "最近打开",
       enabled: recents.length > 0,
       children: recents.map((p) => ({
-        label: p.split("/").pop() || p,
+        label: baseNameOf(p) || p,
         enabled: true,
         run: () => h.openPath(p),
       })),

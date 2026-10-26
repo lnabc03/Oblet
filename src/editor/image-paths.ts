@@ -31,6 +31,13 @@ export function dirnameOf(p: string): string {
   return i < 0 ? p : p.slice(0, i);
 }
 
+/** 取文件名（兼容 Windows 反斜杠与 POSIX 正斜杠，忽略末尾分隔符） */
+export function baseNameOf(p: string): string {
+  const normalized = p.replace(/[\\/]+$/, "");
+  const i = Math.max(normalized.lastIndexOf("\\"), normalized.lastIndexOf("/"));
+  return i < 0 ? normalized : normalized.slice(i + 1);
+}
+
 /** 拼合 dir 与 rel 并归一化 . / .. 段。D12：输出统一以 / 分隔
  * （Windows API 与 Rust Path 均接受正斜杠，POSIX 平台必需）；保留盘符与 UNC 前缀 */
 export function joinResolve(dir: string, rel: string): string {

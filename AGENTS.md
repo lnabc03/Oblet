@@ -15,15 +15,20 @@ npm run tauri dev        # 开发（自动起 vite :1420 + cargo run）
 npm run build            # 前端构建（tsc && vite build，含类型检查）
 npm run tauri build      # 产出绿色版 exe
 cd src-tauri && cargo check   # Rust 快速检查
+cd src-tauri && cargo test --lib   # Rust 纯函数单测（换行/哈希/窗口 label）
 
 # 安卓（adb 不在 PATH，全路径 C:\Users\wjs_R\AppData\Local\Android\Sdk\platform-tools\adb.exe）
 set "CARGO_TARGET_DIR=C:\Users\wjs_R\oblet-android-target"    # 安卓交叉编译独立产物目录（不污染桌面 target）
 npm run tauri android dev                              # 模拟器热重载（先杀 1420 残留 vite）
 npm run tauri android build -- --apk --target aarch64  # arm64 release APK（apksigner debug 签名后交付）
 
-# 序列化回归测试（独立脚本，非测试框架；改序列化逻辑后必跑，需全部 PASS）
-node scripts/test-break-roundtrip.mjs   # 换行/hr/转义/frontmatter 往返
-node scripts/test-list-roundtrip.mjs    # 列表/任务列表污染回归
+# 自动化测试（独立脚本，非测试框架；改动后必跑，需全部 PASS）
+npm test                                  # HTML 词法/集成 + Markdown 序列化回归
+node scripts/test-html-lexer.mjs          # HTML 标签边界与 URL 安全白名单（不启 Milkdown）
+node scripts/test-paths.mjs               # 跨平台路径 basename/join/绝对路径判定
+node scripts/test-html.mjs                # HTML 真实 Milkdown 解析/序列化/NodeView/XSS
+node scripts/test-break-roundtrip.mjs     # 换行/hr/转义/frontmatter 往返
+node scripts/test-list-roundtrip.mjs      # 列表/任务列表污染回归
 
 # 发布组包与出口审计
 npm run pack     # 干净暂存 → release/Oblet-<版本>-win-x64.zip
@@ -74,7 +79,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - `editor/tabs.ts`：**Tab 切换系统核心**——`TabState` 缓存（Map<路径, 内容/光标/滚动>）、箭头 UI（`createTabArrows`）、`switchToTab` 核心流程（路径比较 guard + updatePaths 前保存所有当前状态 + PM 原生 scrollIntoView 恢复光标）。关键规则：所有"保存当前状态"操作必须用 `model.get(oldActivePath)` 路径键访问且在 `updatePaths` 之前完成
 - `commands.ts`：命令注册表——快捷键统一入口（settings.json `editor.keymap` 覆盖、window 捕获阶段派发、设置面板改键）
 - `editor/frontmatter.ts`：**序列化保真层收口于此**——frontmatter 节点 + 属性栏 NodeView（键值表格编辑）、`tuneSerialization`（mdast-util-to-markdown 的 rule/bullet/join/handlers 定制 + 表格紧凑输出 + GFM singleTilde 关闭）、任务项空格修剪 remark 插件、`disableEmptyLineBr`
-- `editor/html.ts`：**GitHub README 风格安全 HTML 渲染**（v0.9.0）——HTML 原文是事实源，渲染为只读投影；支持根级块（p/table/hr/details 等）、同段行内标记与原子标签、details 内 Markdown；DOMPurify 白名单 + 危险协议阻断，脚本永不执行。块级与行内源码编辑回写原文，绝不用渲染 DOM 覆盖 md 文本。相对图片经 setup.ts `toDomUrl`，HTTP(S) 与相对 `.md` 链接分派到系统浏览器/同窗口打开。右键「编辑 HTML 源码」进 `contextmenu.ts`
+- `editor/html*.ts`：**GitHub README 风格安全 HTML 渲染**（v0.9.0）——HTML 原文是事实源，渲染为只读投影；支持根级块（p/table/hr/details 等）、同段行内标记与原子标签、details 内 Markdown。分层：`html-lexer`（标签边界/URL 白名单）→ `html-transform`（mdast 保真转换，source 显式传参）→ `html-schema`（PM schema/序列化/源码事务）→ `html-views`（渲染岛/源码面板）→ `html.ts` 仅组装与公共出口。DOMPurify 白名单 + 危险协议阻断，脚本永不执行；块级与行内源码编辑回写原文，绝不用渲染 DOM 覆盖 md 文本。相对图片经 setup.ts `toDomUrl`，HTTP(S) 与相对 `.md` 链接分派到系统浏览器/同窗口打开。右键「编辑 HTML 源码」进 `contextmenu.ts`
 - `editor/image-block.ts`：**图片块 alt 保真**——`extendSchema` 覆盖上游 image-block schema，alt 独立 attr 原样往返（上游把 ratio 偷渡在 alt 槽位，alt 全灭变 `1.00`）
 - `editor/image-paths.ts`：**图片路径判定共享层**（v0.7.0）——REMOTE/ABS 正则、decodeMaybe、joinResolve、resolveLocalAbs、isAbsoluteLocalSrc、docHasAbsoluteImages；渲染转换（setup.ts toDomUrl）、路径编辑/失败占位（image-edit.ts）、批量转换（localizeImages + contextmenu 置灰）三处共用，避免口径漂移。**D12（安卓适配）起兼作前端路径共享层**：`pathKey`（分隔符统一 `/`，仅 Windows 小写归一）供 tabs.ts 缓存键与 setup.ts samePath 共用；`joinResolve` 输出 POSIX `/` 分隔（Windows API 与 Rust Path 均接受正斜杠）
 - `editor/image-edit.ts`：**块级图片自绘 node view**（v0.7.0，`$view` 按节点 id 追加、后注册者胜，addFeature 晚于 Crepe 特性加载即生效）——三态：空 src 占位框（「设置图片」按钮）/ 正常（operation 编辑按钮 + img + 缩放手柄，类名沿用上游吃 Crepe 主题 CSS）/ 失败占位框（Rust `probe_image_path` 分级原因，「编辑路径」进面板）。编辑面板 = caption 风格双输入条绑 alt（[] 槽位）+ src（() 槽位），Enter/失焦提交、Esc 取消、单事务可撤销，提交时剥包裹引号；caption（title 槽位）只读展示不编辑。行内图刻意不覆盖
