@@ -1,0 +1,345 @@
+/* GitHub README HTML 渲染岛。颜色只消费 --ob-*，六主题与深浅模式共用。 */
+.ob-html-node {
+  position: relative;
+  min-width: 0;
+  color: var(--ob-text);
+}
+
+.ob-html-block {
+  margin: 0.65em 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.ob-html-block:hover,
+.ob-html-block:focus-within,
+.ob-html-block.selected,
+.ob-html-details:hover,
+.ob-html-details:focus-within {
+  border-color: var(--ob-border);
+}
+
+.ob-html-render {
+  min-width: 0;
+  color: var(--ob-text);
+  font-family: inherit;
+  line-height: inherit;
+  overflow-wrap: anywhere;
+}
+
+.ob-html-block > .ob-html-render {
+  overflow-x: auto;
+}
+
+.ob-html-toolbar {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.ob-html-node:hover > .ob-html-toolbar,
+.ob-html-node:focus-within > .ob-html-toolbar,
+.ob-html-node.selected > .ob-html-toolbar {
+  opacity: 1;
+}
+
+.ob-html-source-button {
+  appearance: none;
+  border: 1px solid var(--ob-border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  background: var(--ob-bg-alt);
+  color: var(--ob-text-mut);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ob-html-source-button:hover,
+.ob-html-source-button:focus-visible {
+  color: var(--ob-accent);
+  border-color: var(--ob-accent);
+  outline: none;
+}
+
+.ob-html-source {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0;
+  padding: 7px;
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  background: var(--ob-bg-alt);
+}
+
+.ob-html-source[hidden] {
+  display: none;
+}
+
+.ob-html-source-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  max-height: 260px;
+  resize: vertical;
+  border: 1px solid var(--ob-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  background: var(--ob-bg);
+  color: var(--ob-text);
+  font-family: var(--ob-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow: auto;
+}
+
+.ob-html-block .ob-html-source-input {
+  min-height: 88px;
+}
+
+.ob-html-source-input:focus {
+  border-color: var(--ob-accent);
+  outline: 1px solid var(--ob-accent);
+}
+
+.ob-html-source-input[aria-invalid="true"] {
+  border-color: #e06c75;
+}
+
+.ob-html-source-fallback {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--ob-border);
+  border-radius: 5px;
+  background: var(--ob-bg-alt);
+  color: var(--ob-text-mut);
+  font-family: var(--ob-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.86em;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.ob-html-render :where(h1, h2, h3, h4, h5, h6, p, blockquote, dl, dd, pre) {
+  color: inherit;
+}
+
+.ob-html-render :where(h1, h2, h3, h4, h5, h6) {
+  margin: 0.65em 0 0.4em;
+}
+
+.ob-html-render p {
+  margin: 0.55em 0;
+}
+
+.ob-html-render :where(a, a:visited) {
+  color: var(--ob-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ob-html-render a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+  cursor: text;
+}
+
+.ob-html-render :where(code, kbd, samp, pre) {
+  font-family: var(--ob-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+}
+
+.ob-html-render :where(code, kbd) {
+  border-radius: 4px;
+  padding: 0.12em 0.32em;
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+}
+
+.ob-html-render pre {
+  max-width: 100%;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 5px;
+  background: var(--ob-bg-alt);
+}
+
+.ob-html-render pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.ob-html-render blockquote {
+  margin: 0.6em 0;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 3px solid var(--ob-border);
+  color: var(--ob-text-mut);
+}
+
+.ob-html-render hr {
+  height: 1px;
+  margin: 1.2em 0;
+  border: 0;
+  background: var(--ob-border);
+}
+
+.ob-html-render img {
+  box-sizing: border-box;
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+.ProseMirror .ob-html-render table,
+.ob-html-render table {
+  box-sizing: border-box;
+  table-layout: auto !important;
+  width: auto;
+  max-width: 100%;
+  margin: 0.65em 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: var(--ob-text);
+}
+
+.ob-html-render :where(th, td) {
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--ob-border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.ob-html-render th {
+  background: var(--ob-bg-alt);
+  font-weight: 600;
+}
+
+.ob-html-render :where(ul, ol) {
+  padding-left: 1.6em;
+}
+
+.ob-html-inline {
+  color: inherit;
+}
+
+a.ob-html-inline {
+  color: var(--ob-accent);
+  cursor: pointer;
+}
+
+code.ob-html-inline,
+kbd.ob-html-inline {
+  border-radius: 4px;
+  padding: 0.12em 0.32em;
+  background: var(--ob-bg-alt);
+  color: var(--ob-text);
+  font-family: var(--ob-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+}
+
+.ob-html-inline-atom {
+  display: inline;
+  max-width: 100%;
+}
+
+.ob-html-inline-render {
+  display: inline;
+}
+
+.ob-html-inline-atom.selected {
+  outline: 1px solid var(--ob-accent);
+  outline-offset: 2px;
+}
+
+.ob-html-details {
+  margin: 0.65em 0;
+  border: 1px solid var(--ob-border);
+  border-radius: 6px;
+  background: var(--ob-bg);
+}
+
+.ob-html-details-native {
+  min-width: 0;
+  color: var(--ob-text);
+}
+
+.ob-html-summary {
+  box-sizing: border-box;
+  min-height: 34px;
+  padding: 7px 56px 7px 12px;
+  border-radius: 6px;
+  color: var(--ob-text);
+  background: var(--ob-bg-alt);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ob-html-summary:focus-visible {
+  outline: 2px solid var(--ob-accent);
+  outline-offset: -2px;
+}
+
+.ob-html-summary :where(p) {
+  display: inline;
+  margin: 0;
+}
+
+.ob-html-details-content {
+  min-width: 0;
+  padding: 0 12px 10px;
+  color: var(--ob-text);
+  user-select: text;
+}
+
+.ob-html-details-content > :first-child {
+  margin-top: 0.55em;
+}
+
+.ob-html-details-content > :last-child {
+  margin-bottom: 0;
+}
+
+.ob-html-details-source {
+  margin: 6px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .ob-html-toolbar {
+    opacity: 1;
+  }
+}
+
+@media print {
+  .ob-html-toolbar,
+  .ob-html-source {
+    display: none !important;
+  }
+
+  .ob-html-block,
+  .ob-html-details {
+    border-color: var(--ob-border);
+  }
+
+  .ob-html-block > .ob-html-render,
+  .ob-html-render pre {
+    overflow: visible;
+    white-space: pre-wrap;
+  }
+
+  .ob-html-render table {
+    table-layout: auto !important;
+  }
+}
