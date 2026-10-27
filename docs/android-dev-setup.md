@@ -20,7 +20,7 @@ Oblet 安卓版 = **Rust 交叉编译成 `.so` 原生库** + **前端 dist** + *
 2. 安装时保持默认勾选（Android SDK、Android Virtual Device 等全部要）。
 3. 首次启动会问是否导入设置，选不导入；走 Standard 安装类型，让它把 SDK 下载完。
 4. 装完后打开 **More Actions → SDK Manager**（或欢迎页的 SDK Manager），确认以下组件已装（缺啥勾啥，Apply 下载）：
-   - **SDK Platforms 标签页**：勾一个 Android 13（API 33）或以上版本
+   - **SDK Platforms 标签页**：勾 Android 16（API 36）——工程 `compileSdk`/`targetSdk` 为 36、`minSdk` 为 30
    - **SDK Tools 标签页**（右上角勾 Show Package Details）：
      - Android SDK Build-Tools
      - **NDK (Side by side)** ← Rust 交叉编译必需，最容易漏
@@ -29,6 +29,7 @@ Oblet 安卓版 = **Rust 交叉编译成 `.so` 原生库** + **前端 dist** + *
      - Android SDK Platform-Tools（含 adb）
 
 > 装完后 NDK 落在 `Sdk\ndk\<版本号>\` 目录下，后面配环境变量要用到这个版本号目录名。
+> **NDK 不锁版本**，SDK Manager 里装最新的稳定版即可（CI 直接用 `ubuntu-latest` 预装的最新 NDK，不额外下载）。
 
 ## 第二步：配环境变量（5 分钟）
 

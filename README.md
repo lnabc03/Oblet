@@ -88,7 +88,7 @@ npm run tauri dev     # 桌面开发模式（热重载）
 npm run tauri build   # 产出 src-tauri/target/release/oblet.exe
 ```
 
-Android 端（需要 Android SDK + NDK 27.2.x，详见 `docs/android-dev-setup.md`）：
+Android 端（需要 Android SDK + NDK，不锁版本、装最新即可，详见 `docs/android-dev-setup.md`）：
 
 ```bash
 npm run tauri android dev                          # 模拟器/真机热重载

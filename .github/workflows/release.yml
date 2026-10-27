@@ -79,12 +79,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # runner 自带 JDK 已漂移到 25（class major 69），Gradle 8.14.3 只支持到 Java 24，
-      # 会在建脚本阶段崩 "Unsupported class file major version 69"。显式钉 JDK 17，
-      # 与 AGP 8.x 及本地开发一致，避免随镜像升级再次炸
+      # 会在建脚本阶段崩 "Unsupported class file major version 69"。
+      # 取 Gradle 8.14.3 支持范围内的最新 LTS（21），避免跟随镜像漂移
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - uses: actions/setup-node@v4
         with:
@@ -103,14 +103,12 @@ jobs:
           workspaces: src-tauri
           cache-all-crates: true
 
-      # NDK 版本对齐本地开发（27.2.x）；sdkmanager 不在 PATH，用绝对路径
-      - name: Install Android NDK
+      # NDK 不锁版本：直接用 runner 预装的最新版（tauri-cli 读 NDK_HOME）。
+      # 只补接许可，sdkmanager 不在 PATH，用绝对路径
+      - name: Accept Android SDK licenses
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null
-          "$SDKMANAGER" "ndk;27.2.12479018"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
       - run: npm ci
 

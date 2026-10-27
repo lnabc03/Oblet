@@ -142,6 +142,7 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - **安卓权限随安装态失效**：dev/release 切换装卸、`pm clear` 后 MANAGE_EXTERNAL_STORAGE 丢授权——必须 `adb shell appops set com.oblet.app MANAGE_EXTERNAL_STORAGE allow` 再 force-stop 重启，否则文件全部读不了（曾致"全体打不开"假象）
 - **桌面 CDP 冒烟**：`set WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` 起 `tauri dev`；合成 contextmenu 必须派发到 `.ProseMirror`（view.dom），派到 `.milkdown` 是祖先、事件不下沉
 - **安卓返回键"已消费"判定靠 preventDefault**：MainActivity 注入合成 Esc，dispatchEvent 返回 false 才认为页面消费（否则退后台）——所有浮层 Esc handler 必须 `preventDefault()`；window 捕获层同相位按注册序触发（这条链曾藏"菜单开着按 Esc 连带关 tab"的隐性 bug，v0.8.0 已修）
+- **CI 依赖随 runner 镜像漂移，不要在 workflow 里假设预装版本**（2026-10-27 实踩，v0.9.0 首轮安卓 job 失败）：`ubuntu-latest` 默认 JDK 升到 25（class major 69），而 Gradle 8.14.3 只支持到 Java 24，gradle 在建脚本阶段直接崩 `Unsupported class file major version 69`。已在 android job 用 `actions/setup-java@v4` 显式钉 JDK 21（Gradle 8.14.3 支持上限内最新 LTS）；升级 Gradle/AGP 时可再抬。**NDK 同理**：tauri-cli 只读 `NDK_HOME`，workflow 早先只导出 `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`，导致「手动装 27.2 对齐本地」实际从未生效、一直用的是 runner 预装的 NDK（版本随镜像变化）。现改为不装 NDK、直接吃 runner 预装最新版，文档（README / docs/android-dev-setup.md）同步去掉版本锁定
 
 ## 已知合理规范化（不是 bug）
 
