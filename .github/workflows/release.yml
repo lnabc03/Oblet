@@ -72,11 +72,19 @@ jobs:
           body_path: release/release-notes.md
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # 安卓 arm64 APK：gen/android 工程已入库，ubuntu-latest 预装 Android SDK/JDK17
+  # 安卓 arm64 APK：gen/android 工程已入库，ubuntu-latest 预装 Android SDK
   android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # runner 自带 JDK 已漂移到 25（class major 69），Gradle 8.14.3 只支持到 Java 24，
+      # 会在建脚本阶段崩 "Unsupported class file major version 69"。显式钉 JDK 17，
+      # 与 AGP 8.x 及本地开发一致，避免随镜像升级再次炸
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
       - uses: actions/setup-node@v4
         with:
