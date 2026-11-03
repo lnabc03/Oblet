@@ -34,6 +34,27 @@ body.ob-toc-hidden .ob-toc {
   display: none !important;
 }
 
+/* 可选窄屏优化：目录不再要求正文预留右侧栏，低透明浮在文字上。
+ * hover/focus/展开时恢复不透明，保证指示条可操作、目录面板可读。 */
+@media (max-width: 640px) {
+  body.ob-narrow-optimized .ob-toc {
+    right: max(8px, env(safe-area-inset-right, 0px));
+    opacity: 0.32;
+    transition: opacity 0.15s ease;
+  }
+  body.ob-narrow-optimized .ob-toc:focus-within,
+  body.ob-narrow-optimized .ob-toc.ob-toc-expanded {
+    opacity: 1;
+  }
+}
+
+/* hover 只在真实悬停设备上参与；触屏的粘滞 :hover 不能让收起态一直不透明 */
+@media (max-width: 640px) and (hover: hover) {
+  body.ob-narrow-optimized .ob-toc:hover {
+    opacity: 1;
+  }
+}
+
 /* ---------------- 进度球（单击回顶 / 双击回光标） ---------------- */
 
 .ob-toc-progress {

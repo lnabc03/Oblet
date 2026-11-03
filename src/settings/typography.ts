@@ -42,6 +42,8 @@ export interface EditorSettings {
   transition_animation?: boolean | null;
   /** 悬浮 TOC：null/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控） */
   toc?: boolean | null;
+  /** 窄屏优化：null/false = 关闭（默认）；true = 小屏释放两侧留白并隐藏块手柄 */
+  narrow_screen_optimization?: boolean | null;
   /** 主题模式（多主题一期）：null/"dark" = 深色（默认）；"light" = 浅色；"system" = 跟随系统 */
   theme_mode?: ThemeMode | null;
   /** 主题身份（多主题二期）：null/"anuppuccin" = AnuPpuccin（默认）；其余见 theme-classes.ts 注册表 */
@@ -132,6 +134,11 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
   // 悬浮 TOC 开关（默认显示，显式 false 才隐藏；CSS 门控，TOC 插件零接线）
   document.body.classList.toggle("ob-toc-hidden", e.toc === false);
+  // 窄屏优化（默认关闭）：仅 <=640px 生效；隐藏块手柄、收窄版心，TOC 低透明覆盖正文
+  document.body.classList.toggle(
+    "ob-narrow-optimized",
+    e.narrow_screen_optimization === true
+  );
 }
 
 /** 保存排版设置并广播到所有窗口 */

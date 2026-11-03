@@ -109,6 +109,10 @@ export async function initSettingsUI(container: HTMLElement) {
           <input type="checkbox" data-check="toc" data-default="true">
           <span>悬浮目录</span>
         </label>
+        <label class="check-row">
+          <input type="checkbox" data-check="narrow_screen_optimization">
+          <span>窄屏优化</span>
+        </label>
       </div>
       <div class="settings-section">
         <h3>界面</h3>
