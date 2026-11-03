@@ -54,7 +54,7 @@ pub struct EditorSetting {
     // 悬浮 TOC：None/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控）
     #[serde(default)]
     pub toc: Option<bool>,
-    // 窄屏优化：None/false = 关（默认）；true = 小屏收窄版心、隐藏块手柄、TOC 低透明覆盖
+    // 窄屏优化：None = 自动（默认，按窗口尺寸）；Some(true/false) = 手动强制开/关
     #[serde(default)]
     pub narrow_screen_optimization: Option<bool>,
     // 主题模式（多主题一期）：None/"dark" = 深色（现状默认）；"light" = 浅色；"system" = 跟随系统

@@ -42,7 +42,7 @@ export interface EditorSettings {
   transition_animation?: boolean | null;
   /** 悬浮 TOC：null/true = 显示（默认）；false = 隐藏（body.ob-toc-hidden 门控） */
   toc?: boolean | null;
-  /** 窄屏优化：null/false = 关闭（默认）；true = 小屏释放两侧留白并隐藏块手柄 */
+  /** 窄屏优化：null = 自动（默认，宽 ≤640px 且高 ≥ 宽）；true = 强制开；false = 强制关 */
   narrow_screen_optimization?: boolean | null;
   /** 主题模式（多主题一期）：null/"dark" = 深色（默认）；"light" = 浅色；"system" = 跟随系统 */
   theme_mode?: ThemeMode | null;
@@ -64,6 +64,18 @@ export async function saveSettings(s: Settings): Promise<void> {
  *  供编辑器侧读行为项（自动保存开关等），不必每次 invoke */
 let current: EditorSettings = { auto_save: true };
 
+/** 自动窄屏：宽 <=640px 且为竖向窗口（高 >= 宽）；覆盖启动与窗口 resize */
+const narrowScreenMedia = window.matchMedia(
+  "(max-width: 640px) and (max-aspect-ratio: 1/1)"
+);
+let narrowMediaListening = false;
+
+function syncNarrowOptimization() {
+  const pref = current.narrow_screen_optimization;
+  const enabled = pref === true || (pref == null && narrowScreenMedia.matches);
+  document.body.classList.toggle("ob-narrow-optimized", enabled);
+}
+
 export function currentEditorSettings(): EditorSettings {
   return current;
 }
@@ -77,7 +89,7 @@ const TYPO_DEFAULTS = {
   base_font_size: 17,
 };
 
-/** 解析主题模式：null/dark → dark；light → light；system → 跟系统（代码库首处 matchMedia） */
+/** 解析主题模式：null/dark → dark；light → light；system → 跟系统 */
 export function resolveTheme(mode: ThemeMode | null | undefined): ResolvedTheme {
   if (mode === "light") return "light";
   if (mode === "system") {
@@ -134,11 +146,8 @@ export function applyTypography(e: EditorSettings) {
   document.body.classList.toggle("ob-hide-author", e.show_author === false);
   // 悬浮 TOC 开关（默认显示，显式 false 才隐藏；CSS 门控，TOC 插件零接线）
   document.body.classList.toggle("ob-toc-hidden", e.toc === false);
-  // 窄屏优化（默认关闭）：仅 <=640px 生效；隐藏块手柄、收窄版心，TOC 低透明覆盖正文
-  document.body.classList.toggle(
-    "ob-narrow-optimized",
-    e.narrow_screen_optimization === true
-  );
+  // 窄屏优化：手动开/关优先；默认自动跟随窗口宽度与宽高比
+  syncNarrowOptimization();
 }
 
 /** 保存排版设置并广播到所有窗口 */
@@ -164,6 +173,10 @@ export async function setKeybinding(id: string, combo: string | null) {
 
 /** 启动时初始化：读 settings 应用排版；监听其他窗口的排版广播 */
 export async function initTypography(): Promise<void> {
+  if (!narrowMediaListening) {
+    narrowScreenMedia.addEventListener("change", syncNarrowOptimization);
+    narrowMediaListening = true;
+  }
   await listen("oblet-typography-changed", async () => {
     const fresh = await getSettings();
     setKeymapOverrides(fresh.editor.keymap);

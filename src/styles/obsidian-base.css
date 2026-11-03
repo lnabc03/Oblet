@@ -122,28 +122,26 @@ body.ob-vibrancy .search-bar input {
   background: rgba(var(--ctp-base, 30, 30, 46), 0.45);
 }
 
-/* ---- 可选窄屏优化（editor.narrow_screen_optimization）----
- * 默认不变；仅在真正的窄视口释放两侧为块手柄/TOC 预留的固定留白。
+/* ---- 窄屏优化（editor.narrow_screen_optimization）----
+ * body 类由三态设置驱动：自动 = <=640px 且高 >= 宽；手动开不受尺寸限制。
  * 顶部增至 48px，避免 ☰/⚙（桌面窄窗为置顶/⚙）压住拓宽后的首行正文。
  * 块手柄只是绝对定位浮层，display:none 不影响 Enter/斜杠菜单等编辑路径。 */
-@media (max-width: 640px) {
-  body.ob-narrow-optimized .markdown-rendered {
-    padding: 48px max(12px, env(safe-area-inset-right, 0px)) 0
-      max(12px, env(safe-area-inset-left, 0px));
-    /* Android WebView 的 10px 经典滚动条参与布局；窄屏模式隐藏占位但保留滚动 */
-    scrollbar-width: none;
-  }
-  body.ob-narrow-optimized .markdown-rendered::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
-  body.ob-narrow-optimized .markdown-rendered .ProseMirror {
-    padding-right: 0;
-    padding-left: 0;
-  }
-  body.ob-narrow-optimized .milkdown .milkdown-block-handle {
-    display: none !important;
-  }
+body.ob-narrow-optimized .markdown-rendered {
+  padding: 48px max(12px, env(safe-area-inset-right, 0px)) 0
+    max(12px, env(safe-area-inset-left, 0px));
+  /* Android WebView 的 10px 经典滚动条参与布局；窄屏模式隐藏占位但保留滚动 */
+  scrollbar-width: none;
+}
+body.ob-narrow-optimized .markdown-rendered::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+body.ob-narrow-optimized .markdown-rendered .ProseMirror {
+  padding-right: 0;
+  padding-left: 0;
+}
+body.ob-narrow-optimized .milkdown .milkdown-block-handle {
+  display: none !important;
 }
 
 .empty-state {

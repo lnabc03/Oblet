@@ -110,8 +110,12 @@ export async function initSettingsUI(container: HTMLElement) {
           <span>悬浮目录</span>
         </label>
         <label class="check-row">
-          <input type="checkbox" data-check="narrow_screen_optimization">
           <span>窄屏优化</span>
+          <select id="narrow-screen-select">
+            <option value="auto">自动（窄屏时）</option>
+            <option value="on">始终开启</option>
+            <option value="off">始终关闭</option>
+          </select>
         </label>
       </div>
       <div class="settings-section">
@@ -288,6 +292,10 @@ export async function initSettingsUI(container: HTMLElement) {
     // 主题模式：null = 深色（默认）
     overlay.querySelector<HTMLSelectElement>("#theme-mode-select")!.value =
       (ed.theme_mode as string | null) ?? "dark";
+    // 窄屏优化：null = 自动；true/false = 手动强制开/关
+    const narrow = ed.narrow_screen_optimization;
+    overlay.querySelector<HTMLSelectElement>("#narrow-screen-select")!.value =
+      narrow == null ? "auto" : narrow === true ? "on" : "off";
     renderKeymapList();
   }
 
@@ -312,6 +320,16 @@ export async function initSettingsUI(container: HTMLElement) {
       const v = (e.target as HTMLSelectElement).value;
       await switchTypography({
         theme_mode: v === "dark" ? null : (v as "light" | "system"),
+      });
+    });
+
+  // 窄屏优化三态：自动写回 null；手动开/关写 true/false，resize 由 typography.ts 监听
+  overlay
+    .querySelector<HTMLSelectElement>("#narrow-screen-select")!
+    .addEventListener("change", async (e) => {
+      const v = (e.target as HTMLSelectElement).value;
+      await switchTypography({
+        narrow_screen_optimization: v === "auto" ? null : v === "on",
       });
     });
 
