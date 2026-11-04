@@ -144,6 +144,11 @@ body.ob-narrow-optimized .milkdown .milkdown-block-handle {
   display: none !important;
 }
 
+/* 窄屏：右侧箭头会被浮于正文之上的 TOC 覆盖，隐藏；左侧循环点击仍可切换 */
+body.ob-narrow-optimized .tab-arrow-right {
+  display: none;
+}
+
 .empty-state {
   margin: auto;
   text-align: center;
