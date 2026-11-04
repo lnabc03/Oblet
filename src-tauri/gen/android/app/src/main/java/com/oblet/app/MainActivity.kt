@@ -1,16 +1,13 @@
 package com.oblet.app
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
-import android.provider.OpenableColumns
 import android.provider.Settings
 import android.webkit.WebView
 import android.widget.Toast
@@ -31,13 +28,6 @@ class MainActivity : TauriActivity() {
   // 待投递给前端的文件路径（Intent 到达时前端可能尚未装好接收函数）
   private var pendingOpenPath: String? = null
   private var delivering = false
-
-  // content:// 无真实路径来源（Termux 等）：导入工作副本 + 保存回写
-  private val importsDir by lazy { File(filesDir, "imports").apply { mkdirs() } }
-  private var importsObserver: FileObserver? = null
-  private val writeBackHandler = Handler(Looper.getMainLooper())
-  private val writeBackJobs = HashMap<String, Runnable>()
-  private val importGuards = HashMap<String, Long>()
 
   // 物理键盘 Alt 按下状态（自追踪，不依赖 KeyEvent metaState——部分机型/布局下
   // Alt 修饰位会被字符映射消耗，isAltPressed 不可靠）
@@ -342,79 +332,8 @@ class MainActivity : TauriActivity() {
       val p = m.groupValues[1]
       if (File(p).exists()) return p
     }
-    // 无真实路径可解析的 provider（典型：Termux 的
-    // content://com.termux.files/data/data/com.termux/files/home/...）。
-    // 编辑器全链路以路径为键，故导入应用私有工作副本，并登记回写映射。
-    return importContentUri(uri)
+    return null
   }
-
-  // ---- content:// 无路径来源：导入工作副本 + 保存回写 ----
-
-  /** 把 content:// 流读入 imports/ 下的工作副本，返回其绝对路径；失败返回 null。
-   *  同一来源（按 URI 哈希）复用同一副本，避免 imports/ 越积越多。 */
-  private fun importContentUri(uri: Uri): String? {
-    val rawName = queryDisplayName(uri) ?: "imported.md"
-    val safeName = rawName.replace(Regex("""[\\/:*?"<>|]"""), "_").ifBlank { "imported.md" }
-    val key = Integer.toHexString(uri.toString().hashCode())
-    val working = File(importsDir, "$key-$safeName")
-    return try {
-      val src = contentResolver.openInputStream(uri) ?: return null
-      src.use { input -> working.outputStream().use { output -> input.copyTo(output) } }
-      // 这次写入不是用户保存，别让监听器立刻把它回写到来源
-      importGuards[working.absolutePath] = System.currentTimeMillis()
-      rememberSource(working, uri)
-      working.canonicalPath
-    } catch (_: Exception) {
-      null
-    }
-  }
-
-  private fun queryDisplayName(uri: Uri): String? =
-    try {
-      contentResolver
-        .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        ?.use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getString(0) else null }
-    } catch (_: Exception) {
-      null
-    }
-
-  /** 记录「工作副本 → 来源 URI」，并挂目录监听：副本保存后写回来源。
-   *  回写依赖发起方授予的写权限（Termux 侧 wrapper 带
-   *  --grant-write-uri-permission）；授权失效时提示，不静默丢改动。 */
-  private fun rememberSource(working: File, uri: Uri) {
-    sourcePrefs().edit().putString(WRITEBACK_KEY + working.absolutePath, uri.toString()).apply()
-    if (importsObserver != null) return
-    importsObserver =
-      object : FileObserver(importsDir.absolutePath, FileObserver.ALL_EVENTS) {
-        override fun onEvent(event: Int, path: String?) {
-          val name = path ?: return
-          val mask = FileObserver.CLOSE_WRITE or FileObserver.MOVED_TO or FileObserver.MODIFY
-          if (event and mask == 0) return
-          val file = File(importsDir, name)
-          if (!sourcePrefs().contains(WRITEBACK_KEY + file.absolutePath)) return
-          val job = writeBackJobs.getOrPut(file.absolutePath) { Runnable { pushBack(file) } }
-          writeBackHandler.removeCallbacks(job)
-          writeBackHandler.postDelayed(job, 500)
-        }
-      }.also { it.startWatching() }
-  }
-
-  /** 原子保存会产生 CREATE/MOVED_TO 多次事件，500ms 去抖后只回写最终内容。 */
-  private fun pushBack(file: File) {
-    writeBackJobs.remove(file.absolutePath)
-    val guard = importGuards.remove(file.absolutePath)
-    if (guard != null && System.currentTimeMillis() - guard < 2000) return
-    val uriText = sourcePrefs().getString(WRITEBACK_KEY + file.absolutePath, null) ?: return
-    try {
-      val out = contentResolver.openOutputStream(Uri.parse(uriText), "wt")
-        ?: throw IllegalStateException("来源拒绝写入")
-      out.use { dst -> file.inputStream().use { it.copyTo(dst) } }
-    } catch (e: Exception) {
-      Toast.makeText(this, "改动未回写来源（授权可能已失效）：${e.message}", Toast.LENGTH_LONG).show()
-    }
-  }
-
-  private fun sourcePrefs() = getSharedPreferences("oblet_sources", Context.MODE_PRIVATE)
 
   /** 轮询等前端装好 __obletOpenFromIntent 再投递（冷启动时 WebView 加载慢于 Intent 到达） */
   private fun tryDeliver() {
@@ -447,10 +366,5 @@ class MainActivity : TauriActivity() {
       }
     }
     handler.post(attempt)
-  }
-
-  private companion object {
-    /** SharedPreferences 键前缀：工作副本绝对路径 → 来源 content URI */
-    private const val WRITEBACK_KEY = "src:"
   }
 }
