@@ -144,6 +144,8 @@ node scripts/measure-startup.mjs    # 默认 5 轮采样
 - **安卓返回键"已消费"判定靠 preventDefault**：MainActivity 注入合成 Esc，dispatchEvent 返回 false 才认为页面消费（否则退后台）——所有浮层 Esc handler 必须 `preventDefault()`；window 捕获层同相位按注册序触发（这条链曾藏"菜单开着按 Esc 连带关 tab"的隐性 bug，v0.8.0 已修）
 - **CI 依赖随 runner 镜像漂移，不要在 workflow 里假设预装版本**（2026-10-27 实踩，v0.9.0 首轮安卓 job 失败）：`ubuntu-latest` 默认 JDK 升到 25（class major 69），而 Gradle 8.14.3 只支持到 Java 24，gradle 在建脚本阶段直接崩 `Unsupported class file major version 69`。已在 android job 用 `actions/setup-java@v4` 显式钉 JDK 21（Gradle 8.14.3 支持上限内最新 LTS）；升级 Gradle/AGP 时可再抬。**NDK 同理**：tauri-cli 只读 `NDK_HOME`，workflow 早先只导出 `ANDROID_NDK_HOME`/`ANDROID_NDK_ROOT`，导致「手动装 27.2 对齐本地」实际从未生效、一直用的是 runner 预装的 NDK（版本随镜像变化）。现改为不装 NDK、直接吃 runner 预装最新版，文档（README / docs/android-dev-setup.md）同步去掉版本锁定
 
+- **asset 协议默认拒绝点目录**（2026-11-04）：Tauri 的 `assetProtocol.scope` 在 Unix 上默认 `requireLiteralLeadingDot: true`，`**` 不匹配 `.repos` 这类以点开头的路径组件，点目录里的图片一律 403，正文却能正常打开（只有 Rust 日志 `asset protocol not configured to allow the path`）。配置已改为对象式 `{ "allow": ["**"], "requireLiteralLeadingDot": false }`。这是「仓库放 `/sdcard/.repos/` 避开相册扫描」方案可用的前提。
+
 ## 已知合理规范化（不是 bug）
 
 首次保存产生一批渲染等价的 AST 归一化（空格/列表符/围栏符/标题格式/转义字符等），之后往返字节级不变。表格统一输出紧凑形态（`| a | b |` + `|---|---|`）：已是紧凑写法的手写表格零 diff，padding 对齐过的表格首次保存归一化。详见《技术设计文档》第 5 节。低优先级转义噪音（词内 `*`、空括号、单反引号等）不修。
