@@ -3,9 +3,9 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Android-0078D4)
 ![License](https://img.shields.io/badge/license-GPL--3.0-green)
 
-轻量、快速的独立 Markdown 编辑器（Windows / Android）。双击任意 `.md` 文件即开即编辑，支持单窗口多标签页，不需要库（vault）、不需要登录、不收集任何数据。
+轻量、快速的独立 Markdown 编辑器（Windows / Android）。双击 `.md` 即开即编辑，支持单窗口多标签页，不需要库（vault）、登录或联网，不收集任何数据。
 
-内置 6 款白名单复刻主题（AnuPpuccin / Minimal / Things / GitHub / Atom / Nord），每款均支持深色 / 浅色 / 跟随系统。第一原则是**序列化保真**：保存不会对你的 Markdown 原文做任何侵入性修改，与 Obsidian 双向编辑同一文件无损。
+内置 6 款白名单复刻主题，均支持深色 / 浅色 / 跟随系统。第一原则是**序列化保真**：保存不对 Markdown 原文做侵入性修改，与 Obsidian 双向编辑同一文件无损。
 
 ## 主题
 
@@ -13,72 +13,69 @@
 
 | AnuPpuccin | Minimal |
 | --- | --- |
-| ![AnuPpuccin](assets/theme-anuppuccin.png) | ![Minimal](assets/theme-minimal.png) |
+| ![AnuPpuccin](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162344155.png) | ![Minimal](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162513552.png) |
 | **Things** | **GitHub** |
-| ![Things](assets/theme-things.png) | ![GitHub](assets/theme-github.png) |
+| ![Things](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162550038.png) | ![GitHub](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162447859.png) |
 | **Atom** | **Nord** |
-| ![Atom](assets/theme-atom.png) | ![Nord](assets/theme-nord.png) |
+| ![Atom](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162418619.png) | ![Nord](https://picgo-rainote.oss-cn-guangzhou.aliyuncs.com/obsidian/20261105162529844.png) |
 
 ## 特性
 
 ### 编辑
 
-- 所见即所得：标题、列表、任务列表、表格、代码块语法高亮、KaTeX 块级公式，选中文本可直接拖动移动
-- Mermaid 图表：` ```mermaid ` 代码块直接渲染为图（流程图、时序图、甘特图等 20+ 种），配色跟随主题与深浅模式
-- 笔记属性：frontmatter 渲染为键值属性栏，可直接编辑
-- Callout：13 类 Obsidian 风格提示块，右键菜单一键创建、切换、回退
-- 高亮：`==文本==` 语法，渲染时隐藏标记
-- 检索与替换：全文档高亮、循环跳转、逐个或全部替换
-- **GitHub README 风格 HTML**：常见块级与行内 HTML、图片、表格、details/summary 及 details 内 Markdown 直接渲染；原文始终是事实源，支持块级与行内源码编辑，脚本与危险协议被阻断
+- 所见即所得：标题、列表、任务列表、表格、代码块高亮与 KaTeX 公式，支持选区拖动
+- Mermaid 图表：` ```mermaid ` 代码块直接渲染流程图、时序图、甘特图等 20+ 种图，配色跟随主题
+- 笔记结构：frontmatter 键值属性栏、13 类 Obsidian 风格 Callout、`==高亮==`
+- 图片：alt 与路径可编辑，加载失败分级诊断，本地绝对路径可一键转为 `assets/` 相对路径
+- 检索替换：全文档高亮、循环跳转、逐个或全部替换
+- 安全 HTML：常见块级与行内 HTML、表格、details/summary 及其中的 Markdown 直接渲染；原文可编辑，脚本与危险协议被阻断
 
 ### 文件与窗口
 
-- 双击即编辑：注册为 `.md` 处理程序后，双击文件直接打开
-- 多标签页：拖入多个文件在同一窗口内切换，标签页间缓存内容与光标位置
-- 欢迎页三入口（全平台一致）：新建 Markdown 文件 / 打开文件 / 最近打开
-- 最近打开：自动记录最近文件，历史文件被删除时优雅降级（提示并自动剔除，不进错误页）
-- 右键新建：文件夹空白处右键新建 Markdown 文档并直接打开
-- 自动保存：500ms 防抖，原子写入，换行符跟随原文件
-- 外部变更监听：文件被外部修改时自动重载，有未保存内容则提示，绝不静默覆盖
-- 只读保护：非 UTF-8 文件以只读方式打开，绝不乱码写回
-- 导出：保存至 Obsidian Vault 文件夹，或导出为 PDF（桌面端）
-- 窗口置顶：置顶态按钮高亮主题色（桌面端）
-- 绿色便携：单 exe 解压即用，设置存于 exe 同级 `data/settings.json`
+- 打开与标签：双击或拖入文件，单窗口多标签切换并缓存内容与光标位置
+- 欢迎页：新建 / 打开 / 最近打开；历史文件失效时提示并自动剔除
+- 文件管理：Windows 右键新建，支持重命名；目标目录不存在时自动创建
+- 自动保存：500ms 防抖、原子写入，换行符跟随原文件
+- 外部变更：自动重载；有未保存内容时提示，绝不静默覆盖
+- 只读保护：非 UTF-8 文件只读打开，不乱码写回
+- 导出：保存至 Obsidian Vault，或导出为 PDF（桌面端）
+- 绿色便携：ZIP 解压即用或单 exe 运行，设置存于 exe 同级 `data/settings.json`
 
 ### Android 端
 
-- 完整编辑器移植：同一套渲染与序列化保真管线，APK 侧载安装
-- 系统打通：`.md` 文件「打开方式」注册、返回键逐级关闭弹层/标签页、沉浸式全屏、物理键盘快捷键（Esc、Alt+1~6）
-- 触屏交互：长按选区工具栏自动避让系统复制/粘贴菜单、块手柄跟随光标、目录点按展开
-- 文件链路：系统文件选择器打开、新建文件默认落 `Documents/`、目录不存在自动创建
+- 完整编辑器：共用渲染与序列化保真管线，适配长按菜单、选区工具栏与触屏目录
+- 系统集成：`.md`「打开方式」、返回键逐级关闭弹层、沉浸式全屏、物理键盘快捷键
+- 文件链路：系统文件选择器打开，新建默认落 `/sdcard/Documents`，目录不存在自动创建
 
 ### 外观
 
 - 6 款主题 × 深浅双模，Ctrl+T 切换深浅
-- 悬浮目录：收起态为进度球与层级指示条，悬停展开标题面板，点击跳转，当前位置跟随光标高亮
-- 个性化：字体字号、光标所在块底色、代码块自动换行、自定义快捷键
+- 悬浮目录：进度球与层级指示条收起，悬停展开，点击跳转并跟随光标高亮
+- 个性化与窄屏：字体字号、当前行底色、代码换行、自定义快捷键；窄窗口自动释放留白并精简悬浮操作
 
 ## 下载与使用
+
+最新安装包见 [Releases](https://github.com/lnabc03/Oblet/releases)，历史变更见 [CHANGELOG](CHANGELOG.md)。
 
 ### Windows
 
 系统要求：Windows 10 / 11。
 
-1. 从 [Releases](https://github.com/lnabc03/Oblet/releases) 下载 `Oblet-x.y.z-win-x64.zip`，解压到任意位置（或下载单文件 `Oblet-x.y.z-win-x64.exe`）
-2. 注册右键集成（可选）：以管理员身份运行 `register-md.bat`，将 `.md` 关联到 Oblet 并注册右键新建菜单；`unregister-md.bat` 一键撤销
-3. 双击任意 `.md` 文件，或将文件拖入 Oblet 窗口
+1. 下载 `Oblet-x.y.z-win-x64.zip` 并解压到任意位置，或使用单文件 `Oblet-x.y.z-win-x64.exe`
+2. 可选：以管理员身份运行 `register-md.bat`，关联 `.md` 并注册右键新建；`unregister-md.bat` 用于撤销
+3. 双击 `.md` 文件，或将其拖入 Oblet 窗口
 
-首次运行 Windows 可能弹出"Windows 已保护你的电脑"：因为 exe 没有付费代码签名证书。点击"更多信息"→"仍要运行"即可。源码全部公开，可自行构建验证。
+首次运行若出现 SmartScreen 提示，点击「更多信息」→「仍要运行」。这是因为 exe 没有付费代码签名证书，也可自行构建验证。
 
 ### Android
 
 系统要求：Android 11+（arm64）。
 
-1. 从 [Releases](https://github.com/lnabc03/Oblet/releases) 下载 `Oblet-x.y.z-android-arm64.apk`，侧载安装
-2. 首次启动按引导授予「所有文件访问」权限（读取 `/sdcard` 上的 md 文件所需；不授权则只能编辑应用私有目录）
-3. 从文件管理器点任意 `.md` 选择 Oblet 打开，或在欢迎页使用「打开文件 / 最近打开 / 新建 Markdown 文件」
+1. 下载 `Oblet-x.y.z-android-arm64.apk` 并侧载安装
+2. 首次启动按引导授予「所有文件访问」权限，用于读取 `/sdcard` 上的文档
+3. 从文件管理器选择 Oblet 打开 `.md`，或使用欢迎页的新建 / 打开 / 最近打开
 
-APK 使用 CI 现场生成的 debug 密钥签名（侧载分发性质），安装时系统提示「未知来源」属正常；覆盖安装若提示签名不一致，请先卸载旧版（编辑内容在你的 md 文件里，不受影响）。
+APK 使用 CI 现场生成的 debug 密钥签名。覆盖安装若提示签名不一致，请先卸载旧版；文档内容不受影响。
 
 ### 自行构建
 
@@ -95,7 +92,7 @@ npm run tauri android dev                          # 模拟器/真机热重载
 npm run tauri android build -- --apk --target aarch64   # 产出 arm64 APK
 ```
 
-需要 Node.js 18+ 与 Rust 工具链（Tauri 2 前置条件见官方文档）。
+需要 Node.js 24（与 CI 一致）及 Rust 工具链，Tauri 2 前置条件见官方文档。
 
 ## 快捷键（桌面端）
 
