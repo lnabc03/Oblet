@@ -388,7 +388,7 @@ pub fn create_note(dir: String, file_name: String, overwrite: bool) -> Result<St
     Ok(dest.to_string_lossy().into_owned())
 }
 
-/// 起始页"笔记新建至"默认值：Windows 桌面目录 / 其余平台 Documents 目录（安卓 D6 建议默认其下 Oblet 子目录）
+/// 起始页"新建 Markdown 文件"默认值：Windows 桌面目录 / 其余平台 Documents 目录
 #[tauri::command]
 #[allow(unused_variables)]
 pub fn get_desktop_dir(app: tauri::AppHandle) -> Result<String, String> {
@@ -402,7 +402,7 @@ pub fn get_desktop_dir(app: tauri::AppHandle) -> Result<String, String> {
     // 已持 MANAGE_EXTERNAL_STORAGE（D0 路线 B），直接给公共 Documents
     #[cfg(target_os = "android")]
     {
-        Ok("/storage/emulated/0/Documents".to_string())
+        Ok("/sdcard/Documents".to_string())
     }
     #[cfg(all(not(target_os = "windows"), not(target_os = "android")))]
     {

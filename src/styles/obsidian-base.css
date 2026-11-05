@@ -659,6 +659,14 @@ body.ob-narrow-optimized .tab-arrow-right {
   border-top: 1px solid var(--ob-border);
   padding: 6px 12px;
 }
+/* Crepe 行内代码是 inline-block，长路径会作为整体越过固定布局的单元格。
+ * 仅在表格内恢复普通行内盒，并允许在任意字符间断行。 */
+.markdown-rendered .ProseMirror :where(th, td) code {
+  display: inline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .markdown-rendered .ProseMirror tr > :first-child {
   border-left: none;
 }

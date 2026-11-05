@@ -112,7 +112,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <label class="check-row">
           <span>窄屏优化</span>
           <select id="narrow-screen-select">
-            <option value="auto">自动（窄屏时）</option>
+            <option value="auto">自动</option>
             <option value="on">始终开启</option>
             <option value="off">始终关闭</option>
           </select>
@@ -149,7 +149,7 @@ export async function initSettingsUI(container: HTMLElement) {
         <h3>路径</h3>
         <div class="typo-grid">
           <label>文件新建至</label>
-          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "/storage/emulated/0/Documents" : "默认为用户桌面"}">
+          <input type="text" data-typo="new_note_dir" class="vault-input" placeholder="${IS_MOBILE ? "/sdcard/Documents" : "默认为用户桌面"}">
           <label>文件另存至</label>
           <input type="text" data-typo="vault_dir" class="vault-input" placeholder="">
           <label>最近打开</label>

@@ -155,7 +155,7 @@ export async function boot() {
   let tabCallbacks: Parameters<typeof switchToTab>[3] | null = null;
 
   // 新建 Markdown 文件统一入口（起始页按钮 + 右键「新建 Markdown 文档」shell 命令共用）。
-  // dir 非空 = 右键传入的目标目录（%V）；为空 = 走设置 new_note_dir → 桌面兜底。
+  // dir 非空 = 右键传入的目标目录（%V）；为空 = 走设置 new_note_dir → 平台默认目录兜底。
   async function createNoteIn(dir: string) {
     const name = await promptDialog("新建 Markdown 文件", "输入文件名（不含 .md）", "创建");
     if (!name) return;
@@ -163,7 +163,7 @@ export async function boot() {
     const clean = name.replace(/[<>:"/\\|?*]/g, "").trimEnd();
     if (!clean) { notify("文件名不能为空", "warn"); return; }
     const fileName = clean.endsWith(".md") ? clean : `${clean}.md`;
-    // 目标目录：右键传入目录优先 → 设置 new_note_dir（经规整管线）→ 桌面兜底
+    // 目标目录：右键传入目录优先 → 设置 new_note_dir（经规整管线）→ 平台默认目录兜底
     let targetDir = dir ? sanitizePathInput(dir) : "";
     if (!targetDir) {
       const raw = currentEditorSettings().new_note_dir?.trim();
