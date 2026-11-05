@@ -11,7 +11,8 @@
     "test:html": "node scripts/test-html-lexer.mjs && node scripts/test-html.mjs",
     "tauri": "tauri",
     "pack": "node .github/pack-zip.mjs",
-    "audit": "node .github/audit-zip.mjs"
+    "audit": "node .github/audit-zip.mjs",
+    "stage:latest": "node .github/stage-latest.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
