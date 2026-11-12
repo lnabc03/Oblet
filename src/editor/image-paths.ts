@@ -75,14 +75,26 @@ export function isAbsoluteLocalSrc(src: string): boolean {
   return ABS_PATH_RE.test(decodeMaybe(src));
 }
 
-/** 文档中是否存在本地绝对路径图片（块级 image-block + 行内 image），右键菜单置灰用 */
-export function docHasAbsoluteImages(doc: PMNode): boolean {
+/** 是否需要收纳进当前文档的 assets/：本地绝对路径，或尚未位于 assets/ 内的相对路径。
+ *  远程/data/blob 等由 resolveLocalAbs 排除；相对路径与渲染侧一样按文档目录解析。
+ *  绝对路径即使已在 assets/ 内也保留转换入口，把不可移植的绝对引用改为相对引用。 */
+export function isLocalizableImageSrc(src: string, docPath: string): boolean {
+  if (isAbsoluteLocalSrc(src)) return true;
+  const abs = resolveLocalAbs(src, docPath);
+  if (!abs) return false;
+  const assetsDir = joinResolve(dirnameOf(docPath), "assets");
+  const assetsPrefix = `${pathKey(assetsDir).replace(/\/+$/, "")}/`;
+  return !pathKey(abs).startsWith(assetsPrefix);
+}
+
+/** 文档中是否存在可收纳进 assets/ 的图片（块级 + 行内），右键菜单置灰用 */
+export function docHasLocalizableImages(doc: PMNode, docPath: string): boolean {
   let found = false;
   doc.descendants((node) => {
     if (found) return false;
     if (
       (node.type.name === "image-block" || node.type.name === "image") &&
-      isAbsoluteLocalSrc((node.attrs.src as string) ?? "")
+      isLocalizableImageSrc((node.attrs.src as string) ?? "", docPath)
     ) {
       found = true;
       return false;

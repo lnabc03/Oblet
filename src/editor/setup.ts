@@ -65,8 +65,7 @@ import { imageBlockView, imagePanelEscGuard, setImageEditDocPath } from "./image
 import { imageBlockSchema } from "@milkdown/components/image-block";
 import {
   baseNameOf,
-  decodeMaybe,
-  isAbsoluteLocalSrc,
+  isLocalizableImageSrc,
   pathKey,
   resolveLocalAbs,
 } from "./image-paths";
@@ -1071,8 +1070,9 @@ export async function boot() {
     }
   };
   // v0.7.0 右键「转换图片为相对路径（assets/）」：扫描文档内本地绝对路径图片
-  // （块级+行内），Rust 批量复制进 assets/（同内容复用、异内容 -1 后缀、逐源去重），
-  // 成功的引用单事务改写 src（可 Ctrl+Z 撤销、自动保存自然生效），失败的保留原样并汇总
+  // 及 assets/ 外的相对路径图片（块级+行内），统一按文档目录解析为绝对源路径后交给
+  // Rust 复制（同内容复用、异内容 -1 后缀、逐源去重）。成功的引用单事务改写 src
+  // （可 Ctrl+Z 撤销、自动保存自然生效），失败的保留原样并汇总
   const localizeImages = async () => {
     const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
     if (!view) return;
@@ -1081,9 +1081,10 @@ export async function boot() {
       const src = (node.attrs.src as string) ?? "";
       if (
         (node.type.name === "image-block" || node.type.name === "image") &&
-        isAbsoluteLocalSrc(src)
+        isLocalizableImageSrc(src, path)
       ) {
-        targets.push({ pos, src: decodeMaybe(src) });
+        const abs = resolveLocalAbs(src, path);
+        if (abs) targets.push({ pos, src: abs });
       }
       return true;
     });
@@ -1137,6 +1138,7 @@ export async function boot() {
     rename: () => void doRename(),
     // v0.7.0 转换图片为相对路径（assets/）
     localizeImages: () => void localizeImages(),
+    getDocPath: () => path,
   });
   // Ctrl+P 接管系统打印：统一走 doPrint（浅色 swap + 代码块全挂载），可改键。
   // 移动端不注册（D9 初版隐藏导出 PDF）

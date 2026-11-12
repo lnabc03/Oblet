@@ -8,7 +8,7 @@ import { AllSelection, TextSelection } from "@milkdown/prose/state";
 import type { EditorView } from "@milkdown/prose/view";
 import { toggleCallout } from "./toolbar";
 import { hasFrontmatter, insertFrontmatter } from "./frontmatter";
-import { docHasAbsoluteImages } from "./image-paths";
+import { docHasLocalizableImages } from "./image-paths";
 import { notify, promptDialog } from "../notify";
 import { COARSE_POINTER, IS_MOBILE } from "../platform";
 import { getHtmlInlineSource, updateHtmlInlineSource } from "./html";
@@ -19,6 +19,7 @@ let exportHandlers: {
   vault?: () => void;
   rename?: () => void;
   localizeImages?: () => void;
+  getDocPath?: () => string;
 } = {};
 export function setExportHandlers(h: typeof exportHandlers) {
   exportHandlers = h;
@@ -172,12 +173,13 @@ const ITEMS: Item[] = [
     enabled: () => !!exportHandlers.rename,
   },
   {
-    // v0.7.0：本地绝对路径图片批量复制进 assets/ 并改写为相对引用
-    // （同步工作区到其他设备后绝对路径失效；常显，无可转换图片时置灰）
+    // v0.7.0：本地绝对路径及 assets/ 外的相对路径图片批量复制进 assets/
+    // （同步工作区到其他设备后外部路径易失效；常显，无可转换图片时置灰）
     label: "转换图片为相对路径（assets/）",
     run: () => exportHandlers.localizeImages?.(),
     enabled: (v) =>
-      !!exportHandlers.localizeImages && docHasAbsoluteImages(v.state.doc),
+      !!exportHandlers.localizeImages &&
+      docHasLocalizableImages(v.state.doc, exportHandlers.getDocPath?.() ?? ""),
   },
 ];
 
